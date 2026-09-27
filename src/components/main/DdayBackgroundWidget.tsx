@@ -4,10 +4,11 @@ import React, { useEffect, useState } from 'react';
 import { WidgetConf, useMainStore } from '@/lib/mainStore';
 import { useAuth } from '@/lib/auth';
 import { useFonts } from '@/lib/fontStore';
-import { putBlob, BlobImg } from '@/lib/blobStore';
+import { putBlob, useBlobUrl } from '@/lib/blobStore';
 import { Modal } from '@/components/ui/Modal';
 import { KStep } from '@/components/ui/Kit';
 import { ColorField } from '@/components/ui/ColorField';
+import { CropEditor, CroppedBlobImg, CropValue } from '@/components/ui/CropEditor';
 import { DdayEditor } from '@/components/main/widgetEditors';
 import { useToast } from '@/components/ui/Toast';
 
@@ -31,11 +32,15 @@ export function DdayBackgroundWidget({ conf }: { conf: WidgetConf }) {
   const { familyOf } = useFonts();
   const toast = useToast();
   const [open, setOpen] = useState(false);
+  const [cropOpen, setCropOpen] = useState(false);
 
   const items = (conf.settings.items as DdayItem[]) ?? [];
   const dFontId = (conf.settings.fontId as string | undefined) ?? 'serif';
   const dColor = conf.settings.color as string | undefined;
   const bgImage = conf.settings.bgImage as string | undefined;
+  const bgCrop = conf.settings.bgCrop as CropValue | undefined;
+  const bgUrl = useBlobUrl(bgImage);
+  const cropRatio = (conf.w ?? 240) / (conf.h ?? 180);
   const overlayColor = (conf.settings.overlayColor as string | undefined) ?? '#000000';
   const overlayOpacity = Math.max(0, Math.min(100, (conf.settings.overlayOpacity as number | undefined) ?? 0));
   const inputId = `dday-bg-${conf.id}`;
@@ -59,7 +64,7 @@ export function DdayBackgroundWidget({ conf }: { conf: WidgetConf }) {
       }}>
       {bgImage && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
-          <BlobImg fileRef={bgImage} ph="" />
+          <CroppedBlobImg fileRef={bgImage} crop={bgCrop} ph="" />
           {overlayOpacity > 0 && (
             <div style={{ position: 'absolute', inset: 0, background: overlayColor, opacity: overlayOpacity / 100 }} />
           )}
@@ -82,7 +87,7 @@ export function DdayBackgroundWidget({ conf }: { conf: WidgetConf }) {
       </div>
 
       <Modal open={open} onClose={() => setOpen(false)} title="D-day 관리"
-        desc="D-day 내용과 배경 이미지 · 오버레이를 함께 설정할 수 있습니다"
+        desc="D-day 내용과 배경 이미지 · 크롭 · 오버레이를 함께 설정할 수 있습니다"
         actions={<button className="btn btn-dark" onClick={() => setOpen(false)}>CLOSE</button>}>
         {open && (
           <div style={{ display: 'grid', gap: 16 }}>
@@ -97,7 +102,7 @@ export function DdayBackgroundWidget({ conf }: { conf: WidgetConf }) {
                   if (!f) return;
                   try {
                     const ref = await putBlob(f);
-                    setMeta({ bgImage: ref });
+                    setMeta({ bgImage: ref, bgCrop: { x: 0, y: 0, scale: 1 } });
                     toast('D-DAY 배경 이미지가 저장되었습니다');
                   } catch {
                     toast('배경 이미지 업로드에 실패했습니다');
@@ -108,7 +113,10 @@ export function DdayBackgroundWidget({ conf }: { conf: WidgetConf }) {
                   {bgImage ? '이미지 교체' : '이미지 업로드'}
                 </button>
                 {bgImage && (
-                  <button className="btn btn-ghost" onClick={() => setMeta({ bgImage: undefined })}>이미지 제거</button>
+                  <>
+                    <button className="btn btn-ghost" onClick={() => setCropOpen(true)}>위치 · 배율 조정</button>
+                    <button className="btn btn-ghost" onClick={() => setMeta({ bgImage: undefined, bgCrop: undefined })}>이미지 제거</button>
+                  </>
                 )}
               </div>
 
@@ -119,11 +127,26 @@ export function DdayBackgroundWidget({ conf }: { conf: WidgetConf }) {
                 <KStep value={overlayOpacity} min={0} max={100} step={5} suffix="%"
                   onChange={v => setMeta({ overlayOpacity: v })} />
               </div>
-              <p className="hint" style={{ margin: 0 }}>이미지는 위젯을 꽉 채우며(cover), 오버레이는 0%이면 표시되지 않습니다.</p>
+              <p className="hint" style={{ margin: 0 }}>이미지는 현재 위젯 비율에 맞춰 채우며, 위치 · 배율 조정에서 드래그와 1~3배 확대가 가능합니다. 오버레이는 0%이면 표시되지 않습니다.</p>
             </div>
           </div>
         )}
       </Modal>
+
+      {bgUrl && (
+        <CropEditor
+          open={cropOpen}
+          src={bgUrl}
+          aspect={cropRatio}
+          aspectLabel="현재 D-DAY 위젯 비율"
+          initial={bgCrop}
+          onClose={() => setCropOpen(false)}
+          onApply={crop => {
+            setMeta({ bgCrop: crop });
+            setCropOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
