@@ -4,7 +4,7 @@ import React, { Suspense, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import {
-  useLocalList, BOARD_SEED, Post, fmtDate,
+  useLocalList, BOARD_SEED, Post, fmtPostDate,
   CommentRow, COMMENT_KEY, COMMENT_SEED, commentsFor,
 } from '@/lib/postStore';
 import {
@@ -136,7 +136,7 @@ function BoardInner() {
                   {chat && <div style={{ fontSize: 11.5, color: 'var(--faint)', marginBottom: 3 }}>{chat.left.name} ↔ {chat.right.name}</div>}
                   {canRead(p) && first && <div style={{ fontSize: 12, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{first.text}</div>}
                 </div>
-                <span style={{ fontSize: 11, color: 'var(--faint)', whiteSpace: 'nowrap' }}>{fmtDate(p.date)}</span>
+                <span style={{ fontSize: 11, color: 'var(--faint)', whiteSpace: 'nowrap' }}>{fmtPostDate(p)}</span>
               </div>
             );
           })}
@@ -152,7 +152,7 @@ function BoardInner() {
                 <div className="bt-body">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{postBadge(p)}{p.fold && <span style={boardBadgeStyle(boardSet.system[2])}>{boardSet.system[2].label}</span>}</div>
                   <div className="bt-title">{canRead(p) ? <>{p.secret && '🔒 '}{p.title}</> : '🔒 비밀글입니다'}{canRead(p) && cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}</div>
-                  <div className="bt-meta">{display.showAuthor ? `${p.author} · ${fmtDate(p.date)}` : fmtDate(p.date)}</div>
+                  <div className="bt-meta">{display.showAuthor ? `${p.author} · ${fmtPostDate(p)}` : fmtPostDate(p)}</div>
                 </div>
               </div>
             );
@@ -169,7 +169,7 @@ function BoardInner() {
                 {canRead(p) && (p.tags ?? []).length > 0 && <span className="tags">{(p.tags ?? []).map(t => <i key={t}>#{t}</i>)}</span>}
               </div>
               {display.showAuthor && <span className="who">{p.author}</span>}
-              <span className="dt">{fmtDate(p.date)}</span>
+              <span className="dt">{fmtPostDate(p)}</span>
             </div>
           ))}
           {pageList.length === 0 && <div style={{ padding: 36, textAlign: 'center', fontSize: 12.5, color: 'var(--faint)' }}>게시글이 없습니다</div>}
