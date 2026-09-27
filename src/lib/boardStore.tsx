@@ -152,8 +152,22 @@ export function useBoards(): {
         if (raw) setSt(JSON.parse(raw));
       } catch { /* 무시 */ }
     };
+    const skin = (e: Event) => {
+      const d = (e as CustomEvent<{ id?: string; skin?: BoardSkin }>).detail;
+      if (!d?.id || !d.skin || !['list', 'ticket', 'chat'].includes(d.skin)) return;
+      setSt(s => {
+        const n = s.map(b => (b.id === d.id ? { ...b, skin: d.skin! } : b));
+        try { setSetting(BOARDS_KEY, n); } catch { /* 무시 */ }
+        setTimeout(() => window.dispatchEvent(new Event('ohome-boards')), 0);
+        return n;
+      });
+    };
     window.addEventListener('ohome-boards', sync);
-    return () => window.removeEventListener('ohome-boards', sync);
+    window.addEventListener('ohome-board-skin', skin);
+    return () => {
+      window.removeEventListener('ohome-boards', sync);
+      window.removeEventListener('ohome-board-skin', skin);
+    };
   }, []);
   const setBoards = useCallback((next: Board[]) => {
     setSt(next);
