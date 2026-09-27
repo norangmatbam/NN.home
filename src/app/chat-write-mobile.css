@@ -1,0 +1,102 @@
+/* 대화형 게시판 글쓰기 — 모바일 전용 레이아웃 보정 */
+@media (max-width: 620px) {
+  .write-grid .panel:has(input[type="date"]) {
+    min-width: 0;
+    overflow: hidden;
+    padding: 18px !important;
+  }
+
+  .write-grid .panel:has(input[type="date"]) .form-row {
+    min-width: 0;
+  }
+
+  .write-grid .panel:has(input[type="date"]) .form-row:has(input[type="date"]) {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 7px !important;
+    align-items: stretch !important;
+  }
+
+  .write-grid .panel:has(input[type="date"]) .form-row:has(input[type="date"]) .k-label {
+    width: auto !important;
+  }
+
+  .write-grid .panel:has(input[type="date"]) .form-row:has(input[type="date"]) input[type="date"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .write-grid .panel:has(input[type="date"]) div[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    min-width: 0 !important;
+  }
+
+  .write-grid .panel:has(input[type="date"]) div[style*="grid-template-columns: 54px 1fr"] {
+    grid-template-columns: 48px minmax(0, 1fr) !important;
+    gap: 10px !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .write-grid .panel:has(input[type="date"]) div[style*="grid-template-columns: 54px 1fr"] > div:nth-child(2) {
+    min-width: 0 !important;
+  }
+
+  .write-grid .panel:has(input[type="date"]) div[style*="grid-template-columns: 54px 1fr"] input:not([type="file"]) {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .write-grid .panel:has(input[type="date"]) div:has(> input[type="file"]) {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+  }
+
+  .write-grid .panel:has(input[type="date"]) div:has(> input[type="file"]) .btn {
+    max-width: 100% !important;
+    white-space: nowrap !important;
+  }
+
+  .write-grid .panel:has(input[type="date"]) div[style*="border: 1px solid var(--line)"] {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .write-grid .panel:has(input[type="date"]) div[style*="border: 1px solid var(--line)"] > div:first-child {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 7px !important;
+    min-width: 0 !important;
+  }
+
+  .write-grid .panel:has(input[type="date"]) div[style*="border: 1px solid var(--line)"] .mini-seg {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+  }
+
+  .write-grid .panel:has(input[type="date"]) div[style*="border: 1px solid var(--line)"] .mini-seg button {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .write-grid .panel:has(input[type="date"]) textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+}
