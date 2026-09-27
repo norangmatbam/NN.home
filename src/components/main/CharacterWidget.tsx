@@ -118,7 +118,13 @@ export function CharacterWidget({ conf }: { conf: WidgetConf }) {
         .character-widget-image img{width:100%;height:100%;object-fit:cover}
         .character-widget-shade{
           position:absolute;inset:0;
-          background:linear-gradient(to top,rgba(8,10,14,.78) 0%,rgba(8,10,14,.2) 54%,rgba(8,10,14,0) 78%);
+          background:linear-gradient(
+            to top,
+            rgba(8,10,14,.78) 0%,
+            rgba(8,10,14,.32) 24%,
+            rgba(8,10,14,.12) 40%,
+            rgba(8,10,14,0) 50%
+          );
         }
         .character-widget-copy{
           position:absolute;left:16px;right:16px;bottom:14px;
@@ -148,7 +154,13 @@ export function CharacterWidget({ conf }: { conf: WidgetConf }) {
           .character-widget-name{font-size:17px;line-height:1.2}
           .character-widget-sub{margin-top:4px;font-size:10px;line-height:1.35;-webkit-line-clamp:2}
           .character-widget-shade{
-            background:linear-gradient(to top,rgba(8,10,14,.84) 0%,rgba(8,10,14,.24) 60%,rgba(8,10,14,0) 84%);
+            background:linear-gradient(
+              to top,
+              rgba(8,10,14,.84) 0%,
+              rgba(8,10,14,.34) 24%,
+              rgba(8,10,14,.14) 40%,
+              rgba(8,10,14,0) 50%
+            );
           }
         }
       `}</style>
