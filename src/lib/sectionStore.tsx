@@ -154,18 +154,29 @@ export function useSections(): {
 /**
  * 지금 보고 있는 섹션 (v2.0) — 주소의 `?s=`를 읽는다. 없으면 기본 섹션.
  *
- * 지워진 섹션의 주소로 들어오면 기본 섹션으로 돌린다 — 빈 화면 대신 원래 페이지가 나오게.
+ * 등록된 id/slug면 그 섹션을 쓰고, 주소에 `?s=`가 있는데 등록된 섹션이 아니어도
+ * 기본 섹션으로 떨어뜨리지 않는다. 메뉴에서 주소만 먼저 만든 경우 기본 갤러리 글이 섞여
+ * 보이는 것이 더 위험하므로, 그 키 자체를 임시 독립 섹션 id로 취급한다.
  * `useSearchParams`는 Suspense 경계가 필요하므로 쓰는 쪽 페이지를 감싸 준다(자관 수정과 같은 방식).
  */
 export function useSectionParam(kind: SectionKind): { id: string; name: string; items: SectionItem[] } {
   const sp = useSearchParams();
   const { list } = useSections();
   const items = list(kind);
-  const wantRaw = sp.get('s') ?? MAIN_SEC;
-  const want = wantRaw === MAIN_SEC ? MAIN_SEC : cleanSlug(wantRaw);
-  // id와 별명(slug) 둘 다 허용한다. slug는 저장 규칙과 같은 방식으로 정규화해 비교한다.
-  const found = items.find(s => s.id === wantRaw || cleanSlug(s.slug ?? '') === want) ?? items[0];
-  return { id: found.id, name: found.name, items };
+  const rawParam = sp.get('s');
+  if (!rawParam) {
+    const main = items[0];
+    return { id: main.id, name: main.name, items };
+  }
+
+  const want = cleanSlug(rawParam);
+  const found = items.find(s => s.id === rawParam || cleanSlug(s.slug ?? '') === want);
+  if (found) return { id: found.id, name: found.name, items };
+
+  // 등록되지 않은 ?s= 값도 기본 목록을 보여 주지 않는다. 새 글을 쓰면 이 id로 secId가 찍혀
+  // 같은 주소에서만 보이는 독립 목록이 된다. 이름은 URL 키를 임시 표시명으로 쓴다.
+  const virtualId = want || rawParam;
+  return { id: virtualId, name: virtualId, items };
 }
 
 /** 상세·작성 페이지의 큰 글씨 + 큰 글씨를 눌렀을 때 돌아갈 주소 (v2.0 사용자 제보 —
