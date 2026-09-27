@@ -49,6 +49,7 @@ function WriteInner() {
   const [foldLabel, setFoldLabel] = useState('');
 
   // 대화형 게시판 전용
+  const [chatDate, setChatDate] = useState('');
   const [leftName, setLeftName] = useState('왼쪽');
   const [rightName, setRightName] = useState('오른쪽');
   const [leftAvatar, setLeftAvatar] = useState<string | undefined>();
@@ -101,6 +102,7 @@ function WriteInner() {
     setTagsText((p.tags ?? []).join(', '));
     setThumbSrc(p.thumbSrc); setThumbCrop(p.thumbCrop);
     if (p.chat) {
+      setChatDate(p.chatDate ?? '');
       setLeftName(p.chat.left.name); setLeftAvatar(p.chat.left.avatar);
       setRightName(p.chat.right.name); setRightAvatar(p.chat.right.avatar);
       setMessages(p.chat.messages.length ? p.chat.messages : [emptyMessage()]);
@@ -127,6 +129,7 @@ function WriteInner() {
       mode: (isChat ? 'html' : (writeMode === 'md' ? 'md' : 'html')) as Post['mode'],
       authored: (!isChat && writeMode === 'editor' ? 'editor' : undefined) as Post['authored'],
       category, secret,
+      chatDate: isChat && chatDate ? chatDate : undefined,
       tags: parseTags(tagsText),
       fold: foldType === 'none' ? null : { type: foldType, label: foldType === 'custom' ? foldLabel : undefined },
       thumbSrc: isChat ? undefined : thumbSrc,
@@ -192,6 +195,11 @@ function WriteInner() {
 
           {isChat ? (
             <div style={{ display: 'grid', gap: 18 }}>
+              <div className="form-row" style={{ marginTop: -4 }}>
+                <label className="k-label" style={{ width: 60 }}>대화 날짜</label>
+                <KInput type="date" value={chatDate} onChange={e => setChatDate(e.target.value)} style={{ width: 170 }} />
+                <span style={{ fontSize: 10.5, color: 'var(--faint)' }}>비워두면 작성일 표시</span>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <Participant side="left" /><Participant side="right" />
               </div>
@@ -259,7 +267,7 @@ function WriteInner() {
       </div>
 
       <ConfirmModal open={askRich !== null} title="여기서 편집하면 일부 태그가 정리됩니다" body="에디터는 굵게·목록·제목·이미지 같은 기본 서식만 다룹니다. 표·div·style·class 등은 편집하는 순간 정리되며 되돌릴 수 없습니다. HTML을 그대로 두려면 취소하세요." onClose={() => setAskRich(null)} buttons={[{ label: 'CANCEL', kind: 'ghost', onClick: () => setAskRich(null) }, { label: '계속', kind: 'accent', onClick: () => { askRich?.(); setAskRich(null); } }]} />
-      {cropOpen && thumbSrc && <CropEditor open src={thumbSrc} aspect="16:9" initial={thumbCrop} onClose={() => setCropOpen(false)} onApply={c => { setThumbCrop(c); setCropOpen(false); }} />}
+      {cropOpen && thumbSrc && <CropEditor open src={thumbSrc} aspect="16:9" initial={thumbCrop} onClose={() => setCropOpen(false)} onApply={c => { setThumbCrop(c); setCropOpen(false); }} />
     </section>
   );
 }
