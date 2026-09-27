@@ -141,7 +141,7 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
     window.addEventListener('pointercancel', up);
   };
 
-  // 리사이즈 — 실제 보이는 모서리는 작게, 터치 판정 영역은 40px로 크게 잡는다.
+  // 리사이즈 — 실제 보이는 모서리는 작게, 터치 판정 영역은 크게 잡는다.
   const onResizeDown = (e: React.PointerEvent) => {
     if (!editOn) return;
     e.stopPropagation(); e.preventDefault();
@@ -256,25 +256,30 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
           },
           { label: '그대로 두기', kind: 'ghost', onClick: () => setCenterAsk(null) },
         ]} />
-      <span
-        className="rs"
-        data-tip="드래그로 크기 조절"
-        onPointerDown={onResizeDown}
-        style={{
-          position: 'absolute', right: -8, bottom: -8, width: 42, height: 42, zIndex: 45,
-          cursor: 'nwse-resize', touchAction: 'none', background: 'transparent',
-          display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', padding: 8,
-        }}>
-        <i style={{
-          width: 13, height: 13, display: 'block', pointerEvents: 'none',
-          borderRight: '2px solid rgba(28,31,36,.72)', borderBottom: '2px solid rgba(28,31,36,.72)',
-          borderRadius: '0 0 3px 0',
-        }} />
-      </span>
-      {rotatable && (
-        <span className="rr" data-tip="드래그로 기울기 · 더블클릭 = 초기화"
-          onPointerDown={onRotDown}
-          onDoubleClick={() => updateWidget(conf.id, { rot: undefined })} />
+      {editOn && (
+        <>
+          <span
+            className="rs"
+            data-tip="드래그로 크기 조절"
+            onPointerDown={onResizeDown}
+            style={{
+              position: 'absolute', right: -8, bottom: -8, width: 42, height: 42, zIndex: 45,
+              cursor: 'nwse-resize', touchAction: 'none',
+              background: 'transparent', border: 0, boxShadow: 'none', outline: 0,
+              display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', padding: 8,
+            }}>
+            <i style={{
+              width: 13, height: 13, display: 'block', pointerEvents: 'none',
+              borderRight: '2px solid rgba(28,31,36,.72)', borderBottom: '2px solid rgba(28,31,36,.72)',
+              borderRadius: '0 0 3px 0', boxShadow: 'none', background: 'transparent',
+            }} />
+          </span>
+          {rotatable && (
+            <span className="rr" data-tip="드래그로 기울기 · 더블클릭 = 초기화"
+              onPointerDown={onRotDown}
+              onDoubleClick={() => updateWidget(conf.id, { rot: undefined })} />
+          )}
+        </>
       )}
     </div>
   );
