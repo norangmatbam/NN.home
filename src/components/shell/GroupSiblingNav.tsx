@@ -36,7 +36,7 @@ export function GroupSiblingNav() {
       { loggedIn: !!user, isAdmin, id: user?.id },
     );
 
-    // 정확한 목록 주소가 같은 그룹을 우선 찾는다.
+    // 정확한 목록 주소가 같은 그룹을 찾는다. 항목 종류는 제한하지 않는다.
     const group = menu.find(m => m.children?.some(c => c.href === currentHref));
     if (!group?.children || group.children.length <= 1) return [];
     return group.children;
@@ -45,19 +45,21 @@ export function GroupSiblingNav() {
   if (siblings.length === 0) return null;
 
   return (
-    <nav className="board-switch-nav group-sibling-nav" aria-label="같은 카테고리 메뉴">
-      {siblings.map(item => (
-        <button
-          key={item.href}
-          className={item.href === currentHref ? 'on' : ''}
-          onClick={() => {
-            if (/^https?:\/\//.test(item.href)) window.open(item.href, '_blank');
-            else router.push(item.href);
-          }}
-        >
-          {item.label}
-        </button>
-      ))}
-    </nav>
+    <div className="group-sibling-shell">
+      <nav className="board-switch-nav group-sibling-nav" aria-label="같은 카테고리 메뉴">
+        {siblings.map(item => (
+          <button
+            key={item.href}
+            className={item.href === currentHref ? 'on' : ''}
+            onClick={() => {
+              if (/^https?:\/\//.test(item.href)) window.open(item.href, '_blank');
+              else router.push(item.href);
+            }}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+    </div>
   );
 }
