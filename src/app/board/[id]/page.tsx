@@ -6,7 +6,7 @@ import { useHrefBlock } from '@/components/shell/MenuGuard';
 import { extraBoardHref } from '@/lib/menuStore';
 import { useAuth } from '@/lib/auth';
 import {
-  useLocalList, BOARD_SEED, Post, Comment, newId, fmtDate,
+  useLocalList, BOARD_SEED, Post, Comment, newId, fmtDate, fmtPostDate,
   CommentRow, COMMENT_KEY, COMMENT_SEED, commentsFor,
 } from '@/lib/postStore';
 import { useBoards, boardHref, MAIN_BOARD_ID, BoardPerm } from '@/lib/boardStore';
@@ -109,7 +109,7 @@ export default function BoardDetailPage() {
     <section className="page">
       <div className="page-head">
         <PageTitle href={boardHref(board.id)}>{boardTitle}</PageTitle>
-        <p>{post.notice ? '공지' : post.category}{display.showAuthor && <> · {post.author}</>}{' · '}{fmtDate(post.date)}</p>
+        <p>{post.notice ? '공지' : post.category}{display.showAuthor && <> · {post.author}</>}{' · '}{fmtPostDate(post)}</p>
         <div className="head-actions">
           {isAuthor && <button className="btn btn-dark" onClick={() => router.push(`/board/write?edit=${post.id}`)}>EDIT</button>}
           {canManage && <button className="btn btn-dark" onClick={() => setDelAsk(true)}>DELETE</button>}
@@ -119,7 +119,7 @@ export default function BoardDetailPage() {
       <div className="panel" style={{ padding: '26px 28px' }}>
         <h2 style={{ fontSize: 19, marginBottom: 4 }}>{post.secret && '🔒 '}{post.title}</h2>
         <p style={{ fontSize: 11, color: 'var(--faint)', marginBottom: 18 }}>
-          {display.showAuthor && <>{post.author} · </>}{fmtDate(post.date)} · {post.chat ? 'CHAT' : post.mode.toUpperCase()}
+          {display.showAuthor && <>{post.author} · </>}{fmtPostDate(post)} · {post.chat ? 'CHAT' : post.mode.toUpperCase()}
           {(post.tags ?? []).map(t => <span key={t} style={{ marginLeft: 7, color: 'color-mix(in srgb,var(--accent) 65%,var(--faint))' }}>#{t}</span>)}
         </p>
 
