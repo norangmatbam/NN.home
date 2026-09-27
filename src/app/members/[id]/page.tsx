@@ -19,14 +19,17 @@ import { PageTitle } from '@/components/ui/PageText';
 import { getSetting } from '@/lib/settingStore';
 import { useMembers } from '@/lib/members';
 import { isServerMode } from '@/lib/backend';
+import { setMemberAdminRole } from '@/lib/supabase';
 import { Pager } from '@/components/ui/Kit';
+import { useToast } from '@/components/ui/Toast';
 
 const PER = 15;
 
 export default function MemberDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { isAdmin } = useAuth();
+  const toast = useToast();
+  const { isAdmin, user } = useAuth();
   const [posts] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
   const [roads] = useLocalList<RoadItem>('ohome.road.v1', ROAD_SEED);
   const [guestEntries] = useLocalList<GuestEntry>('ohome.guest.v1', GUEST_SEED);
@@ -39,6 +42,7 @@ export default function MemberDetailPage() {
   const [member, setMember] = useState<User | null | undefined>(undefined); // undefined = 로딩
   const [tags, setTags] = useState<string[]>([]);
   const [page, setPage] = useState(1);
+  const [roleBusy, setRoleBusy] = useState(false);
   useEffect(() => {
     // 서버 모드에서는 가입 회원이 DB(profiles)에 있다 — 로컬 계정 목록에만 물으면 못 찾는다
     if (isServerMode()) {
@@ -68,6 +72,24 @@ export default function MemberDetailPage() {
     );
   }
 
+  const isSelf = user?.id === member.id;
+  const changeRole = async (nextRole: 'admin' | 'member') => {
+    if (roleBusy) return;
+    if (isSelf && nextRole === 'member') {
+      toast('본인의 관리자 권한은 해제할 수 없습니다');
+      return;
+    }
+    setRoleBusy(true);
+    const r = await setMemberAdminRole(member.id, nextRole);
+    setRoleBusy(false);
+    if (!r.ok) {
+      toast(r.error ?? '권한을 변경하지 못했습니다');
+      return;
+    }
+    setMember(cur => cur ? { ...cur, role: nextRole } : cur);
+    toast(nextRole === 'admin' ? `${member.nickname}님에게 관리자 권한을 부여했습니다` : `${member.nickname}님의 관리자 권한을 해제했습니다`);
+  };
+
   // 연동된 캐릭터 — 권한(play/edit)이 부여된 캐릭터
   const linked = chars
     .map(c => ({ c, level: charGrant(c, member.id) }))
@@ -93,7 +115,7 @@ export default function MemberDetailPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {avatarSrc && <img src={avatarSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
           </div>
-          <div style={{ minWidth: 0 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <b style={{ fontSize: 18 }}>{member.nickname}</b>
               <span className="pill">{member.role === 'admin' ? '관리자' : '회원'}</span>
@@ -103,6 +125,26 @@ export default function MemberDetailPage() {
               {member.id}{member.email ? ` · ${member.email}` : ' · 이메일 미등록'}
             </div>
           </div>
+        </div>
+
+        {/* 관리자 권한 — 본인 강등 금지 */}
+        <div className="set-row" style={{ marginTop: 18, borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)' }}>
+          <div className="l">
+            <b>관리자 권한</b>
+            <small>{isSelf ? '현재 로그인한 본인의 관리자 권한은 해제할 수 없습니다' : '관리자는 환경설정과 관리자 전용 기능을 사용할 수 있습니다'}</small>
+          </div>
+          {member.role === 'admin' ? (
+            <button className="btn btn-ghost"
+              disabled={roleBusy || isSelf}
+              style={{ opacity: roleBusy || isSelf ? 0.45 : 1 }}
+              onClick={() => void changeRole('member')}>
+              {isSelf ? '본인 권한 해제 불가' : roleBusy ? '변경 중…' : '관리자 권한 해제'}
+            </button>
+          ) : (
+            <button className="btn btn-dark" disabled={roleBusy} onClick={() => void changeRole('admin')}>
+              {roleBusy ? '변경 중…' : '관리자 권한 부여'}
+            </button>
+          )}
         </div>
 
         {/* 연동된 캐릭터 (3차 회원-캐릭터 연결) */}
