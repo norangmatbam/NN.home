@@ -66,6 +66,8 @@ export interface Post {
   author: string;
   authorId: string;
   date: string;
+  /** 대화형 게시판에서 입력한 실제 대화 날짜 (YYYY-MM-DD). 없으면 작성일을 표시한다. */
+  chatDate?: string;
   secret: boolean;
   notice: boolean;
   fold: { type: FoldType; label?: string } | null;
@@ -164,4 +166,11 @@ export const GUEST_SEED: GuestEntry[] = [];
 export const fmtDate = (iso: string) => {
   const d = new Date(iso);
   return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/** 대화 날짜가 있으면 실제 대화 날짜를, 없으면 기존 작성일을 표시한다. */
+export const fmtPostDate = (p: Pick<Post, 'date' | 'chatDate'>) => {
+  if (!p.chatDate) return fmtDate(p.date);
+  const [y, m, d] = p.chatDate.split('-');
+  return y && m && d ? `${y}.${m}.${d}` : p.chatDate;
 };
