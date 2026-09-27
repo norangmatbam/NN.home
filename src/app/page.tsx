@@ -45,22 +45,21 @@ export default function MainPage() {
   const byCol = (c: 1 | 2 | 3) => enabled.filter(w => w.col === c);
 
   // 모바일 고정 우선순위:
-  // menu → 이미지(deco) → 자유 텍스트 → 배너 → 메모 → 캐릭터 카드 → latest → 기타 → 회원정보
+  // 캐릭터 카드 → 이미지(deco) → 자유 텍스트 → 배너 → menu → latest → 기타 → 회원정보
   const mobileOrder = React.useMemo(() => {
     const savedIndex = (id: string) => {
       const i = state.mobileOrder.indexOf(id);
       return i === -1 ? Number.MAX_SAFE_INTEGER : i;
     };
     const rank = (w: WidgetConf) => {
-      if (w.type === 'menu') return 0;
+      if (isCharacterWidget(w)) return 0;
       if (w.type === 'deco' && w.settings.kind !== 'character') return 1;
       if (w.type === 'freetext') return 2;
       if (w.type === 'banner') return 3;
-      if (w.type === 'memo') return 4;
-      if (isCharacterWidget(w)) return 5;
-      if (w.type === 'latest') return 6;
+      if (w.type === 'menu') return 4;
+      if (w.type === 'latest') return 5;
       if (w.type === 'member') return 99;
-      return 7;
+      return 6;
     };
     return [...enabled]
       .sort((a, b) => rank(a) - rank(b) || savedIndex(a.id) - savedIndex(b.id))
