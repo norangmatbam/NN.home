@@ -25,6 +25,28 @@ interface SpecRow { id: string; label: string; value: string }
 interface ColorRow extends ColorChip { id: string }
 interface ArtItem { id: string; ref?: string; url?: string; file?: File }
 
+const DEFAULT_SPECS = [
+  { label: '한글이름', value: '' },
+  { label: '애칭', value: '' },
+  { label: '성별', value: '' },
+  { label: '키', value: '' },
+];
+
+/**
+ * 기본정보는 모바일에서도 원하는 순서가 보장되도록 한글이름 → 애칭을 맨 앞으로 둔다.
+ * 기존 캐릭터의 나머지 항목과 값은 그대로 보존하고, 없는 항목만 빈 값으로 보충한다.
+ */
+function normalizeSpecs(specs?: { label: string; value: string }[]) {
+  const src = specs?.length ? specs : DEFAULT_SPECS;
+  const koreanName = src.find(s => s.label.trim() === '한글이름') ?? { label: '한글이름', value: '' };
+  const nickname = src.find(s => s.label.trim() === '애칭') ?? { label: '애칭', value: '' };
+  const rest = src.filter(s => {
+    const label = s.label.trim();
+    return label !== '한글이름' && label !== '애칭';
+  });
+  return [koreanName, nickname, ...rest];
+}
+
 function ArtThumb({ item, crop }: { item: ArtItem; crop?: CropValue }) {
   const loaded = useBlobUrl(item.ref);
   const src = item.url ?? loaded;
@@ -56,8 +78,8 @@ export function CharEditForm({ initial, onSave, onCancel, auMode, existingIds }:
   const [nameSize, setNameSize] = useState(initial?.nameSize ?? 38);   // 상세 큰 이름 크기 (v2.0)
   const [nameBold, setNameBold] = useState(initial?.nameBold ?? true); // 상세 이름 볼드 (v2.0 — 기본 켜짐)
   const [bodyFontId, setBodyFontId] = useState(initial?.bodyFontId ?? 'default');
-  const [specs, setSpecs] = useState<SpecRow[]>(
-    (initial?.specs ?? [{ label: '성별', value: '' }, { label: '키', value: '' }]).map(s => ({ ...s, id: newId() })));
+  const [specs, setSpecs] = useState<SpecRow[]>(() =>
+    normalizeSpecs(initial?.specs).map(s => ({ ...s, id: newId() })));
   const [colors, setColors] = useState<ColorRow[]>((initial?.colors ?? []).map(c => ({ ...c, id: newId() })));
   const [colorTipMode, setColorTipMode] = useState<'hex' | 'both' | 'label'>(initial?.colorTipMode ?? 'hex');
   // 색 점 테두리 (v2.0 사용자 요청) — 없음 / 1px(색 지정). 미지정이면 지금까지의 옅은 테두리
@@ -416,4 +438,3 @@ function FirstArtCrop({ open, item, crop, onClose, onApply }: {
   if (!src || !open) return null;
   return <CropEditor open={open} src={src} aspect="3:4" initial={crop} onClose={onClose} onApply={onApply} />;
 }
-
