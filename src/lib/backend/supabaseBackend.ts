@@ -101,12 +101,39 @@ export async function createSupabaseBackend(
     async updateProfile(patch) {
       const { data } = await sb.auth.getUser();
       if (!data.user) return { ok: false, error: '로그인이 필요합니다.' };
-      const row: Record<string, unknown> = { id: data.user.id };
+
+      const row: Record<string, unknown> = {};
       if (patch.nickname !== undefined) row.nickname = patch.nickname;
       if (patch.avatarUrl !== undefined) row.avatar_url = patch.avatarUrl;
       if (patch.avatarColor !== undefined) row.avatar_color = patch.avatarColor;
-      const { error } = await sb.from('profiles').upsert(row, { onConflict: 'id' });
-      return error ? { ok: false, error: error.message } : { ok: true };
+
+      // profiles는 가입 시 트리거로 이미 만들어지는 행이다.
+      // 일부 필드만 바꿀 때 upsert({ id, avatar_color })를 쓰면 DB가 INSERT 경로로 판단할 수 있고,
+      // 그 경우 NOT NULL인 nickname이 빠져 오류가 난다. 기존 행은 반드시 UPDATE만 한다.
+      if (Object.keys(row).length > 0) {
+        const { data: updated, error } = await sb.from('profiles')
+          .update(row)
+          .eq('id', data.user.id)
+          .select('id');
+        if (error) return { ok: false, error: error.message };
+
+        // 매우 오래된 계정 등으로 profiles 행 자체가 없는 예외만 안전하게 생성한다.
+        if (!updated?.length) {
+          const nickname = patch.nickname?.trim()
+            || (data.user.user_metadata?.nickname as string | undefined)?.trim()
+            || data.user.email
+            || 'user';
+          const insertRow: Record<string, unknown> = {
+            id: data.user.id,
+            nickname,
+            ...row,
+          };
+          const { error: insertError } = await sb.from('profiles').insert(insertRow);
+          if (insertError) return { ok: false, error: insertError.message };
+        }
+      }
+
+      return { ok: true };
     },
 
     // Supabase는 스키마의 트리거가 첫 가입자를 관리자로 만들어 준다 — 추가 작업 없음
