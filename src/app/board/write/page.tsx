@@ -267,7 +267,7 @@ function WriteInner() {
       </div>
 
       <ConfirmModal open={askRich !== null} title="여기서 편집하면 일부 태그가 정리됩니다" body="에디터는 굵게·목록·제목·이미지 같은 기본 서식만 다룹니다. 표·div·style·class 등은 편집하는 순간 정리되며 되돌릴 수 없습니다. HTML을 그대로 두려면 취소하세요." onClose={() => setAskRich(null)} buttons={[{ label: 'CANCEL', kind: 'ghost', onClick: () => setAskRich(null) }, { label: '계속', kind: 'accent', onClick: () => { askRich?.(); setAskRich(null); } }]} />
-      {cropOpen && thumbSrc && <CropEditor open src={thumbSrc} aspect="16:9" initial={thumbCrop} onClose={() => setCropOpen(false)} onApply={c => { setThumbCrop(c); setCropOpen(false); }} />
+      {cropOpen && thumbSrc && <CropEditor open src={thumbSrc} aspect="16:9" initial={thumbCrop} onClose={() => setCropOpen(false)} onApply={c => { setThumbCrop(c); setCropOpen(false); }} />}
     </section>
   );
 }
