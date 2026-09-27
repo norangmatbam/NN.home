@@ -8,10 +8,11 @@ import { sectionMenuEntries, useSections } from '@/lib/sectionStore';
 import { linkEntries, useCustomLinks } from '@/lib/linkStore';
 import { useAuth } from '@/lib/auth';
 
-const MOBILE_LABELS = new Set(['background', 'foreground']);
+const isBoardHref = (href: string) => href === '/board' || href.startsWith('/board?b=');
 
-/** 모바일 상단에 꼭 남겨 둘 두 메뉴.
- * PC GNB는 기존 그대로 두고, 모바일에서 숨겨진 GNB 대신 BACKGROUND / FOREGROUND만 노출한다. */
+/** 모바일 TopBar 2행.
+ * PC의 드롭다운 GNB가 모바일에서는 숨겨지므로, 메뉴 트리에 배치된 게시판들을
+ * 실제 배치 순서대로 한 줄에 펼쳐 직접 이동할 수 있게 한다. */
 export function MobileQuickNav() {
   const router = useRouter();
   const { user, isAdmin } = useAuth();
@@ -20,7 +21,7 @@ export function MobileQuickNav() {
   const { map: secMap } = useSections();
   const { links } = useCustomLinks();
 
-  const quick = useMemo(() => {
+  const boardsInMenu = useMemo(() => {
     if (!menuLoaded || !boardsLoaded) return [] as { label: string; href: string }[];
     const menu = buildMenu(
       menuSet,
@@ -28,24 +29,23 @@ export function MobileQuickNav() {
       { loggedIn: !!user, isAdmin, id: user?.id },
     );
     const out: { label: string; href: string }[] = [];
+    const seen = new Set<string>();
     for (const item of menu) {
-      const key = item.label.trim().toLowerCase();
-      if (MOBILE_LABELS.has(key)) {
-        const href = item.children?.[0]?.href ?? item.href;
-        if (href) out.push({ label: item.label, href });
-        continue;
+      const candidates = item.children ?? (item.href ? [{ label: item.label, href: item.href }] : []);
+      for (const child of candidates) {
+        if (!isBoardHref(child.href) || seen.has(child.href)) continue;
+        seen.add(child.href);
+        out.push({ label: child.label, href: child.href });
       }
-      const child = item.children?.find(c => MOBILE_LABELS.has(c.label.trim().toLowerCase()));
-      if (child?.href) out.push({ label: child.label, href: child.href });
     }
     return out;
   }, [menuLoaded, boardsLoaded, menuSet, boards, secMap, links, user, isAdmin]);
 
-  if (quick.length === 0) return null;
+  if (boardsInMenu.length === 0) return null;
   return (
-    <nav className="mobile-quick-nav" aria-label="모바일 빠른 메뉴">
-      {quick.map(item => (
-        <button key={`${item.label}:${item.href}`} onClick={() => router.push(item.href)}>
+    <nav className="mobile-quick-nav" aria-label="모바일 게시판 메뉴">
+      {boardsInMenu.map(item => (
+        <button key={item.href} onClick={() => router.push(item.href)}>
           {item.label}
         </button>
       ))}
