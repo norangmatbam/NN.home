@@ -92,39 +92,21 @@
   }
   .mobile-quick-nav button.open .mobile-menu-arrow{transform:rotate(180deg)}
 
-  /* 프로필 드롭다운과 같은 톤의 모바일 하위 메뉴.
-     가로 스크롤 nav 밖에 둬서 overflow에 잘리지 않는다. */
-  .mobile-group-menu{
-    position:absolute;
+  /* 프로필 드롭다운(.user-menu)의 실제 스타일을 그대로 재사용하고
+     위치만 모바일 상단 그룹 아래로 옮긴다. */
+  .user-menu.mobile-group-menu{
+    display:block;
     left:12px;
+    right:auto;
     top:calc(100% + 7px);
     z-index:90;
     min-width:168px;
     max-width:min(82vw,280px);
     max-height:58vh;
-    overflow-y:auto;
-    padding:5px;
-    background:var(--dd-bg);
-    border:1px solid var(--line-dark);
-    border-radius:11px;
-    box-shadow:var(--sh-dd);
-    animation:fade .15s;
+    overflow:auto;
   }
-  .mobile-group-menu button{
-    display:block;
-    width:100%;
-    padding:10px 12px;
-    border-radius:7px;
-    text-align:left;
-    color:var(--dd-fg);
-    font-family:var(--font-dropdown,var(--sans));
-    font-size:calc(12px*var(--fs-dropdown,1));
-    font-weight:var(--fw-dropdown,400);
-    line-height:1.35;
+  .user-menu.mobile-group-menu button{
     white-space:nowrap;
-  }
-  .mobile-group-menu button:active{
-    background:var(--dd-hv);
   }
 
   .group-sibling-shell{
