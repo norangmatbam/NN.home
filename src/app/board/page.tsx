@@ -121,7 +121,8 @@ function BoardInner() {
                     {canRead(p) ? <>{p.secret && '🔒 '}{p.title}</> : '🔒 비밀글입니다'}
                     {canRead(p) && cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
                   </div>
-                  <div className="bt-meta">{p.author} · {fmtDate(p.date)}</div>
+                  {/* 목록에서는 작성자명을 노출하지 않고 날짜만 표시 */}
+                  <div className="bt-meta">{fmtDate(p.date)}</div>
                 </div>
               </div>
             );
@@ -131,13 +132,16 @@ function BoardInner() {
           )}
         </div>
       ) : (
-        /* 기본형 스킨 — 리스트 행 (글씨색은 게시판 관리에서 지정 가능, v1.9) */
+        /* 기본형 스킨 — 작성자 열 제거. 모바일에서도 제목 폭을 확보하도록 3열로 고정 */
         <div className="panel board-list flush" style={board.fg ? { color: board.fg } : undefined}>
           {pageList.map(p => (
-            <div className="brow" key={p.id} onClick={() => { if (canRead(p)) router.push(`/board/${p.id}`); }}>
+            <div
+              className="brow"
+              key={p.id}
+              style={{ gridTemplateColumns: '70px minmax(0, 1fr) 76px' }}
+              onClick={() => { if (canRead(p)) router.push(`/board/${p.id}`); }}>
               <span className="cat">{postBadge(p)}</span>
-              {/* 제목 칸 안에서 태그를 오른쪽 끝(=작성자 바로 왼쪽)에 정렬 (v2.0 사용자 요청) —
-                  칸을 따로 만들면 행마다 그리드가 독립이라 작성자 열이 태그 길이만큼 어긋난다 */}
+              {/* 제목 칸 안에서 태그를 오른쪽 끝에 정렬. 작성자 열은 표시하지 않는다. */}
               <div className="tcell">
                 {canRead(p) ? (
                   <b>
@@ -152,7 +156,6 @@ function BoardInner() {
                   <span className="tags">{(p.tags ?? []).map(t => <i key={t}>#{t}</i>)}</span>
                 )}
               </div>
-              <span className="who">{p.author}</span>
               <span className="dt">{fmtDate(p.date)}</span>
             </div>
           ))}
