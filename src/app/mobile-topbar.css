@@ -1,0 +1,41 @@
+.mobile-quick-nav{display:none}
+
+@media (max-width:620px){
+  /* 닉네임 텍스트만 0px로 줄여 아바타·알림·드롭다운 화살표는 그대로 유지 */
+  .user-chip{font-size:0;gap:7px;padding-left:6px;padding-right:6px}
+
+  /* 기존 모바일 GNB는 숨긴 채 BACKGROUND / FOREGROUND 두 메뉴만 상단 중앙에 노출 */
+  .mobile-quick-nav{
+    position:fixed;
+    top:0;
+    right:76px;
+    z-index:66;
+    height:58px;
+    display:flex;
+    align-items:center;
+    gap:0;
+    max-width:190px;
+    overflow:hidden;
+  }
+  .mobile-quick-nav button{
+    flex:0 1 auto;
+    min-width:0;
+    padding:7px 7px;
+    border-radius:7px;
+    color:var(--top-fg);
+    font-family:var(--font-menu,var(--sans));
+    font-size:calc(10.5px*var(--fs-menu,1));
+    font-weight:var(--fw-menu,400);
+    letter-spacing:.01em;
+    white-space:nowrap;
+  }
+  .mobile-quick-nav button:active{
+    color:var(--top-hv,#fff);
+    background:rgba(255,255,255,.08);
+  }
+}
+
+@media (max-width:370px){
+  .mobile-quick-nav{right:68px;max-width:160px}
+  .mobile-quick-nav button{padding-left:5px;padding-right:5px;font-size:9.5px}
+}
