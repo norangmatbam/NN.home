@@ -1,11 +1,16 @@
 .mobile-quick-nav{display:none}
 
-/* 게시판 안쪽 카테고리 내 이동 — PC/모바일 공통 */
+/* 같은 상위 카테고리의 형제 메뉴 이동 — 게시판/갤러리 종류 무관 */
+.group-sibling-shell{
+  max-width:1180px;
+  margin:0 auto;
+  padding:18px 26px 0;
+}
 .board-switch-nav{
   display:flex;
   align-items:center;
   gap:6px;
-  margin:-4px 0 18px;
+  margin:0;
   overflow-x:auto;
   scrollbar-width:none;
 }
@@ -25,11 +30,13 @@
   border-color:var(--ink);
   color:#fff;
 }
+/* 예전에 /board 페이지 안에 넣었던 전용 네비게이터는 공통 네비게이터로 대체 */
+.page > .board-switch-nav:not(.group-sibling-nav){display:none}
 
 @media (max-width:620px){
   /* 1행은 원래 TopBar 그대로: 로고 + 알림 + 프로필 닉네임. */
 
-  /* 2행은 게시판 바로가기. PC 드롭다운 대신 실제 게시판명을 모두 펼친다. */
+  /* 2행은 상위 카테고리(BACKGROUND / FOREGROUND 등). */
   .mobile-quick-nav{
     flex-shrink:0;
     min-height:38px;
@@ -62,8 +69,10 @@
     background:rgba(255,255,255,.08);
   }
 
-  .board-switch-nav{
-    margin:-2px 0 14px;
+  .group-sibling-shell{
+    padding:14px 16px 0;
+  }
+  .group-sibling-nav{
     padding-bottom:2px;
   }
 }
