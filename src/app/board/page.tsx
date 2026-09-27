@@ -11,6 +11,7 @@ import {
 import {
   useBoardSettings, useBoards, badgeFor, boardBadgeStyle, boardHref, MAIN_BOARD_ID, BoardPerm,
 } from '@/lib/boardStore';
+import { boardEntries, buildMenu, useMenuSettings } from '@/lib/menuStore';
 import { SearchBar, Pager } from '@/components/ui/Kit';
 import { CropImg } from '@/components/ui/CropEditor';
 import { EditableDesc, PageTitle } from '@/components/ui/PageText';
@@ -37,9 +38,23 @@ function BoardInner() {
   const [cmtRows] = useLocalList<CommentRow>(COMMENT_KEY, COMMENT_SEED);
   const cmtCount = (p: Post) => commentsFor(cmtRows, 'post', p.id, p.comments).length;
   const { st: boardSet } = useBoardSettings();   // 시스템 뱃지 색 (환경설정 > 게시판 관리)
+  const [menuSet, , menuLoaded] = useMenuSettings();
   const [cat, setCat] = useState('전체');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
+
+  // 현재 게시판이 들어 있는 상위 메뉴 그룹의 다른 게시판들 — PC 드롭다운의 같은 형제만.
+  const currentBoardHref = boardHref(board.id);
+  const siblingBoards = useMemo(() => {
+    if (!menuLoaded) return [] as { label: string; href: string }[];
+    const menu = buildMenu(
+      menuSet,
+      boardEntries(boards),
+      { loggedIn: !!user, isAdmin, id: user?.id },
+    );
+    const group = menu.find(m => m.children?.some(c => c.href === currentBoardHref));
+    return (group?.children ?? []).filter(c => c.href === '/board' || c.href.startsWith('/board?b='));
+  }, [menuLoaded, menuSet, boards, user, isAdmin, currentBoardHref]);
 
   // 게시판 전환 시 필터·페이지 초기화
   const [prevBid, setPrevBid] = useState(bid);
@@ -85,6 +100,21 @@ function BoardInner() {
         <PageTitle href={boardHref(board.id)}>{board.id === MAIN_BOARD_ID ? 'BOARD' : board.name}</PageTitle>
         <EditableDesc k={board.id === MAIN_BOARD_ID ? 'board-desc' : `board-desc-${board.id}`} def={board.desc} />
       </div>
+
+      {siblingBoards.length > 1 && (
+        <nav className="board-switch-nav" aria-label="같은 카테고리 게시판">
+          {siblingBoards.map(item => (
+            <button
+              key={item.href}
+              className={item.href === currentBoardHref ? 'on' : ''}
+              onClick={() => router.push(item.href)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      )}
+
       <div className="toolrow">
         <div className="seg">
           {['전체', '공지', ...board.cats.map(x => x.label)].map(c => (
