@@ -20,8 +20,6 @@ export function CharacterWidget({ conf }: { conf: WidgetConf }) {
   const ownChars = useMemo(() => chars.filter(c => c.own), [chars]);
   const selectedId = (conf.settings.characterId as string | undefined) ?? '';
   const selected = ownChars.find(c => c.id === selectedId);
-  // 드롭다운 선택 즉시 저장하지 않는다. 새 카드 여러 개를 연속 추가할 때
-  // main 설정 저장이 겹치지 않게 모달 안에서 임시값으로 들고 있다가 ADD/SAVE에서 한 번만 확정한다.
   const [draftId, setDraftId] = useState(selectedId);
 
   useEffect(() => {
@@ -58,18 +56,10 @@ export function CharacterWidget({ conf }: { conf: WidgetConf }) {
 
   return (
     <>
-      <div
-        className="character-widget-card"
-        onClick={go}
-        style={{
-          position: 'relative', width: '100%', height: '100%', minHeight: 120,
-          overflow: 'hidden', borderRadius: 'var(--radius)',
-          cursor: selected && !editOn ? 'var(--cur-pointer,pointer)' : undefined,
-          background: 'var(--panel)',
-        }}>
+      <div className="character-widget-card" onClick={go}>
         {canView && selected ? (
           <>
-            <div style={{ position: 'absolute', inset: 0 }}>
+            <div className="character-widget-image">
               <CroppedBlobImg
                 fileRef={selected.arts?.[0] ?? selected.thumbId}
                 crop={selected.thumbCrop}
@@ -77,32 +67,56 @@ export function CharacterWidget({ conf }: { conf: WidgetConf }) {
                 label=""
               />
             </div>
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: 'linear-gradient(to top, rgba(8,10,14,.74) 0%, rgba(8,10,14,.18) 52%, rgba(8,10,14,0) 76%)',
-            }} />
-            <div style={{
-              position: 'absolute', left: 18, right: 18, bottom: 16,
-              color: '#fff', textShadow: '0 1px 8px rgba(0,0,0,.35)',
-            }}>
-              <b style={{ display: 'block', fontSize: 22, lineHeight: 1.18, letterSpacing: '.01em' }}>{selected.name}</b>
-              {selected.sub && (
-                <span style={{ display: 'block', marginTop: 5, fontSize: 11.5, lineHeight: 1.45, opacity: .84 }}>
-                  {selected.sub}
-                </span>
-              )}
+            <div className="character-widget-shade" />
+            <div className="character-widget-copy">
+              <b className="character-widget-name">{selected.name}</b>
+              {selected.sub && <span className="character-widget-sub">{selected.sub}</span>}
             </div>
           </>
         ) : (
-          <div style={{
-            position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
-            color: 'var(--faint)', fontSize: 11, textAlign: 'center', padding: 16,
-            whiteSpace: 'pre-line',
-          }}>
+          <div className="character-widget-empty">
             {isAdmin ? '캐릭터를 선택해 주세요\n편집모드에서 우클릭 → 설정' : '표시할 수 없는 캐릭터입니다'}
           </div>
         )}
       </div>
+
+      <style>{`
+        .character-widget-card{
+          position:relative;width:100%;height:100%;min-height:120px;
+          overflow:hidden;border-radius:var(--radius);background:var(--panel);
+          cursor:${selected && !editOn ? 'var(--cur-pointer,pointer)' : 'default'};
+        }
+        .character-widget-image{position:absolute;inset:0}
+        .character-widget-image img{width:100%;height:100%;object-fit:cover}
+        .character-widget-shade{
+          position:absolute;inset:0;
+          background:linear-gradient(to top,rgba(8,10,14,.76) 0%,rgba(8,10,14,.2) 52%,rgba(8,10,14,0) 76%);
+        }
+        .character-widget-copy{
+          position:absolute;left:18px;right:18px;bottom:16px;
+          color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.35);
+        }
+        .character-widget-name{display:block;font-size:22px;line-height:1.18;letter-spacing:.01em}
+        .character-widget-sub{display:block;margin-top:5px;font-size:11.5px;line-height:1.45;opacity:.84}
+        .character-widget-empty{
+          position:absolute;inset:0;display:grid;place-items:center;
+          color:var(--faint);font-size:11px;text-align:center;padding:16px;white-space:pre-line;
+        }
+        @media (max-width:620px){
+          .wgt:has(.character-widget-card){height:170px!important;min-height:170px!important}
+          .character-widget-card{height:170px!important;min-height:170px!important;border-radius:12px}
+          .character-widget-copy{left:14px;right:14px;bottom:13px}
+          .character-widget-name{font-size:18px;line-height:1.2}
+          .character-widget-sub{
+            margin-top:4px;font-size:10.5px;line-height:1.35;
+            display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+            overflow:hidden;
+          }
+          .character-widget-shade{
+            background:linear-gradient(to top,rgba(8,10,14,.8) 0%,rgba(8,10,14,.22) 58%,rgba(8,10,14,0) 82%);
+          }
+        }
+      `}</style>
 
       <div onClick={e => e.stopPropagation()}>
         <Modal
