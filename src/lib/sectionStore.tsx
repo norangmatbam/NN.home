@@ -57,6 +57,7 @@ type SectionMap = Partial<Record<SectionKind, SectionItem[]>>;
 
 const KEY = 'ohome.sections.v1';
 const EVT = 'ohome-sections';
+const SETTINGS_EVT = 'ohome-settings';
 
 /** 저장된 목록 + 항상 맨 앞의 기본 섹션 */
 export function sectionsOf(map: SectionMap, kind: SectionKind): SectionItem[] {
@@ -86,13 +87,17 @@ export const inSection = (secId: string | undefined, cur: string) =>
 let cache: SectionMap = {};
 let loaded = false;
 
-function load() {
-  if (loaded) return;
+function reload() {
   try {
     const raw = getRawSetting(KEY);
-    if (raw) cache = JSON.parse(raw) as SectionMap;
-  } catch { /* 기본값 */ }
+    cache = raw ? JSON.parse(raw) as SectionMap : {};
+  } catch { cache = {}; }
   loaded = true;
+}
+
+function load() {
+  if (loaded) return;
+  reload();
 }
 
 function notify() { try { window.dispatchEvent(new Event(EVT)); } catch { /* 무시 */ } }
@@ -108,9 +113,18 @@ export function useSections(): {
   const [, force] = useReducer((x: number) => x + 1, 0);
   useEffect(() => {
     const h = () => force();
+    const hs = (e: Event) => {
+      const key = (e as CustomEvent<string>).detail;
+      if (key && key !== KEY) return;
+      reload();
+      force();
+    };
     window.addEventListener(EVT, h);
-    window.addEventListener('ohome-setting', h);
-    return () => { window.removeEventListener(EVT, h); window.removeEventListener('ohome-setting', h); };
+    window.addEventListener(SETTINGS_EVT, hs);
+    return () => {
+      window.removeEventListener(EVT, h);
+      window.removeEventListener(SETTINGS_EVT, hs);
+    };
   }, []);
   load();
 
@@ -147,9 +161,10 @@ export function useSectionParam(kind: SectionKind): { id: string; name: string; 
   const sp = useSearchParams();
   const { list } = useSections();
   const items = list(kind);
-  const want = sp.get('s') ?? MAIN_SEC;
-  // 별명으로도 찾는다 (v2.0) — 예전에 공유한 id 주소도 그대로 열려야 한다
-  const found = items.find(s => s.id === want || (s.slug ?? '') === want) ?? items[0];
+  const wantRaw = sp.get('s') ?? MAIN_SEC;
+  const want = wantRaw === MAIN_SEC ? MAIN_SEC : cleanSlug(wantRaw);
+  // id와 별명(slug) 둘 다 허용한다. slug는 저장 규칙과 같은 방식으로 정규화해 비교한다.
+  const found = items.find(s => s.id === wantRaw || cleanSlug(s.slug ?? '') === want) ?? items[0];
   return { id: found.id, name: found.name, items };
 }
 
