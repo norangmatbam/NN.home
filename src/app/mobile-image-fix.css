@@ -1,0 +1,36 @@
+/* Mobile image rendering overrides.
+   Keep desktop card/thumb crops intact, but stop full-content images and the main banner
+   from being clipped on narrow screens. */
+
+@media (max-width:620px){
+  /* Main slide banner: keep the whole image visible on mobile instead of cover-cropping it. */
+  .banner{
+    height:auto;
+    aspect-ratio:16 / 9;
+    background:var(--panel-solid,#111);
+  }
+
+  /* Works for both plain <img> slides and CroppedBlobImg (whose image is positioned inline). */
+  .banner .slide > img,
+  .banner .slide > div > img{
+    position:absolute !important;
+    inset:0 !important;
+    left:0 !important;
+    top:0 !important;
+    transform:none !important;
+    width:100% !important;
+    height:100% !important;
+    max-width:100% !important;
+    max-height:100% !important;
+    object-fit:contain !important;
+  }
+
+  /* Published/body images should always scale down to the viewport without clipping. */
+  .post-body img,
+  .html-body img,
+  .prose img{
+    max-width:100% !important;
+    width:auto;
+    height:auto !important;
+  }
+}
