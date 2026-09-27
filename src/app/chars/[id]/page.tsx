@@ -7,7 +7,7 @@ import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useLocalList } from '@/lib/postStore';
-import { Character, CHAR_SEED, charGrant, charWithAu, chipBorder, Relation, REL_SEED , findByKey} from '@/lib/charStore';
+import { Character, CHAR_SEED, charGrant, charWithAu, chipBorder, Relation, REL_SEED, findByKey, charPath } from '@/lib/charStore';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { useFonts } from '@/lib/fontStore';
 import { useTheme } from '@/lib/ThemeProvider';
@@ -36,6 +36,20 @@ function CharDetailInner() {
 
   // 별명 주소로도 열린다 (v2.0 사용자 요청 — 주소를 나중에 바꿔도 옛 주소가 살아 있게)
   const ch = findByKey(chars, id);
+
+  // 현재 캐릭터와 같은 목록에서, 실제 열람 가능한 캐릭터만 이전/다음 대상으로 사용한다.
+  const navChars = useMemo(() => {
+    if (!ch) return [] as Character[];
+    const secId = ch.secId ?? 'main';
+    return chars.filter(c =>
+      c.own &&
+      (c.secId ?? 'main') === secId &&
+      (isAdmin || c.visibility === 'public' || (c.visibility === 'member' && !!user))
+    );
+  }, [chars, ch, isAdmin, user]);
+  const navIndex = ch ? navChars.findIndex(c => c.id === ch.id) : -1;
+  const prevChar = navIndex > 0 ? navChars[navIndex - 1] : undefined;
+  const nextChar = navIndex >= 0 && navIndex < navChars.length - 1 ? navChars[navIndex + 1] : undefined;
 
   // AU 프로필 (v1.9) — 이 캐릭터가 속한 자관들의 AU 리스트 (base 제외), 우상단에 썸네일로
   const charAus = useMemo(() => (ch
@@ -138,6 +152,26 @@ function CharDetailInner() {
         {/* 캐릭터별로 별도 저장 — 키에 캐릭터 id 포함 */}
         <EditableDesc k={`char-detail-desc:${ch.id}`} def="좌측 아이콘 탭 → 우측 정보 전환" />
         <div className="head-actions">
+          {(prevChar || nextChar) && (
+            <div style={{ display: 'inline-flex', gap: 6, marginRight: 4 }}>
+              <button
+                className="btn btn-ghost"
+                aria-label="이전 캐릭터"
+                data-tip={prevChar ? `이전 · ${prevChar.name}` : '이전 캐릭터 없음'}
+                disabled={!prevChar}
+                onClick={() => { if (prevChar) router.push(charPath(prevChar)); }}
+                style={{ width: 34, padding: 0, fontSize: 20 }}
+              >‹</button>
+              <button
+                className="btn btn-ghost"
+                aria-label="다음 캐릭터"
+                data-tip={nextChar ? `다음 · ${nextChar.name}` : '다음 캐릭터 없음'}
+                disabled={!nextChar}
+                onClick={() => { if (nextChar) router.push(charPath(nextChar)); }}
+                style={{ width: 34, padding: 0, fontSize: 20 }}
+              >›</button>
+            </div>
+          )}
           {/* 관리자 또는 「편집까지」 권한 회원 (3차 회원-캐릭터 연결, v1.9)
               — AU 선택 상태의 EDIT은 그 AU 전용 프로필 편집으로 진입 */}
           {(isAdmin || charGrant(ch, user?.id) === 'edit') && (
