@@ -20,9 +20,7 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
   // Shift+드래그 중앙 정렬에서 폭이 20px 배수가 아니라 딱 가운데가 안 될 때의 안내 (v1.9 사용자 요청)
   const [centerAsk, setCenterAsk] = useState<{ w: number; canvasW: number; grow: number; shrink: number } | null>(null);
 
-  // 편집모드 진입 시 크기 동결 (v1.8 — 위젯 크기 독립)
-  // 렌더된 크기 그대로 동결 — 진입만으로 위젯이 움직이거나 커지지 않음
-  // (격자 정렬은 절대 격자 스냅이 담당하므로 여기서 10px 반올림하지 않음)
+  // 편집모드 진입 시 크기 동결 (v1.8)
   useEffect(() => {
     if (!editOn || !ref.current) return;
     if (conf.w == null || conf.h == null) {
@@ -37,29 +35,27 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editOn]);
 
-  // PC 절대배치 (v1.9 사용자 확정) — ax/ay가 있으면 캔버스 절대 좌표로 렌더.
-  // 문서 흐름이 없으므로 드래그·리사이즈 때 다른 위젯이 절대 밀리지 않고, 안 맞으면 겹친다.
   const abs = conf.ax != null && conf.ay != null;
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (!editOn || e.button !== 0) return;
     const t = e.target as HTMLElement;
-    // body 포털(설정 모달·셀렉트 팝업·컬러피커 등)은 리액트 트리로 버블돼 들어옴 — 드래그 시작 아님 (v1.9)
     if (!ref.current?.contains(t)) return;
     if (t.closest('.rs') || t.closest('.rr')) return;
+    // 폰에서 브라우저의 '데스크톱 사이트'로 편집할 때는 손가락 스크롤과 위젯 드래그가 충돌한다.
+    // 터치는 MOVE 핸들에서만 이동을 시작하고, 마우스는 기존처럼 위젯 어디서든 드래그 가능.
+    if (e.pointerType === 'touch' && !t.closest('.wgt-move-handle')) return;
     e.preventDefault();
-    document.body.classList.add('drag-move');   // 드래그 중 전역 커서 고정 — 커서 튐 방지 (v1.9)
+    document.body.classList.add('drag-move');
     const sx = e.clientX, sy = e.clientY;
     if (abs) {
-      // 절대 좌표 이동 — 그리드 원점 = 캔버스 좌상단이라 스냅 계산도 단순
       const bx = conf.ax!, by = conf.ay!;
-      // Shift+드래그 = 캔버스 가로 한가운데 정렬 (v1.9 사용자 요청)
       const canvasW = (ref.current?.closest('.main-grid') as HTMLElement | null)?.clientWidth ?? 0;
       const myW = () => conf.w ?? Math.round(ref.current?.getBoundingClientRect().width ?? 0);
       let centered = false;
       const mv = (ev: PointerEvent) => {
         const nx = bx + (ev.clientX - sx), ny = by + (ev.clientY - sy);
-        const snap = gridOn && !conf.freeMove;   // freeMove(그리드 무시)는 그리드가 켜져 있어도 자유 배치
+        const snap = gridOn && !conf.freeMove;
         if (ev.shiftKey && canvasW > 0) {
           centered = true;
           const cx = (canvasW - myW()) / 2;
@@ -77,7 +73,6 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
         document.body.classList.remove('drag-move');
         window.removeEventListener('pointermove', mv);
         window.removeEventListener('pointerup', up);
-        // 그리드(10px)에서 딱 가운데에 놓으려면 (캔버스폭 - 가로)가 20의 배수여야 함 — 아니면 5px 치우침
         if (centered && gridOn && !conf.freeMove && canvasW > 0) {
           const w = myW();
           const r = (((canvasW - w) % 20) + 20) % 20;
@@ -88,7 +83,6 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
       window.addEventListener('pointerup', up);
       return;
     }
-    // (마이그레이션 전 폴백) 흐름 + transform 오프셋
     const bx = conf.tx, by = conf.ty;
     const gr = ref.current?.closest('.main-grid')?.getBoundingClientRect();
     const r0 = ref.current?.getBoundingClientRect();
@@ -105,12 +99,16 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
         updateWidget(conf.id, { tx: bx + dx, ty: by + dy });
       }
     };
-    const up = () => { document.body.classList.remove('drag-move'); window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+    const up = () => {
+      document.body.classList.remove('drag-move');
+      window.removeEventListener('pointermove', mv);
+      window.removeEventListener('pointerup', up);
+    };
     window.addEventListener('pointermove', mv);
     window.addEventListener('pointerup', up);
   };
 
-  // 기울기 (v1.9 사용자 요청 — 이미지·자유 텍스트) — 왼쪽 위 핸들 드래그로 위젯 중심 기준 회전
+  // 기울기 — 왼쪽 위 핸들 드래그로 위젯 중심 기준 회전
   const rotatable = conf.type === 'deco' || conf.type === 'freetext';
   const onRotDown = (e: React.PointerEvent) => {
     if (!editOn) return;
@@ -127,19 +125,22 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
       if (deg < -180) deg += 360;
       updateWidget(conf.id, { rot: deg === 0 ? undefined : deg });
     };
-    const up = () => { document.body.classList.remove('drag-move'); window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+    const up = () => {
+      document.body.classList.remove('drag-move');
+      window.removeEventListener('pointermove', mv);
+      window.removeEventListener('pointerup', up);
+    };
     window.addEventListener('pointermove', mv);
     window.addEventListener('pointerup', up);
   };
 
-  // 리사이즈 — 절대배치라 흐름 재배치가 없어 실시간 적용해도 다른 위젯이 밀리지 않음 (v1.9)
+  // 리사이즈 — 절대배치라 흐름 재배치가 없어 실시간 적용해도 다른 위젯이 밀리지 않음
   const onResizeDown = (e: React.PointerEvent) => {
     if (!editOn) return;
     e.stopPropagation(); e.preventDefault();
-    document.body.classList.add('drag-rs');   // 리사이즈 중 전역 커서 고정 (v1.9)
+    document.body.classList.add('drag-rs');
     const r = ref.current!.getBoundingClientRect();
     const sx = e.clientX, sy = e.clientY;
-    // 절대 격자 스냅: 좌상단이 격자에서 벗어나 있어도 "우/하단 모서리"가 캔버스 격자 위에 놓이게
     const gr = ref.current!.closest('.main-grid')?.getBoundingClientRect();
     const absL = abs ? conf.ax! : (gr ? r.left - gr.left : 0);
     const absT = abs ? conf.ay! : (gr ? r.top - gr.top : 0);
@@ -152,7 +153,11 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
       }
       updateWidget(conf.id, { w: Math.max(160, w), h: Math.max(80, h) });
     };
-    const up = () => { document.body.classList.remove('drag-rs'); window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+    const up = () => {
+      document.body.classList.remove('drag-rs');
+      window.removeEventListener('pointermove', mv);
+      window.removeEventListener('pointerup', up);
+    };
     window.addEventListener('pointermove', mv);
     window.addEventListener('pointerup', up);
   };
@@ -165,8 +170,6 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
       style={{
         ...style,
         order: mobileOrder,
-        // 절대배치 (v1.9) — PC 캔버스에는 흐름 없음. 모바일 CSS가 static으로 되돌려 스택 렌더
-        // 기울기(rot)는 transform에 합성 — 모바일 스택에서는 CSS가 해제 (v1.9)
         ...(abs
           ? {
             position: 'absolute' as const, left: conf.ax, top: conf.ay, margin: 0,
@@ -185,11 +188,10 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
       onPointerDown={onPointerDown}
       onContextMenu={e => {
         if (!editOn) return;
-        if (!ref.current?.contains(e.target as Node)) return;   // 설정 모달 안 우클릭은 그대로
+        if (!ref.current?.contains(e.target as Node)) return;
         e.preventDefault();
         onCtx(conf.id, e.clientX, e.clientY);
       }}
-      // 편집모드 중 클릭 차단 (v1.8) — 단 body 포털(설정 모달 등)의 클릭은 통과 (v1.9)
       onClickCapture={e => {
         if (!editOn) return;
         const t = e.target as HTMLElement;
@@ -198,8 +200,23 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
         e.stopPropagation(); e.preventDefault();
       }}
     >
+      {editOn && (
+        <span
+          className="wgt-move-handle"
+          data-tip="잡고 드래그해서 이동"
+          style={{
+            position: 'absolute', top: 7, left: '50%', transform: 'translateX(-50%)', zIndex: 40,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+            minWidth: 78, height: 30, padding: '0 12px', borderRadius: 999,
+            background: 'rgba(20,22,27,.88)', color: '#fff', border: '1px solid rgba(255,255,255,.2)',
+            boxShadow: '0 3px 12px rgba(0,0,0,.22)', fontSize: 10.5, fontWeight: 700,
+            letterSpacing: '.08em', cursor: 'grab', touchAction: 'none', userSelect: 'none',
+            WebkitUserSelect: 'none',
+          }}>
+          ⠿ MOVE
+        </span>
+      )}
       {children}
-      {/* Shift+드래그 중앙 정렬 — 폭이 안 맞아 5px 치우칠 때 가로를 어느 쪽으로 맞출지 (v1.9 사용자 요청) */}
       <ConfirmModal open={centerAsk !== null}
         title="가운데에 딱 맞추려면 가로 크기를 조정해야 합니다"
         body={centerAsk
