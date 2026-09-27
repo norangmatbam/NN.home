@@ -8,10 +8,47 @@
  */
 import React from 'react';
 import { DragList } from '@/components/ui/DragList';
-import { KInput } from '@/components/ui/Kit';
+import { KInput, KToggle } from '@/components/ui/Kit';
 import { useConfirmDelete } from '@/components/ui/Modal';
 import { SectionKind, SECTION_META, SECTION_KINDS, MAIN_SEC, useSections, sectionHref, cleanSlug } from '@/lib/sectionStore';
 import { useMenuSettings } from '@/lib/menuStore';
+import { useBoards } from '@/lib/boardStore';
+import { useBoardDisplay } from '@/lib/boardDisplayStore';
+
+/** 게시판별 표시 옵션 — 실제 게시판 화면이 아니라 환경설정에서만 관리한다. */
+function BoardDisplaySettings() {
+  const { boards } = useBoards();
+  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const selected = boards.find(b => b.id === selectedId) ?? boards[0];
+  const [display, patchDisplay] = useBoardDisplay(selected?.id ?? 'main');
+
+  if (!selected) return null;
+
+  return (
+    <>
+      <h3 style={{ marginTop: 20 }}>게시판 표시 옵션</h3>
+      <div className="d">게시판마다 목록에 보일 항목을 따로 정합니다 — 변경 즉시 해당 게시판에 반영됩니다</div>
+      {boards.length > 1 && (
+        <div className="mini-seg" style={{ flexWrap: 'wrap', marginBottom: 10 }}>
+          {boards.map(b => (
+            <button key={b.id} className={selected.id === b.id ? 'on' : ''} onClick={() => setSelectedId(b.id)}>
+              {b.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="set-row">
+        <div className="l"><b>공지 분류 표시</b><small>끄면 게시판 상단 글분류에서 「공지」가 보이지 않습니다</small></div>
+        <KToggle checked={display.showNotice} onChange={v => patchDisplay({ showNotice: v })} />
+      </div>
+      <div className="set-row">
+        <div className="l"><b>작성자 표시</b><small>목록과 게시글 상세에서 작성자 닉네임을 표시합니다</small></div>
+        <KToggle checked={display.showAuthor} onChange={v => patchDisplay({ showAuthor: v })} />
+      </div>
+      <hr style={{ margin: '24px 0', border: 'none', borderTop: '1.5px solid var(--line)' }} />
+    </>
+  );
+}
 
 /**
  * 종류를 골라 그 목록만 보여 준다 — 8종을 한꺼번에 펼치면 탭이 끝없이 길어진다.
@@ -22,6 +59,7 @@ export function SectionsBlock() {
   const [kind, setKind] = React.useState<SectionKind>('gallery');
   return (
     <>
+      <BoardDisplaySettings />
       <h3 style={{ marginTop: 20 }}>다른 목록도 여러 개로</h3>
       <div className="d">
         갤러리·다이어리 등도 게시판처럼 여러 개 만들 수 있습니다 — 만들면 메뉴에 자동으로 붙습니다.
