@@ -36,7 +36,7 @@ export function ChatConversation({ chat }: { chat: ChatPostData }) {
       })}
 
       <style>{`
-        .chat-conversation{max-width:760px;margin:0 auto;padding:22px 10px 30px;display:grid;gap:7px}
+        .chat-conversation{max-width:760px;margin:0 auto;padding:22px 10px 30px;display:grid;gap:11px}
         .chat-line{display:flex;align-items:flex-start;gap:9px;width:100%}
         .chat-line.right{justify-content:flex-end}
         .chat-avatar-slot{width:42px;flex:0 0 42px}
@@ -48,7 +48,7 @@ export function ChatConversation({ chat }: { chat: ChatPostData }) {
         .chat-line.left .chat-bubble{border-top-left-radius:5px}
         .chat-line.right .chat-bubble{border-top-right-radius:5px;background:color-mix(in srgb,var(--accent) 16%,var(--panel));border-color:color-mix(in srgb,var(--accent) 28%,var(--line))}
         @media(max-width:620px){
-          .chat-conversation{padding:14px 0 22px;gap:6px}
+          .chat-conversation{padding:14px 0 22px;gap:10px}
           .chat-avatar-slot{width:36px;flex-basis:36px}
           .chat-avatar{width:36px;height:36px}
           .chat-message-stack{max-width:76%}
