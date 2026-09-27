@@ -118,8 +118,14 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
       const cls = el.props.className ?? '';
 
       if (cls.includes('mini-seg')) {
+        const segStyle: React.CSSProperties = {
+          ...el.props.style,
+          flexWrap: 'nowrap',
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+        };
         return React.cloneElement(el, {
-          style: { ...el.props.style, flexWrap: 'nowrap', whiteSpace: 'nowrap', flexShrink: 0 },
+          style: segStyle,
           children: <>
             {el.props.children}
             <button
@@ -138,12 +144,13 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
       }
 
       const children = React.Children.map(el.props.children, inject);
-      const style = cls.includes('cp-group')
-        ? { ...el.props.style, flexWrap: 'nowrap', whiteSpace: 'nowrap', flexShrink: 0 }
-        : cls.includes('set-row')
-          ? { ...el.props.style, flexWrap: 'nowrap', whiteSpace: 'nowrap' }
-          : el.props.style;
-      return React.cloneElement(el, { style, children });
+      let nextStyle: React.CSSProperties | undefined = el.props.style;
+      if (cls.includes('cp-group')) {
+        nextStyle = { ...el.props.style, flexWrap: 'nowrap', whiteSpace: 'nowrap', flexShrink: 0 };
+      } else if (cls.includes('set-row')) {
+        nextStyle = { ...el.props.style, flexWrap: 'nowrap', whiteSpace: 'nowrap' };
+      }
+      return React.cloneElement(el, { style: nextStyle, children });
     };
 
     return inject(node);
