@@ -16,10 +16,11 @@
     min-width: 0 !important;
   }
 
-  /* Character detail prev/next: keep the wide touch target, but draw the chevron
-     against the artwork edge and lower on the image. */
+  /* Character detail prev/next: move the whole touch target lower on the artwork.
+     The inline style keeps these at 50%, so top needs !important here. */
   .page-char-detail .profile-center button[aria-label="이전 캐릭터"],
   .page-char-detail .profile-center button[aria-label="다음 캐릭터"] {
+    top: 72% !important;
     color: transparent !important;
     text-shadow: none !important;
   }
@@ -27,7 +28,7 @@
   .page-char-detail .profile-center button[aria-label="이전 캐릭터"]::after,
   .page-char-detail .profile-center button[aria-label="다음 캐릭터"]::after {
     position: absolute;
-    top: 72%;
+    top: 50%;
     transform: translateY(-50%);
     color: rgba(225,225,225,.9);
     font-size: 44px;
