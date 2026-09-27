@@ -43,9 +43,10 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
     if (!ref.current?.contains(t)) return;
     if (t.closest('.rs') || t.closest('.rr')) return;
     // 폰에서 브라우저의 '데스크톱 사이트'로 편집할 때는 손가락 스크롤과 위젯 드래그가 충돌한다.
-    // 터치는 MOVE 핸들에서만 이동을 시작하고, 마우스는 기존처럼 위젯 어디서든 드래그 가능.
+    // 터치는 작은 상단 그립에서만 이동을 시작하고, 마우스는 기존처럼 위젯 어디서든 드래그 가능.
     if (e.pointerType === 'touch' && !t.closest('.wgt-move-handle')) return;
     e.preventDefault();
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* 브라우저 미지원 */ }
     document.body.classList.add('drag-move');
     const sx = e.clientX, sy = e.clientY;
     if (abs) {
@@ -73,14 +74,16 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
         document.body.classList.remove('drag-move');
         window.removeEventListener('pointermove', mv);
         window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
         if (centered && gridOn && !conf.freeMove && canvasW > 0) {
           const w = myW();
           const r = (((canvasW - w) % 20) + 20) % 20;
           if (r !== 0) setCenterAsk({ w, canvasW, grow: r, shrink: 20 - r });
         }
       };
-      window.addEventListener('pointermove', mv);
+      window.addEventListener('pointermove', mv, { passive: false });
       window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
       return;
     }
     const bx = conf.tx, by = conf.ty;
@@ -103,9 +106,11 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
       document.body.classList.remove('drag-move');
       window.removeEventListener('pointermove', mv);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
     };
-    window.addEventListener('pointermove', mv);
+    window.addEventListener('pointermove', mv, { passive: false });
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
   };
 
   // 기울기 — 왼쪽 위 핸들 드래그로 위젯 중심 기준 회전
@@ -129,15 +134,18 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
       document.body.classList.remove('drag-move');
       window.removeEventListener('pointermove', mv);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
     };
-    window.addEventListener('pointermove', mv);
+    window.addEventListener('pointermove', mv, { passive: false });
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
   };
 
-  // 리사이즈 — 절대배치라 흐름 재배치가 없어 실시간 적용해도 다른 위젯이 밀리지 않음
+  // 리사이즈 — 실제 보이는 모서리는 작게, 터치 판정 영역은 40px로 크게 잡는다.
   const onResizeDown = (e: React.PointerEvent) => {
     if (!editOn) return;
     e.stopPropagation(); e.preventDefault();
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* 브라우저 미지원 */ }
     document.body.classList.add('drag-rs');
     const r = ref.current!.getBoundingClientRect();
     const sx = e.clientX, sy = e.clientY;
@@ -145,6 +153,7 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
     const absL = abs ? conf.ax! : (gr ? r.left - gr.left : 0);
     const absT = abs ? conf.ay! : (gr ? r.top - gr.top : 0);
     const mv = (ev: PointerEvent) => {
+      ev.preventDefault();
       const dw = ev.clientX - sx, dh = ev.clientY - sy;
       let w = r.width + dw, h = r.height + dh;
       if (gridOn && !conf.freeMove) {
@@ -157,9 +166,11 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
       document.body.classList.remove('drag-rs');
       window.removeEventListener('pointermove', mv);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
     };
-    window.addEventListener('pointermove', mv);
+    window.addEventListener('pointermove', mv, { passive: false });
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
   };
 
   return (
@@ -196,24 +207,23 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
         if (!editOn) return;
         const t = e.target as HTMLElement;
         if (!ref.current?.contains(t)) return;
-        if (t.closest('.rs') || t.closest('.rr')) return;
+        if (t.closest('.rs') || t.closest('.rr') || t.closest('.wgt-move-handle')) return;
         e.stopPropagation(); e.preventDefault();
       }}
     >
       {editOn && (
         <span
           className="wgt-move-handle"
-          data-tip="잡고 드래그해서 이동"
+          data-tip="드래그해서 이동"
           style={{
             position: 'absolute', top: 7, left: '50%', transform: 'translateX(-50%)', zIndex: 40,
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-            minWidth: 78, height: 30, padding: '0 12px', borderRadius: 999,
-            background: 'rgba(20,22,27,.88)', color: '#fff', border: '1px solid rgba(255,255,255,.2)',
-            boxShadow: '0 3px 12px rgba(0,0,0,.22)', fontSize: 10.5, fontWeight: 700,
-            letterSpacing: '.08em', cursor: 'grab', touchAction: 'none', userSelect: 'none',
-            WebkitUserSelect: 'none',
+            width: 44, height: 18, display: 'grid', placeItems: 'center',
+            borderRadius: 999, background: 'rgba(20,22,27,.42)',
+            border: '1px solid rgba(255,255,255,.16)', boxShadow: '0 2px 8px rgba(0,0,0,.12)',
+            cursor: 'grab', touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none',
+            backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)',
           }}>
-          ⠿ MOVE
+          <i style={{ width: 20, height: 3, borderRadius: 999, background: 'rgba(255,255,255,.78)', pointerEvents: 'none' }} />
         </span>
       )}
       {children}
@@ -246,7 +256,21 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
           },
           { label: '그대로 두기', kind: 'ghost', onClick: () => setCenterAsk(null) },
         ]} />
-      <span className="rs" data-tip="드래그로 크기 조절" onPointerDown={onResizeDown} />
+      <span
+        className="rs"
+        data-tip="드래그로 크기 조절"
+        onPointerDown={onResizeDown}
+        style={{
+          position: 'absolute', right: -8, bottom: -8, width: 42, height: 42, zIndex: 45,
+          cursor: 'nwse-resize', touchAction: 'none', background: 'transparent',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', padding: 8,
+        }}>
+        <i style={{
+          width: 13, height: 13, display: 'block', pointerEvents: 'none',
+          borderRight: '2px solid rgba(28,31,36,.72)', borderBottom: '2px solid rgba(28,31,36,.72)',
+          borderRadius: '0 0 3px 0',
+        }} />
+      </span>
       {rotatable && (
         <span className="rr" data-tip="드래그로 기울기 · 더블클릭 = 초기화"
           onPointerDown={onRotDown}
