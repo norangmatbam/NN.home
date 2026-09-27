@@ -43,8 +43,31 @@ export default function MainPage() {
 
   const enabled = state.widgets.filter(w => w.enabled);
   const byCol = (c: 1 | 2 | 3) => enabled.filter(w => w.col === c);
+
+  // 모바일 고정 우선순위:
+  // menu → 이미지(deco) → 배너 → 메모 → 캐릭터 카드(추가 순서) → latest → 기타 → 회원정보
+  const mobileOrder = React.useMemo(() => {
+    const savedIndex = (id: string) => {
+      const i = state.mobileOrder.indexOf(id);
+      return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+    };
+    const rank = (w: WidgetConf) => {
+      if (w.type === 'menu') return 0;
+      if (w.type === 'deco' && w.settings.kind !== 'character') return 1;
+      if (w.type === 'banner') return 2;
+      if (w.type === 'memo') return 3;
+      if (isCharacterWidget(w)) return 4;
+      if (w.type === 'latest') return 5;
+      if (w.type === 'member') return 99;
+      return 6;
+    };
+    return [...enabled]
+      .sort((a, b) => rank(a) - rank(b) || savedIndex(a.id) - savedIndex(b.id))
+      .map(w => w.id);
+  }, [enabled, state.mobileOrder]);
+
   const mOrder = (id: string) => {
-    const i = state.mobileOrder.indexOf(id);
+    const i = mobileOrder.indexOf(id);
     return i === -1 ? 99 : i;
   };
 
@@ -129,7 +152,7 @@ export default function MainPage() {
           /* 절대배치 캔버스 — 위젯 전부 직속, 좌표는 각자 ax/ay */
           enabled.map(w =>
             w.type === 'member'
-              ? <WidgetFrame key={w.id} conf={w} mobileOrder={-1} onCtx={(id, x, y) => setCtx({ id, x, y })}><MemberBox /></WidgetFrame>
+              ? <WidgetFrame key={w.id} conf={w} mobileOrder={mOrder(w.id)} onCtx={(id, x, y) => setCtx({ id, x, y })}><MemberBox /></WidgetFrame>
               : frame(w, w.type === 'menu' ? 'wgt-hide-pc' : undefined))
         ) : (
           <>
@@ -148,7 +171,7 @@ export default function MainPage() {
             <div>
               {byCol(3).map(w =>
                 w.type === 'member'
-                  ? <WidgetFrame key={w.id} conf={w} mobileOrder={-1} onCtx={(id, x, y) => setCtx({ id, x, y })}><MemberBox /></WidgetFrame>
+                  ? <WidgetFrame key={w.id} conf={w} mobileOrder={mOrder(w.id)} onCtx={(id, x, y) => setCtx({ id, x, y })}><MemberBox /></WidgetFrame>
                   : frame(w)
               )}
             </div>
