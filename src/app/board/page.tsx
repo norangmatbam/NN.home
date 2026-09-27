@@ -1,6 +1,5 @@
 'use client';
-// 일반 게시판 목록 (4.2 / 5.2 다중 게시판) — 말머리 필터 · 검색 · 비밀글 마스킹 · 접기 표시 · 페이지네이션
-// ?b=<게시판 id> 로 게시판 구분 (없으면 기본 게시판) · 리스트 스킨: 기본형 / 티켓형 (5.2 v1.9)
+// 일반 게시판 목록 — 기본형 / 티켓형 / 대화형
 import React, { Suspense, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
@@ -9,17 +8,17 @@ import {
   CommentRow, COMMENT_KEY, COMMENT_SEED, commentsFor,
 } from '@/lib/postStore';
 import {
-  useBoardSettings, useBoards, badgeFor, boardBadgeStyle, boardHref, MAIN_BOARD_ID, BoardPerm,
+  useBoardSettings, useBoards, badgeFor, boardBadgeStyle, boardHref, MAIN_BOARD_ID, BoardPerm, BoardSkin,
 } from '@/lib/boardStore';
 import { useBoardDisplay } from '@/lib/boardDisplayStore';
 import { boardEntries, buildMenu, useMenuSettings } from '@/lib/menuStore';
 import { SearchBar, Pager } from '@/components/ui/Kit';
 import { CropImg } from '@/components/ui/CropEditor';
+import { BlobImg } from '@/lib/blobStore';
 import { EditableDesc, PageTitle } from '@/components/ui/PageText';
 
 const PER_PAGE = 10;
 
-/** 본문에서 첫 이미지 추출 — 티켓 스킨 썸네일용 (HTML img / MD 이미지) */
 function firstImage(body: string): string | null {
   const html = /<img[^>]*src=["']([^"']+)["']/i.exec(body);
   if (html) return html[1];
@@ -32,37 +31,29 @@ function BoardInner() {
   const { user, isAdmin } = useAuth();
   const params = useSearchParams();
   const bid = params.get('b') ?? MAIN_BOARD_ID;
-  const { boards, loaded: boardsLoaded } = useBoards();
+  const { boards, loaded: boardsLoaded, patchBoard } = useBoards();
   const board = boards.find(b => b.id === bid) ?? boards[0];
   const [display] = useBoardDisplay(board.id);
   const [posts] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
-  // 댓글 수 — 댓글은 글과 따로 저장된다 (v2.0). 옛 글 안에 남아 있던 것도 함께 센다
   const [cmtRows] = useLocalList<CommentRow>(COMMENT_KEY, COMMENT_SEED);
   const cmtCount = (p: Post) => commentsFor(cmtRows, 'post', p.id, p.comments).length;
-  const { st: boardSet } = useBoardSettings();   // 시스템 뱃지 색 (환경설정 > 게시판 관리)
+  const { st: boardSet } = useBoardSettings();
   const [menuSet, , menuLoaded] = useMenuSettings();
   const [cat, setCat] = useState('전체');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
 
-  // 현재 게시판이 들어 있는 상위 메뉴 그룹의 다른 게시판들 — PC 드롭다운의 같은 형제만.
   const currentBoardHref = boardHref(board.id);
   const siblingBoards = useMemo(() => {
     if (!menuLoaded) return [] as { label: string; href: string }[];
-    const menu = buildMenu(
-      menuSet,
-      boardEntries(boards),
-      { loggedIn: !!user, isAdmin, id: user?.id },
-    );
+    const menu = buildMenu(menuSet, boardEntries(boards), { loggedIn: !!user, isAdmin, id: user?.id });
     const group = menu.find(m => m.children?.some(c => c.href === currentBoardHref));
     return (group?.children ?? []).filter(c => c.href === '/board' || c.href.startsWith('/board?b='));
   }, [menuLoaded, menuSet, boards, user, isAdmin, currentBoardHref]);
 
-  // 게시판 전환 시 필터·페이지 초기화
   const [prevBid, setPrevBid] = useState(bid);
   if (prevBid !== bid) { setPrevBid(bid); setCat('전체'); setQ(''); setPage(1); }
 
-  // 권한 3단계 — mock 단계에선 로그인 전제 (로드뷰 4.10과 동일 규칙)
   const allow = (p: BoardPerm) => (p === 'admin' ? isAdmin : p === 'member' ? !!user : true);
 
   const visible = useMemo(() => {
@@ -74,18 +65,14 @@ function BoardInner() {
       list = list.filter(p =>
         p.title.toLowerCase().includes(k) ||
         (display.showAuthor && p.author.toLowerCase().includes(k)) ||
-        (p.tags ?? []).some(t => t.toLowerCase().includes(k)) ||   // 태그 검색 (v2.0 사용자 요청)
+        (p.tags ?? []).some(t => t.toLowerCase().includes(k)) ||
         (!p.secret && p.body.toLowerCase().includes(k)));
     }
-    // 공지 상단 고정 + 최신순
-    return list.sort((a, b) =>
-      (b.notice ? 1 : 0) - (a.notice ? 1 : 0) || b.date.localeCompare(a.date));
+    return list.sort((a, b) => (b.notice ? 1 : 0) - (a.notice ? 1 : 0) || b.date.localeCompare(a.date));
   }, [posts, board.id, cat, q, display.showAuthor]);
 
   const totalPages = Math.max(1, Math.ceil(visible.length / PER_PAGE));
   const pageList = visible.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-  /* 비밀글 열람 (v2.0 발견) — authorId 없는 비밀글은 비로그인 방문자에게도 열렸다.
-     둘 다 undefined라 `undefined === undefined`가 참이었기 때문 */
   const canRead = (p: Post) => !p.secret || isAdmin || (!!p.authorId && p.authorId === user?.id);
 
   if (!boardsLoaded) return <section className="page" />;
@@ -95,8 +82,9 @@ function BoardInner() {
       {p.notice ? boardSet.system[0].label : p.secret ? boardSet.system[1].label : p.category}
     </span>
   );
-
   const filterNames = ['전체', ...(display.showNotice ? ['공지'] : []), ...board.cats.map(x => x.label)];
+
+  const skinLabel = (s: BoardSkin) => s === 'list' ? '기본형' : s === 'ticket' ? '티켓형' : '대화형';
 
   return (
     <section className="page">
@@ -107,93 +95,84 @@ function BoardInner() {
 
       {siblingBoards.length > 1 && (
         <nav className="board-switch-nav" aria-label="같은 카테고리 게시판">
-          {siblingBoards.map(item => (
-            <button
-              key={item.href}
-              className={item.href === currentBoardHref ? 'on' : ''}
-              onClick={() => router.push(item.href)}
-            >
-              {item.label}
-            </button>
-          ))}
+          {siblingBoards.map(item => <button key={item.href} className={item.href === currentBoardHref ? 'on' : ''} onClick={() => router.push(item.href)}>{item.label}</button>)}
         </nav>
       )}
 
       <div className="toolrow">
         <div className="seg">
-          {filterNames.map(c => (
-            <button key={c} className={cat === c ? 'on' : ''} onClick={() => { setCat(c); setPage(1); }}>{c}</button>
-          ))}
+          {filterNames.map(c => <button key={c} className={cat === c ? 'on' : ''} onClick={() => { setCat(c); setPage(1); }}>{c}</button>)}
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <SearchBar onSearch={v => { setQ(v); setPage(1); }} />
-          {allow(board.permWrite) && !!user && (
-            <button className="btn btn-dark" onClick={() => router.push(`/board/write?b=${board.id}`)}>✎ WRITE</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {isAdmin && (
+            <div className="mini-seg" data-tip="게시판 보기 형식">
+              {(['list', 'ticket', 'chat'] as BoardSkin[]).map(s => (
+                <button key={s} className={board.skin === s ? 'on' : ''} onClick={() => patchBoard(board.id, { skin: s })}>{skinLabel(s)}</button>
+              ))}
+            </div>
           )}
+          <SearchBar onSearch={v => { setQ(v); setPage(1); }} />
+          {allow(board.permWrite) && !!user && <button className="btn btn-dark" onClick={() => router.push(`/board/write?b=${board.id}`)}>✎ WRITE</button>}
         </div>
       </div>
 
-      {board.skin === 'ticket' ? (
-        /* 티켓형 스킨 (5.2 v1.9) — 왼쪽 썸네일(본문 첫 이미지) + 절취선 + 오른쪽 글 정보 */
+      {board.skin === 'chat' ? (
+        <div style={{ display: 'grid', gap: 10 }}>
+          {pageList.map(p => {
+            const chat = canRead(p) ? p.chat : undefined;
+            const first = chat?.messages.find(m => m.text.trim());
+            return (
+              <div key={p.id} className="panel" onClick={() => { if (canRead(p)) router.push(`/board/${p.id}`); }}
+                style={{ padding: '14px 16px', cursor: canRead(p) ? 'var(--cur-pointer,pointer)' : undefined, display: 'grid', gridTemplateColumns: '44px minmax(0,1fr) auto', gap: 12, alignItems: 'center' }}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', border: '1px solid var(--line)', background: 'var(--panel)' }}>
+                  {chat ? <BlobImg fileRef={chat.left.avatar} label={chat.left.name.slice(0, 1)} /> : <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%', color: 'var(--faint)' }}>•</div>}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    {postBadge(p)}
+                    <b style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{canRead(p) ? p.title : '🔒 비밀글입니다'}</b>
+                    {canRead(p) && cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
+                  </div>
+                  {chat && <div style={{ fontSize: 11.5, color: 'var(--faint)', marginBottom: 3 }}>{chat.left.name} ↔ {chat.right.name}</div>}
+                  {canRead(p) && first && <div style={{ fontSize: 12, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{first.text}</div>}
+                </div>
+                <span style={{ fontSize: 11, color: 'var(--faint)', whiteSpace: 'nowrap' }}>{fmtDate(p.date)}</span>
+              </div>
+            );
+          })}
+          {pageList.length === 0 && <div className="panel" style={{ padding: 36, textAlign: 'center', fontSize: 12.5, color: 'var(--faint)' }}>대화가 없습니다</div>}
+        </div>
+      ) : board.skin === 'ticket' ? (
         <div style={board.fg ? { color: board.fg } : undefined}>
           {pageList.map(p => {
-            // 대표 이미지(직접 선택 + 크롭) 우선, 없으면 본문 첫 이미지 (v1.9)
             const thumb = canRead(p) ? (p.thumbSrc ?? firstImage(p.body)) : null;
             return (
               <div className="bticket" key={p.id} onClick={() => { if (canRead(p)) router.push(`/board/${p.id}`); }}>
-                <div className="bt-thumb">
-                  {thumb
-                    ? <CropImg src={thumb} crop={p.thumbSrc ? p.thumbCrop : undefined} />
-                    : <div className="bt-ph">{(canRead(p) ? p.title : 'SECRET').slice(0, 1).toUpperCase()}</div>}
-                </div>
+                <div className="bt-thumb">{thumb ? <CropImg src={thumb} crop={p.thumbSrc ? p.thumbCrop : undefined} /> : <div className="bt-ph">{(canRead(p) ? p.title : 'SECRET').slice(0, 1).toUpperCase()}</div>}</div>
                 <div className="bt-body">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {postBadge(p)}
-                    {p.fold && <span style={boardBadgeStyle(boardSet.system[2])}>{boardSet.system[2].label}</span>}
-                  </div>
-                  <div className="bt-title">
-                    {canRead(p) ? <>{p.secret && '🔒 '}{p.title}</> : '🔒 비밀글입니다'}
-                    {canRead(p) && cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
-                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{postBadge(p)}{p.fold && <span style={boardBadgeStyle(boardSet.system[2])}>{boardSet.system[2].label}</span>}</div>
+                  <div className="bt-title">{canRead(p) ? <>{p.secret && '🔒 '}{p.title}</> : '🔒 비밀글입니다'}{canRead(p) && cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}</div>
                   <div className="bt-meta">{display.showAuthor ? `${p.author} · ${fmtDate(p.date)}` : fmtDate(p.date)}</div>
                 </div>
               </div>
             );
           })}
-          {pageList.length === 0 && (
-            <div className="panel" style={{ padding: 36, textAlign: 'center', fontSize: 12.5, color: 'var(--faint)' }}>게시글이 없습니다</div>
-          )}
+          {pageList.length === 0 && <div className="panel" style={{ padding: 36, textAlign: 'center', fontSize: 12.5, color: 'var(--faint)' }}>게시글이 없습니다</div>}
         </div>
       ) : (
         <div className="panel board-list flush" style={board.fg ? { color: board.fg } : undefined}>
           {pageList.map(p => (
-            <div
-              className="brow"
-              key={p.id}
-              style={{ gridTemplateColumns: display.showAuthor ? '70px minmax(0, 1fr) 90px 76px' : '70px minmax(0, 1fr) 76px' }}
-              onClick={() => { if (canRead(p)) router.push(`/board/${p.id}`); }}>
+            <div className="brow" key={p.id} style={{ gridTemplateColumns: display.showAuthor ? '70px minmax(0, 1fr) 90px 76px' : '70px minmax(0, 1fr) 76px' }} onClick={() => { if (canRead(p)) router.push(`/board/${p.id}`); }}>
               <span className="cat">{postBadge(p)}</span>
               <div className="tcell">
-                {canRead(p) ? (
-                  <b>
-                    {p.secret && '🔒 '}{p.title}
-                    {cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
-                    {p.fold && <span style={{ ...boardBadgeStyle(boardSet.system[2]), marginLeft: 6 }}>{boardSet.system[2].label}</span>}
-                  </b>
-                ) : (
-                  <b style={{ color: 'var(--faint)' }}>🔒 비밀글입니다</b>
-                )}
-                {canRead(p) && (p.tags ?? []).length > 0 && (
-                  <span className="tags">{(p.tags ?? []).map(t => <i key={t}>#{t}</i>)}</span>
-                )}
+                {canRead(p) ? <b>{p.secret && '🔒 '}{p.title}{cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}{p.fold && <span style={{ ...boardBadgeStyle(boardSet.system[2]), marginLeft: 6 }}>{boardSet.system[2].label}</span>}</b> : <b style={{ color: 'var(--faint)' }}>🔒 비밀글입니다</b>}
+                {canRead(p) && (p.tags ?? []).length > 0 && <span className="tags">{(p.tags ?? []).map(t => <i key={t}>#{t}</i>)}</span>}
               </div>
               {display.showAuthor && <span className="who">{p.author}</span>}
               <span className="dt">{fmtDate(p.date)}</span>
             </div>
           ))}
-          {pageList.length === 0 && (
-            <div style={{ padding: 36, textAlign: 'center', fontSize: 12.5, color: 'var(--faint)' }}>게시글이 없습니다</div>
-          )}
+          {pageList.length === 0 && <div style={{ padding: 36, textAlign: 'center', fontSize: 12.5, color: 'var(--faint)' }}>게시글이 없습니다</div>}
         </div>
       )}
       <Pager page={page} total={totalPages} onChange={setPage} />
@@ -202,6 +181,5 @@ function BoardInner() {
 }
 
 export default function BoardPage() {
-  // useSearchParams는 Suspense 경계 필요 (Next App Router)
   return <Suspense fallback={<section className="page" />}><BoardInner /></Suspense>;
 }
