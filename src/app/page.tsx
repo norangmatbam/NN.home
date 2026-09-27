@@ -10,12 +10,12 @@ import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { KRadio } from '@/components/ui/Kit';
 import { useToast } from '@/components/ui/Toast';
 
-type AddChoice = WidgetType | 'character';
-const ADDABLE: AddChoice[] = ['banner', 'memo', 'dday', 'todo', 'upcoming', 'freetext', 'deco', 'character', 'diary', 'latest', 'apply'];
+const ADDABLE: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'upcoming', 'freetext', 'deco', 'character', 'diary', 'latest', 'apply'];
 /** 내용 설정 모달이 있는 위젯 — 우클릭 「설정」 노출 대상 (v1.9) */
-const EDITABLE: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'freetext', 'deco', 'apply'];
+const EDITABLE: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'freetext', 'deco', 'character', 'apply'];
 
-const isCharacterWidget = (w: WidgetConf) => w.type === 'deco' && w.settings.kind === 'character';
+const isCharacterWidget = (w: WidgetConf) =>
+  w.type === 'character' || (w.type === 'deco' && w.settings.kind === 'character');
 const displayWidgetLabel = (widgets: WidgetConf[], w: WidgetConf) =>
   isCharacterWidget(w) ? '캐릭터 카드' : widgetLabel(widgets, w);
 
@@ -24,7 +24,7 @@ export default function MainPage() {
   const toast = useToast();
   const [ctx, setCtx] = useState<{ id: string; x: number; y: number } | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [addType, setAddType] = useState<AddChoice>('freetext');
+  const [addType, setAddType] = useState<WidgetType>('freetext');
   const [addCol, setAddCol] = useState<'1' | '2' | '3'>('3');
   const [delAsk, setDelAsk] = useState<WidgetConf | null>(null);   // 우클릭 삭제 경고 (v1.9)
 
@@ -37,7 +37,7 @@ export default function MainPage() {
 
   // 모달을 열 때 선택돼 있던 종류가 이미 추가된 것이면 항상 가능한 자유 텍스트로 (v1.9)
   useEffect(() => {
-    if (!addOpen || addType === 'character') return;
+    if (!addOpen) return;
     if (!MULTI_TYPES.includes(addType) && state.widgets.some(w => w.type === addType)) setAddType('freetext');
   }, [addOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -202,15 +202,9 @@ export default function MainPage() {
           <button className="btn btn-ghost" onClick={() => setAddOpen(false)}>CANCEL</button>
           <button className="btn btn-dark" onClick={() => {
             const col = Number(addCol) as 1 | 2 | 3;
-            let id: string;
+            if (!MULTI_TYPES.includes(addType) && state.widgets.some(w => w.type === addType)) return;
+            const id = addWidget(addType, col);
             const character = addType === 'character';
-            if (character) {
-              id = addWidget('deco', col);
-              updateWidget(id, { settings: { kind: 'character' } });
-            } else {
-              if (!MULTI_TYPES.includes(addType) && state.widgets.some(w => w.type === addType)) return;
-              id = addWidget(addType, col);
-            }
             setAddOpen(false);
             toast(character ? '캐릭터 카드가 추가되었습니다 — 표시할 캐릭터를 선택해 주세요' : '위젯이 추가되었습니다 — 우클릭 메뉴에서 설정·삭제할 수 있습니다');
             setTimeout(() => {
@@ -221,18 +215,15 @@ export default function MainPage() {
         </>}>
         <div style={{ display: 'grid', gap: 7, marginBottom: 14 }}>
           {ADDABLE.map(t => {
-            const character = t === 'character';
-            const taken = !character && !MULTI_TYPES.includes(t) && state.widgets.some(w => w.type === t);
-            const title = character ? '캐릭터 카드' : WIDGET_META[t].title;
-            const desc = character ? '대표 썸네일 배경 + 이름 + 한 줄 소개' : WIDGET_META[t].desc;
+            const taken = !MULTI_TYPES.includes(t) && state.widgets.some(w => w.type === t);
             return (
               <KRadio key={t} name="wgt-type" value={t} current={addType} disabled={taken}
-                onChange={v => setAddType(v as AddChoice)}
+                onChange={v => setAddType(v as WidgetType)}
                 label={<span>
-                  <b style={{ fontSize: 12.5 }}>{title}</b>{' '}
-                  <small style={{ color: 'var(--faint)', fontSize: 10.5 }}>{desc}</small>
+                  <b style={{ fontSize: 12.5 }}>{WIDGET_META[t].title}</b>{' '}
+                  <small style={{ color: 'var(--faint)', fontSize: 10.5 }}>{WIDGET_META[t].desc}</small>
                   {taken && <span className="pill" style={{ marginLeft: 6 }}>추가됨</span>}
-                  {(character || (!character && MULTI_TYPES.includes(t))) && <span className="pill" style={{ marginLeft: 6 }}>중복 추가 가능</span>}
+                  {MULTI_TYPES.includes(t) && <span className="pill" style={{ marginLeft: 6 }}>중복 추가 가능</span>}
                 </span>} />
             );
           })}
