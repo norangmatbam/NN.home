@@ -5,6 +5,7 @@ import { useMainStore, WidgetConf, WidgetType, WIDGET_META, MULTI_TYPES, widgetL
 import { WidgetFrame } from '@/components/main/WidgetFrame';
 import { renderWidget } from '@/components/main/widgets';
 import { CharacterWidget } from '@/components/main/CharacterWidget';
+import { DdayBackgroundWidget } from '@/components/main/DdayBackgroundWidget';
 import { MemberBox } from '@/components/main/MemberBox';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { KRadio } from '@/components/ui/Kit';
@@ -112,7 +113,11 @@ export default function MainPage() {
         }
         setCtx({ id, x, y });
       }}>
-      {isCharacterWidget(w) ? <CharacterWidget conf={w} /> : renderWidget(w)}
+      {isCharacterWidget(w)
+        ? <CharacterWidget conf={w} />
+        : w.type === 'dday'
+          ? <DdayBackgroundWidget conf={w} />
+          : renderWidget(w)}
     </WidgetFrame>
   );
 
