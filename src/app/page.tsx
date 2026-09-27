@@ -43,8 +43,32 @@ export default function MainPage() {
 
   const enabled = state.widgets.filter(w => w.enabled);
   const byCol = (c: 1 | 2 | 3) => enabled.filter(w => w.col === c);
+
+  // 모바일은 별도 저장 순서 대신 PC 캔버스의 실제 배치를 따른다.
+  // menu는 PC에서 숨기는 모바일 전용 위젯이라 항상 맨 앞. 나머지는 위→아래, 같은 높이대는 왼→오 순서.
+  const mobileOrder = React.useMemo(() => {
+    const menu = enabled.filter(w => w.type === 'menu');
+    const rest = enabled.filter(w => w.type !== 'menu').sort((a, b) => {
+      const ay = a.ay ?? Number.MAX_SAFE_INTEGER;
+      const by = b.ay ?? Number.MAX_SAFE_INTEGER;
+      // 그리드에서 한두 칸 정도 어긋난 위젯은 같은 줄로 보고 좌우 순서를 우선한다.
+      if (Math.abs(ay - by) <= 20) {
+        const ax = a.ax ?? (a.col - 1) * 400;
+        const bx = b.ax ?? (b.col - 1) * 400;
+        if (ax !== bx) return ax - bx;
+      }
+      if (ay !== by) return ay - by;
+      const ax = a.ax ?? (a.col - 1) * 400;
+      const bx = b.ax ?? (b.col - 1) * 400;
+      if (ax !== bx) return ax - bx;
+      // 좌표가 없는 구 저장분만 기존 모바일 순서를 마지막 보조값으로 사용.
+      return state.mobileOrder.indexOf(a.id) - state.mobileOrder.indexOf(b.id);
+    });
+    return [...menu, ...rest].map(w => w.id);
+  }, [enabled, state.mobileOrder]);
+
   const mOrder = (id: string) => {
-    const i = state.mobileOrder.indexOf(id);
+    const i = mobileOrder.indexOf(id);
     return i === -1 ? 99 : i;
   };
 
@@ -129,7 +153,7 @@ export default function MainPage() {
           /* 절대배치 캔버스 — 위젯 전부 직속, 좌표는 각자 ax/ay */
           enabled.map(w =>
             w.type === 'member'
-              ? <WidgetFrame key={w.id} conf={w} mobileOrder={-1} onCtx={(id, x, y) => setCtx({ id, x, y })}><MemberBox /></WidgetFrame>
+              ? <WidgetFrame key={w.id} conf={w} mobileOrder={mOrder(w.id)} onCtx={(id, x, y) => setCtx({ id, x, y })}><MemberBox /></WidgetFrame>
               : frame(w, w.type === 'menu' ? 'wgt-hide-pc' : undefined))
         ) : (
           <>
@@ -148,7 +172,7 @@ export default function MainPage() {
             <div>
               {byCol(3).map(w =>
                 w.type === 'member'
-                  ? <WidgetFrame key={w.id} conf={w} mobileOrder={-1} onCtx={(id, x, y) => setCtx({ id, x, y })}><MemberBox /></WidgetFrame>
+                  ? <WidgetFrame key={w.id} conf={w} mobileOrder={mOrder(w.id)} onCtx={(id, x, y) => setCtx({ id, x, y })}><MemberBox /></WidgetFrame>
                   : frame(w)
               )}
             </div>
