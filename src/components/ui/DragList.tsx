@@ -14,18 +14,18 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
 }) {
   const contRef = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<{ key: string; from: number; to: number; dy: number; h: number; settling?: boolean } | null>(null);
-  const [frozen, setFrozen] = useState(false);   // 커밋 직후 1프레임 — transform 해제가 애니메이션되지 않게
+  const [frozen, setFrozen] = useState(false);
 
   const onPointerDown = (e: React.PointerEvent, index: number) => {
-    if (disabled || e.button !== 0) return;
+    if (disabled || (e.pointerType === 'mouse' && e.button !== 0)) return;
     if (!(e.target as HTMLElement).closest('.drag-h')) return;
     e.preventDefault();
-    e.stopPropagation();   // 중첩 DragList(메뉴 트리 등)에서 바깥 리스트가 같이 끌리지 않게
+    e.stopPropagation();
 
     const row = e.currentTarget as HTMLDivElement;
     const pointerId = e.pointerId;
     if (e.pointerType !== 'mouse') {
-      try { row.setPointerCapture(pointerId); } catch { /* 지원하지 않는 브라우저는 window listener로 처리 */ }
+      try { row.setPointerCapture(pointerId); } catch { /* ignore */ }
     }
 
     const rows = Array.from(contRef.current!.children) as HTMLElement[];
@@ -42,7 +42,7 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
       if (e.pointerType !== 'mouse') {
         try {
           if (row.hasPointerCapture(pointerId)) row.releasePointerCapture(pointerId);
-        } catch { /* 이미 해제된 경우 무시 */ }
+        } catch { /* ignore */ }
       }
     };
 
@@ -116,8 +116,6 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
       ? b : null;
   };
 
-  // 게시판 관리 행: 기존 「기본형 / 티켓형」 세그먼트 안에 대화형을 넣는다.
-  // 게시판 말머리 행: 이름·색·삭제 컨트롤이 모바일에서도 절대 두 줄로 내려가지 않게 고정한다.
   const enhanceSettingsRow = (it: T, node: React.ReactNode): React.ReactNode => {
     const board = boardLike(it);
     const badge = boardBadgeLike(it);
@@ -167,11 +165,13 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
   return (
     <>
       <style>{`
+        .drag-list-mobile .drag-h {
+          touch-action: none;
+          -webkit-user-select: none;
+          user-select: none;
+        }
         @media (hover: none) and (pointer: coarse) {
           .drag-list-mobile .drag-h {
-            touch-action: none;
-            -webkit-user-select: none;
-            user-select: none;
             min-width: 32px;
             min-height: 32px;
             display: inline-grid;
