@@ -1,0 +1,18 @@
+/* Character form mobile fixes */
+@media (max-width: 620px) {
+  /* CharEditForm theme-color grid is 2 columns on desktop.
+     On phones each color needs a full row so ColorField + label never overlap. */
+  .write-grid > .panel > div[style*="grid-template-columns: 1fr 1fr"][style*="gap: 8px 10px"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .write-grid > .panel > div[style*="grid-template-columns: 1fr 1fr"][style*="gap: 8px 10px"] > div {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .write-grid > .panel > div[style*="grid-template-columns: 1fr 1fr"][style*="gap: 8px 10px"] > div > .k-input {
+    min-width: 0 !important;
+  }
+}
