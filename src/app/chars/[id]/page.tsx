@@ -144,6 +144,39 @@ function CharDetailInner() {
 
   const editHref = auKey ? `/chars/${ch.id}/edit?au=${encodeURIComponent(auKey)}` : `/chars/${ch.id}/edit`;
 
+  const navButton = (side: 'prev' | 'next', target?: Character) => target ? (
+    <button
+      type="button"
+      aria-label={side === 'prev' ? '이전 캐릭터' : '다음 캐릭터'}
+      data-tip={`${side === 'prev' ? '이전' : '다음'} · ${target.name}`}
+      onClick={e => {
+        e.stopPropagation();
+        router.push(charPath(target));
+      }}
+      style={{
+        position: 'absolute',
+        top: '50%',
+        [side === 'prev' ? 'left' : 'right']: 0,
+        transform: 'translateY(-50%)',
+        zIndex: 6,
+        width: 58,
+        height: 108,
+        padding: 0,
+        border: 0,
+        background: 'transparent',
+        color: 'rgba(225,225,225,.9)',
+        fontSize: 44,
+        fontWeight: 300,
+        lineHeight: 1,
+        display: 'grid',
+        placeItems: 'center',
+        cursor: 'pointer',
+        textShadow: '0 1px 5px rgba(0,0,0,.28)',
+        WebkitTapHighlightColor: 'transparent',
+      }}
+    >{side === 'prev' ? '‹' : '›'}</button>
+  ) : null;
+
   return (
     <section className="page page-char-detail">
       <div className="page-head">
@@ -152,26 +185,6 @@ function CharDetailInner() {
         {/* 캐릭터별로 별도 저장 — 키에 캐릭터 id 포함 */}
         <EditableDesc k={`char-detail-desc:${ch.id}`} def="좌측 아이콘 탭 → 우측 정보 전환" />
         <div className="head-actions">
-          {(prevChar || nextChar) && (
-            <div style={{ display: 'inline-flex', gap: 6, marginRight: 4 }}>
-              <button
-                className="btn btn-ghost"
-                aria-label="이전 캐릭터"
-                data-tip={prevChar ? `이전 · ${prevChar.name}` : '이전 캐릭터 없음'}
-                disabled={!prevChar}
-                onClick={() => { if (prevChar) router.push(charPath(prevChar)); }}
-                style={{ width: 34, padding: 0, fontSize: 20 }}
-              >‹</button>
-              <button
-                className="btn btn-ghost"
-                aria-label="다음 캐릭터"
-                data-tip={nextChar ? `다음 · ${nextChar.name}` : '다음 캐릭터 없음'}
-                disabled={!nextChar}
-                onClick={() => { if (nextChar) router.push(charPath(nextChar)); }}
-                style={{ width: 34, padding: 0, fontSize: 20 }}
-              >›</button>
-            </div>
-          )}
           {/* 관리자 또는 「편집까지」 권한 회원 (3차 회원-캐릭터 연결, v1.9)
               — AU 선택 상태의 EDIT은 그 AU 전용 프로필 편집으로 진입 */}
           {(isAdmin || charGrant(ch, user?.id) === 'edit') && (
@@ -245,12 +258,18 @@ function CharDetailInner() {
         {(() => {
           const arts = eff.arts && eff.arts.length > 0 ? eff.arts : (eff.artId ? [eff.artId] : []);
           if (arts.length === 0 && !eff.artUrl) {
-            return <div className={`profile-center ph ${ch.thumbClass}`}><span>CHARACTER FULL ART</span></div>;
+            return (
+              <div className={`profile-center ph ${ch.thumbClass}`} style={{ position: 'relative' }}>
+                <span>CHARACTER FULL ART</span>
+                {navButton('prev', prevChar)}
+                {navButton('next', nextChar)}
+              </div>
+            );
           }
           const cur = Math.min(artIdx, arts.length - 1);
           return (
             <div className="profile-center" ref={artBoxRef}
-              style={{ cursor: arts.length > 1 ? 'pointer' : undefined }}
+              style={{ cursor: arts.length > 1 ? 'pointer' : undefined, position: 'relative' }}
               onClick={() => { if (arts.length > 1) setArtIdx(i => (i + 1) % arts.length); }}
               /* 대표 아트 우클릭 → 이 화면에 보일 위치 조정 (관리자, v2.0 사용자 확정) */
               onContextMenu={e => {
@@ -265,6 +284,8 @@ function CharDetailInner() {
               <CroppedBlobImg fileRef={arts[cur] ?? eff.artUrl}
                 crop={cur === 0 ? eff.artCrop : undefined}
                 ph={ch.thumbClass} label="CHARACTER FULL ART" />
+              {navButton('prev', prevChar)}
+              {navButton('next', nextChar)}
               {arts.length > 1 && (
                 <div style={{ position: 'absolute', left: 0, right: 0, bottom: 12, display: 'flex', justifyContent: 'center', gap: 5, zIndex: 3 }}>
                   {arts.map((_, i) => (
