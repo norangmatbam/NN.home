@@ -11,8 +11,9 @@ import {
 import {
   useBoardSettings, useBoards, badgeFor, boardBadgeStyle, boardHref, MAIN_BOARD_ID, BoardPerm,
 } from '@/lib/boardStore';
+import { useBoardDisplay } from '@/lib/boardDisplayStore';
 import { boardEntries, buildMenu, useMenuSettings } from '@/lib/menuStore';
-import { SearchBar, Pager } from '@/components/ui/Kit';
+import { SearchBar, Pager, KToggle } from '@/components/ui/Kit';
 import { CropImg } from '@/components/ui/CropEditor';
 import { EditableDesc, PageTitle } from '@/components/ui/PageText';
 
@@ -33,6 +34,7 @@ function BoardInner() {
   const bid = params.get('b') ?? MAIN_BOARD_ID;
   const { boards, loaded: boardsLoaded } = useBoards();
   const board = boards.find(b => b.id === bid) ?? boards[0];
+  const [display, patchDisplay] = useBoardDisplay(board.id);
   const [posts] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
   // 댓글 수 — 댓글은 글과 따로 저장된다 (v2.0). 옛 글 안에 남아 있던 것도 함께 센다
   const [cmtRows] = useLocalList<CommentRow>(COMMENT_KEY, COMMENT_SEED);
@@ -71,14 +73,14 @@ function BoardInner() {
       const k = q.toLowerCase();
       list = list.filter(p =>
         p.title.toLowerCase().includes(k) ||
-        p.author.toLowerCase().includes(k) ||
+        (display.showAuthor && p.author.toLowerCase().includes(k)) ||
         (p.tags ?? []).some(t => t.toLowerCase().includes(k)) ||   // 태그 검색 (v2.0 사용자 요청)
         (!p.secret && p.body.toLowerCase().includes(k)));
     }
     // 공지 상단 고정 + 최신순
     return list.sort((a, b) =>
       (b.notice ? 1 : 0) - (a.notice ? 1 : 0) || b.date.localeCompare(a.date));
-  }, [posts, board.id, cat, q]);
+  }, [posts, board.id, cat, q, display.showAuthor]);
 
   const totalPages = Math.max(1, Math.ceil(visible.length / PER_PAGE));
   const pageList = visible.slice((page - 1) * PER_PAGE, page * PER_PAGE);
@@ -93,6 +95,8 @@ function BoardInner() {
       {p.notice ? boardSet.system[0].label : p.secret ? boardSet.system[1].label : p.category}
     </span>
   );
+
+  const filterNames = ['전체', ...(display.showNotice ? ['공지'] : []), ...board.cats.map(x => x.label)];
 
   return (
     <section className="page">
@@ -115,9 +119,20 @@ function BoardInner() {
         </nav>
       )}
 
+      {isAdmin && (
+        <div className="panel" style={{ padding: '10px 14px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <b style={{ fontSize: 11, color: 'var(--faint)', letterSpacing: '.08em' }}>표시 옵션</b>
+          <KToggle label="공지 분류" checked={display.showNotice} onChange={v => {
+            patchDisplay({ showNotice: v });
+            if (!v && cat === '공지') { setCat('전체'); setPage(1); }
+          }} />
+          <KToggle label="작성자 표시" checked={display.showAuthor} onChange={v => patchDisplay({ showAuthor: v })} />
+        </div>
+      )}
+
       <div className="toolrow">
         <div className="seg">
-          {['전체', '공지', ...board.cats.map(x => x.label)].map(c => (
+          {filterNames.map(c => (
             <button key={c} className={cat === c ? 'on' : ''} onClick={() => { setCat(c); setPage(1); }}>{c}</button>
           ))}
         </div>
@@ -151,8 +166,7 @@ function BoardInner() {
                     {canRead(p) ? <>{p.secret && '🔒 '}{p.title}</> : '🔒 비밀글입니다'}
                     {canRead(p) && cmtCount(p) > 0 && <span className="cmt">{cmtCount(p)}</span>}
                   </div>
-                  {/* 목록에서는 작성자명을 노출하지 않고 날짜만 표시 */}
-                  <div className="bt-meta">{fmtDate(p.date)}</div>
+                  <div className="bt-meta">{display.showAuthor ? `${p.author} · ${fmtDate(p.date)}` : fmtDate(p.date)}</div>
                 </div>
               </div>
             );
@@ -162,16 +176,14 @@ function BoardInner() {
           )}
         </div>
       ) : (
-        /* 기본형 스킨 — 작성자 열 제거. 모바일에서도 제목 폭을 확보하도록 3열로 고정 */
         <div className="panel board-list flush" style={board.fg ? { color: board.fg } : undefined}>
           {pageList.map(p => (
             <div
               className="brow"
               key={p.id}
-              style={{ gridTemplateColumns: '70px minmax(0, 1fr) 76px' }}
+              style={{ gridTemplateColumns: display.showAuthor ? '70px minmax(0, 1fr) 90px 76px' : '70px minmax(0, 1fr) 76px' }}
               onClick={() => { if (canRead(p)) router.push(`/board/${p.id}`); }}>
               <span className="cat">{postBadge(p)}</span>
-              {/* 제목 칸 안에서 태그를 오른쪽 끝에 정렬. 작성자 열은 표시하지 않는다. */}
               <div className="tcell">
                 {canRead(p) ? (
                   <b>
@@ -186,6 +198,7 @@ function BoardInner() {
                   <span className="tags">{(p.tags ?? []).map(t => <i key={t}>#{t}</i>)}</span>
                 )}
               </div>
+              {display.showAuthor && <span className="who">{p.author}</span>}
               <span className="dt">{fmtDate(p.date)}</span>
             </div>
           ))}
