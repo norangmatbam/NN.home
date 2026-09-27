@@ -6,6 +6,7 @@ import { WidgetConf, useMainStore } from '@/lib/mainStore';
 import { useLocalList } from '@/lib/postStore';
 import { Character, CHAR_SEED } from '@/lib/charStore';
 import { useAuth } from '@/lib/auth';
+import { useFonts } from '@/lib/fontStore';
 import { CroppedBlobImg } from '@/components/ui/CropEditor';
 import { Modal } from '@/components/ui/Modal';
 import { KSelect } from '@/components/ui/Kit';
@@ -14,6 +15,7 @@ export function CharacterWidget({ conf }: { conf: WidgetConf }) {
   const router = useRouter();
   const { user, isAdmin } = useAuth();
   const { updateWidget } = useMainStore();
+  const { familyOf } = useFonts();
   const [chars] = useLocalList<Character>('ohome.chars.v1', CHAR_SEED);
   const [open, setOpen] = useState(false);
 
@@ -71,7 +73,7 @@ export function CharacterWidget({ conf }: { conf: WidgetConf }) {
         className={`character-widget-card${visible ? ' clickable' : ''}`}
         onClick={visible ? e => {
           e.stopPropagation();
-          router.push(`/chars/${c.id}`);
+          router.push(`/chars/${c.slug || c.id}`);
         } : undefined}
       >
         {visible ? (
@@ -86,8 +88,12 @@ export function CharacterWidget({ conf }: { conf: WidgetConf }) {
             </div>
             <div className="character-widget-shade" />
             <div className="character-widget-copy">
-              <b className="character-widget-name">{c.name}</b>
-              {c.sub && <span className="character-widget-sub">{c.sub}</span>}
+              <b className="character-widget-name" style={{ fontFamily: familyOf(c.fontId) }}>{c.name}</b>
+              {c.sub && (
+                <span className="character-widget-sub" style={{ fontFamily: familyOf(c.bodyFontId) }}>
+                  {c.sub}
+                </span>
+              )}
             </div>
           </>
         ) : (
