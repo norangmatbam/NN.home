@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import './globals.css';
 import './mobile-image-fix.css';
 import './mobile-topbar.css';
@@ -10,6 +11,7 @@ import { FontProvider } from '@/lib/fontStore';
 import { ToastProvider } from '@/components/ui/Toast';
 import { TopBar } from '@/components/shell/TopBar';
 import { MobileQuickNav } from '@/components/shell/MobileQuickNav';
+import { GroupSiblingNav } from '@/components/shell/GroupSiblingNav';
 import { BgmPlayer } from '@/components/shell/BgmPlayer';
 import { TipLayer } from '@/components/ui/TipLayer';
 import { CursorLayer } from '@/components/shell/CursorLayer';
@@ -92,7 +94,10 @@ if(navigator.userAgent.indexOf('Whale/')>-1){document.documentElement.style.colo
                   {/* 앱 셸: 스크롤은 이 영역 안에서만 (7장) */}
                   {/* PageFrame: 같은 메뉴를 다시 누르면 이 안쪽만 remount (BGM·상단바는 유지, v1.9) */}
                   {/* MenuGuard: 비공개로 둔 메뉴는 주소로 들어와도 열리지 않게 (v2.0 사용자 요청) */}
-                  <main id="appMain"><PageFrame><MenuGuard>{children}</MenuGuard></PageFrame></main>
+                  <main id="appMain">
+                    <Suspense fallback={null}><GroupSiblingNav /></Suspense>
+                    <PageFrame><MenuGuard>{children}</MenuGuard></PageFrame>
+                  </main>
                   {/* BGM 미니 플레이어 — 전역 상주, 페이지 이동에도 유지 (4.1) */}
                   <BgmPlayer />
                   {/* 전역 커스텀 툴팁 — data-tip 요소 공통 (7장) */}
