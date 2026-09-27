@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { WidgetConf, useMainStore } from '@/lib/mainStore';
 import { useLocalList } from '@/lib/postStore';
 import { Character, CHAR_SEED } from '@/lib/charStore';
@@ -10,6 +11,7 @@ import { Modal } from '@/components/ui/Modal';
 import { KSelect } from '@/components/ui/Kit';
 
 export function CharacterWidget({ conf }: { conf: WidgetConf }) {
+  const router = useRouter();
   const { user, isAdmin } = useAuth();
   const { updateWidget } = useMainStore();
   const [chars] = useLocalList<Character>('ohome.chars.v1', CHAR_SEED);
@@ -64,7 +66,14 @@ export function CharacterWidget({ conf }: { conf: WidgetConf }) {
   const renderCard = (c: Character) => {
     const visible = canView(c);
     return (
-      <div key={c.id} className="character-widget-card">
+      <div
+        key={c.id}
+        className={`character-widget-card${visible ? ' clickable' : ''}`}
+        onClick={visible ? e => {
+          e.stopPropagation();
+          router.push(`/chars/${c.id}`);
+        } : undefined}
+      >
         {visible ? (
           <>
             <div className="character-widget-image">
@@ -114,6 +123,7 @@ export function CharacterWidget({ conf }: { conf: WidgetConf }) {
           position:relative;width:100%;height:100%;min-height:150px;
           overflow:hidden;border-radius:var(--radius);background:var(--panel);
         }
+        .character-widget-card.clickable{cursor:var(--cur-pointer,pointer)}
         .character-widget-image{position:absolute;inset:0}
         .character-widget-image img{width:100%;height:100%;object-fit:cover}
         .character-widget-shade{
