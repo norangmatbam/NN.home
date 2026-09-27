@@ -98,6 +98,40 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
     window.addEventListener('pointercancel', cancel);
   };
 
+  const boardLike = (it: T) => {
+    if (!it || typeof it !== 'object') return null;
+    const b = it as Record<string, unknown>;
+    return typeof b.skin === 'string'
+      && ['list', 'ticket', 'chat'].includes(b.skin)
+      && Array.isArray(b.cats)
+      && typeof b.permWrite === 'string'
+      && typeof b.permComment === 'string'
+      ? b : null;
+  };
+
+  const withBoardChatButton = (it: T, node: React.ReactNode) => {
+    const b = boardLike(it);
+    if (!b || !React.isValidElement(node)) return node;
+    const el = node as React.ReactElement<{ children?: React.ReactNode }>;
+    return React.cloneElement(el, undefined,
+      <>
+        {el.props.children}
+        <button
+          type="button"
+          className={b.skin === 'chat' ? 'btn btn-dark' : 'btn btn-ghost'}
+          style={{ padding: '4px 10px', fontSize: 10.5, whiteSpace: 'nowrap', flexShrink: 0 }}
+          onClick={e => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.dispatchEvent(new CustomEvent('ohome-board-skin', {
+              detail: { id: keyOf(it), skin: 'chat' },
+            }));
+          }}
+        >대화형</button>
+      </>,
+    );
+  };
+
   return (
     <>
       {/* PC는 기존 제스처를 그대로 사용하고, 터치 기기에서만 핸들을 정렬 전용 영역으로 만든다. */}
@@ -133,7 +167,7 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
           }
           return (
             <div key={keyOf(it)} className={cls} style={style} onPointerDown={ev => onPointerDown(ev, i)}>
-              {render(it, i)}
+              {withBoardChatButton(it, render(it, i))}
             </div>
           );
         })}
