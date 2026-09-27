@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 // 페이지 타이틀/설명 문구 편집 (5.2) — 관리자가 각 페이지 상단 설명을 자유 수정
-// 호버 시 좌우반전 연필(✎)이 표시되고, 클릭하면 그 자리에서 입력 (localStorage → DB 이전 예정)
+// BOARD / GALLERY 계열 목록 화면은 큰 제목도 클릭해서 직접 수정 가능
 import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
@@ -13,12 +13,16 @@ const STORAGE_KEY = 'ohome.pagetext.v1';
 
 /** 페이지 상단 대제목 — 클릭하면 해당 메뉴의 초기 페이지로 이동 (기본: 경로 첫 세그먼트).
  *  메뉴 관리에서 페이지 타이틀을 지정했으면 그 값이 기본 텍스트를 대체 (5.2 v1.9) —
- *  키는 href prop(게시판 등) 또는 현재 경로가 기능 href와 정확히 일치할 때만 (하위 경로 무영향) */
+ *  키는 href prop(게시판 등) 또는 현재 경로가 기능 href와 정확히 일치할 때만 (하위 경로 무영향).
+ *
+ *  /board, /gallery 목록 화면에서는 관리자가 제목을 클릭하면 그 자리에서 수정한다.
+ *  쿼리까지 키에 포함하므로 /gallery 와 /gallery?s=commision 제목은 각각 따로 저장된다. */
 export function PageTitle({ children, href, style }: {
   children: React.ReactNode; href?: string; style?: React.CSSProperties;
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { isAdmin } = useAuth();
   const [ms] = useMenuSettings();
   /* 여러 개로 만든 섹션·게시판은 **같은 경로에 쿼리로** 갈린다 (`/gallery?s=fan`).
      예전에는 쿼리를 뺀 경로로만 찾아서, 추가한 메뉴에 붙인 타이틀·이름이 페이지에 안 나왔다
@@ -47,15 +51,73 @@ export function PageTitle({ children, href, style }: {
     : full !== pathname
       ? pageTitleFor(ms, full) ?? menuLabelOf(ms, full)
       : pageTitleFor(ms, pathname);
+
+  // 사용자 요청: BOARD / GALLERY / 추가 갤러리 섹션의 큰 제목을 직접 수정.
+  // 상세·글쓰기 화면에서는 기존처럼 제목 클릭 = 목록 이동 동작을 유지한다.
+  const titleEditable = pathname === '/board' || pathname === '/gallery';
+  const titleKey = `page-title:${target}`;
+  const [savedTitle, setSavedTitle] = useState('');
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+
+  useEffect(() => {
+    if (!titleEditable) return;
+    const v = load()[titleKey];
+    setSavedTitle(v ?? '');
+    setEditingTitle(false);
+  }, [titleEditable, titleKey]);
+
+  const shownTitle = savedTitle || custom || children;
+  const saveTitle = () => {
+    const v = titleDraft.trim();
+    const map = load();
+    if (v) map[titleKey] = v;
+    else delete map[titleKey];
+    try { setSetting(STORAGE_KEY, map); } catch { /* 무시 */ }
+    setSavedTitle(v);
+    setEditingTitle(false);
+  };
+
+  if (titleEditable && isAdmin && editingTitle) {
+    return (
+      <h1 style={style}>
+        <input
+          autoFocus
+          aria-label="페이지 제목 수정"
+          value={titleDraft}
+          onChange={e => setTitleDraft(e.target.value)}
+          onBlur={saveTitle}
+          onKeyDown={e => {
+            if (e.key === 'Enter') saveTitle();
+            if (e.key === 'Escape') setEditingTitle(false);
+          }}
+          style={{
+            width: '100%', minWidth: 0, padding: 0, margin: 0,
+            border: 0, outline: 0, background: 'transparent',
+            color: 'inherit', font: 'inherit', letterSpacing: 'inherit',
+          }}
+        />
+      </h1>
+    );
+  }
+
   // 지금 있는 페이지면 다시 불러오기 — 상단 메뉴 재클릭과 동일 동작 (v1.9 사용자 요청).
   // 추가 게시판·섹션의 목록(쿼리 포함 주소)에서도 같은 동작이 되게 full과도 비교한다 (v2.0)
   return (
-    <h1 style={style} onClick={() => {
-      const t = target || '/';
-      if (t === pathname || t === full) refreshPage();   // 새로고침 아님 — 페이지만 처음 상태로 (v1.9)
-      else router.push(t);
-    }}>
-      {custom ?? children}
+    <h1
+      style={{ ...style, ...(titleEditable && isAdmin ? { cursor: 'text' } : {}) }}
+      title={titleEditable && isAdmin ? '클릭하여 페이지 제목 수정' : undefined}
+      onClick={() => {
+        if (titleEditable && isAdmin) {
+          setTitleDraft(typeof shownTitle === 'string' || typeof shownTitle === 'number' ? String(shownTitle) : '');
+          setEditingTitle(true);
+          return;
+        }
+        const t = target || '/';
+        if (t === pathname || t === full) refreshPage();   // 새로고침 아님 — 페이지만 처음 상태로 (v1.9)
+        else router.push(t);
+      }}>
+      {shownTitle}
     </h1>
   );
 }
