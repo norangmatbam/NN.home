@@ -17,7 +17,7 @@
   }
 
   /* Character detail prev/next: keep the wide touch target, but draw the chevron
-     right against the artwork edge instead of in the middle of that target. */
+     against the artwork edge and lower on the image. */
   .page-char-detail .profile-center button[aria-label="이전 캐릭터"],
   .page-char-detail .profile-center button[aria-label="다음 캐릭터"] {
     color: transparent !important;
@@ -27,7 +27,7 @@
   .page-char-detail .profile-center button[aria-label="이전 캐릭터"]::after,
   .page-char-detail .profile-center button[aria-label="다음 캐릭터"]::after {
     position: absolute;
-    top: 50%;
+    top: 72%;
     transform: translateY(-50%);
     color: rgba(225,225,225,.9);
     font-size: 44px;
