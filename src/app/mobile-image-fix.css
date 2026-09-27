@@ -3,26 +3,81 @@
    from being clipped on narrow screens. */
 
 @media (max-width:620px){
-  /* Main slide banner: keep the whole image visible on mobile instead of cover-cropping it. */
-  .banner{
-    height:auto;
-    aspect-ratio:16 / 9;
-    background:var(--panel-solid,#111);
+  /*
+   * The mobile BGM player is fixed to the bottom of the viewport. Reserve extra
+   * scroll space below every page so the last widget can be scrolled fully above it.
+   * safe-area-inset-bottom also covers phones with a gesture/home indicator area.
+   */
+  #appMain{
+    padding-bottom:calc(96px + env(safe-area-inset-bottom));
+    scroll-padding-bottom:calc(96px + env(safe-area-inset-bottom));
   }
 
-  /* Works for both plain <img> slides and CroppedBlobImg (whose image is positioned inline). */
-  .banner .slide > img,
-  .banner .slide > div > img{
-    position:absolute !important;
-    inset:0 !important;
-    left:0 !important;
-    top:0 !important;
+  /*
+   * Main slide banner: let the active image define the banner height from its own
+   * natural aspect ratio. This removes both cover-cropping and the letterbox space
+   * that a fixed 16:9 mobile frame would create.
+   */
+  .banner{
+    height:auto;
+    aspect-ratio:auto;
+    background:transparent;
+  }
+
+  /* Only the visible slide participates in layout; the others stay layered/hidden. */
+  .banner .slide.on{
+    position:relative;
+    inset:auto;
+  }
+
+  /* Plain URL image: restore normal document flow and preserve the original ratio. */
+  .banner .slide.on > img{
+    position:relative !important;
+    inset:auto !important;
+    left:auto !important;
+    top:auto !important;
     transform:none !important;
+    display:block !important;
     width:100% !important;
-    height:100% !important;
+    height:auto !important;
     max-width:100% !important;
-    max-height:100% !important;
+    max-height:none !important;
     object-fit:contain !important;
+  }
+
+  /*
+   * Uploaded banner (CroppedBlobImg): its wrapper and image are normally absolute
+   * because the desktop crop renderer fills a fixed frame. On mobile put both back
+   * into normal flow so the original image height determines the banner height.
+   */
+  .banner .slide.on > div:not(.ph){
+    position:relative !important;
+    inset:auto !important;
+    width:100% !important;
+    height:auto !important;
+    overflow:visible !important;
+  }
+  .banner .slide.on > div:not(.ph) > img{
+    position:relative !important;
+    inset:auto !important;
+    left:auto !important;
+    top:auto !important;
+    transform:none !important;
+    display:block !important;
+    width:100% !important;
+    height:auto !important;
+    max-width:100% !important;
+    max-height:none !important;
+    object-fit:contain !important;
+  }
+
+  /* Demo/empty banner has no intrinsic image height, so keep a sensible fallback. */
+  .banner .slide.on > .ph{
+    position:relative !important;
+    inset:auto !important;
+    width:100% !important;
+    height:auto !important;
+    aspect-ratio:16 / 9;
   }
 
   /* Published/body images should always scale down to the viewport without clipping. */
