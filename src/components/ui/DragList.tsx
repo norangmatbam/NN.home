@@ -2,6 +2,7 @@
 // 공통 드래그 정렬 리스트 (v1.9 — 들어 올림 + 빈 자리 + FLIP)
 // 행 안의 .drag-h 핸들을 잡아 세로로 끌면 다른 행이 부드럽게 밀려나며 삽입 위치를 보여줌.
 // 놓으면 정확한 슬롯 위치로 안착 애니메이션 후 커밋 — 커밋 프레임은 transition을 죽여 튀지 않게 (v1.9)
+// 모바일/터치에서는 핸들이 브라우저 스크롤 제스처에 뺏기지 않도록 pointer capture + touch-action을 사용한다.
 import React, { useRef, useState } from 'react';
 
 export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
@@ -20,6 +21,14 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
     if (!(e.target as HTMLElement).closest('.drag-h')) return;
     e.preventDefault();
     e.stopPropagation();   // 중첩 DragList(메뉴 트리 등)에서 바깥 리스트가 같이 끌리지 않게
+
+    const row = e.currentTarget as HTMLDivElement;
+    const pointerId = e.pointerId;
+    // 터치/펜은 손가락이 핸들 밖으로 벗어나도 같은 드래그를 계속 받는다.
+    if (e.pointerType !== 'mouse') {
+      try { row.setPointerCapture(pointerId); } catch { /* 지원하지 않는 브라우저는 window listener로 처리 */ }
+    }
+
     const rows = Array.from(contRef.current!.children) as HTMLElement[];
     const tops = rows.map(r => r.getBoundingClientRect().top);
     const heights = rows.map(r => r.getBoundingClientRect().height);
@@ -27,7 +36,20 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
     const key = keyOf(items[index]);
     setDrag({ key, from: index, to: index, dy: 0, h: heights[index] });
 
+    const cleanup = () => {
+      window.removeEventListener('pointermove', mv);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
+      if (e.pointerType !== 'mouse') {
+        try {
+          if (row.hasPointerCapture(pointerId)) row.releasePointerCapture(pointerId);
+        } catch { /* 이미 해제된 경우 무시 */ }
+      }
+    };
+
     const mv = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      if (ev.pointerType !== 'mouse') ev.preventDefault();
       const dy = ev.clientY - startY;
       const centerY = tops[index] + heights[index] / 2 + dy;
       let to = index;
@@ -38,9 +60,10 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
       }
       setDrag(d => (d ? { ...d, dy, to } : d));
     };
-    const up = () => {
-      window.removeEventListener('pointermove', mv);
-      window.removeEventListener('pointerup', up);
+
+    const up = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      cleanup();
       // 들어 올린 행을 정확한 도착 슬롯 오프셋으로 부드럽게 안착시킨 뒤 커밋
       setDrag(d => {
         if (!d) return null;
@@ -63,34 +86,58 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
         requestAnimationFrame(() => requestAnimationFrame(() => setFrozen(false)));
       }, 170);
     };
-    window.addEventListener('pointermove', mv);
+
+    const cancel = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      cleanup();
+      setDrag(null);
+    };
+
+    window.addEventListener('pointermove', mv, { passive: false });
     window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel);
   };
 
   return (
-    <div ref={contRef}>
-      {items.map((it, i) => {
-        let style: React.CSSProperties = frozen ? { transition: 'none' } : {};
-        let cls = 'dl-row';
-        if (drag) {
-          if (keyOf(it) === drag.key) {
-            style = {
-              transform: `translateY(${drag.dy}px) scale(1.02)`,
-              transition: drag.settling ? 'transform .16s ease' : 'none',
-            };
-            cls += ' lift';
-          } else if (drag.from < drag.to && i > drag.from && i <= drag.to) {
-            style = { transform: `translateY(${-drag.h}px)` };
-          } else if (drag.from > drag.to && i >= drag.to && i < drag.from) {
-            style = { transform: `translateY(${drag.h}px)` };
+    <>
+      {/* PC는 기존 제스처를 그대로 사용하고, 터치 기기에서만 핸들을 정렬 전용 영역으로 만든다. */}
+      <style>{`
+        @media (hover: none) and (pointer: coarse) {
+          .drag-list-mobile .drag-h {
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+            min-width: 32px;
+            min-height: 32px;
+            display: inline-grid;
+            place-items: center;
           }
         }
-        return (
-          <div key={keyOf(it)} className={cls} style={style} onPointerDown={e => onPointerDown(e, i)}>
-            {render(it, i)}
-          </div>
-        );
-      })}
-    </div>
+      `}</style>
+      <div ref={contRef} className="drag-list-mobile">
+        {items.map((it, i) => {
+          let style: React.CSSProperties = frozen ? { transition: 'none' } : {};
+          let cls = 'dl-row';
+          if (drag) {
+            if (keyOf(it) === drag.key) {
+              style = {
+                transform: `translateY(${drag.dy}px) scale(1.02)`,
+                transition: drag.settling ? 'transform .16s ease' : 'none',
+              };
+              cls += ' lift';
+            } else if (drag.from < drag.to && i > drag.from && i <= drag.to) {
+              style = { transform: `translateY(${-drag.h}px)` };
+            } else if (drag.from > drag.to && i >= drag.to && i < drag.from) {
+              style = { transform: `translateY(${drag.h}px)` };
+            }
+          }
+          return (
+            <div key={keyOf(it)} className={cls} style={style} onPointerDown={ev => onPointerDown(ev, i)}>
+              {render(it, i)}
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
