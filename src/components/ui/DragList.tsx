@@ -24,7 +24,6 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
 
     const row = e.currentTarget as HTMLDivElement;
     const pointerId = e.pointerId;
-    // 터치/펜은 손가락이 핸들 밖으로 벗어나도 같은 드래그를 계속 받는다.
     if (e.pointerType !== 'mouse') {
       try { row.setPointerCapture(pointerId); } catch { /* 지원하지 않는 브라우저는 window listener로 처리 */ }
     }
@@ -64,7 +63,6 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
     const up = (ev: PointerEvent) => {
       if (ev.pointerId !== pointerId) return;
       cleanup();
-      // 들어 올린 행을 정확한 도착 슬롯 오프셋으로 부드럽게 안착시킨 뒤 커밋
       setDrag(d => {
         if (!d) return null;
         const target = d.to === d.from ? 0
@@ -82,7 +80,6 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
           }
           return null;
         });
-        // 커밋 리렌더(transform 해제 + DOM 순서 교체)가 그려진 다음 프레임에 transition 복원
         requestAnimationFrame(() => requestAnimationFrame(() => setFrozen(false)));
       }, 170);
     };
@@ -109,32 +106,51 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
       ? b : null;
   };
 
-  const withBoardChatButton = (it: T, node: React.ReactNode) => {
+  // 게시판 관리 행만: 기존 「기본형 / 티켓형」 세그먼트 안에 대화형을 넣는다.
+  // 행 끝에 별도 버튼을 붙이면 모바일에서 줄바꿈이 생기므로 구조를 유지한 채 세그먼트만 확장한다.
+  const enhanceBoardRow = (it: T, node: React.ReactNode): React.ReactNode => {
     const b = boardLike(it);
     if (!b || !React.isValidElement(node)) return node;
-    const el = node as React.ReactElement<{ children?: React.ReactNode }>;
-    return React.cloneElement(el, undefined,
-      <>
-        {el.props.children}
-        <button
-          type="button"
-          className={b.skin === 'chat' ? 'btn btn-dark' : 'btn btn-ghost'}
-          style={{ padding: '4px 10px', fontSize: 10.5, whiteSpace: 'nowrap', flexShrink: 0 }}
-          onClick={e => {
-            e.preventDefault();
-            e.stopPropagation();
-            window.dispatchEvent(new CustomEvent('ohome-board-skin', {
-              detail: { id: keyOf(it), skin: 'chat' },
-            }));
-          }}
-        >대화형</button>
-      </>,
-    );
+
+    const inject = (child: React.ReactNode): React.ReactNode => {
+      if (!React.isValidElement(child)) return child;
+      const el = child as React.ReactElement<{ className?: string; style?: React.CSSProperties; children?: React.ReactNode }>;
+      const cls = el.props.className ?? '';
+
+      if (cls.includes('mini-seg')) {
+        return React.cloneElement(el, {
+          style: { ...el.props.style, flexWrap: 'nowrap', whiteSpace: 'nowrap', flexShrink: 0 },
+          children: <>
+            {el.props.children}
+            <button
+              type="button"
+              className={b.skin === 'chat' ? 'on' : ''}
+              onClick={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.dispatchEvent(new CustomEvent('ohome-board-skin', {
+                  detail: { id: keyOf(it), skin: 'chat' },
+                }));
+              }}
+            >대화형</button>
+          </>,
+        });
+      }
+
+      const children = React.Children.map(el.props.children, inject);
+      const style = cls.includes('cp-group')
+        ? { ...el.props.style, flexWrap: 'nowrap', whiteSpace: 'nowrap', flexShrink: 0 }
+        : cls.includes('set-row')
+          ? { ...el.props.style, flexWrap: 'nowrap', whiteSpace: 'nowrap' }
+          : el.props.style;
+      return React.cloneElement(el, { style, children });
+    };
+
+    return inject(node);
   };
 
   return (
     <>
-      {/* PC는 기존 제스처를 그대로 사용하고, 터치 기기에서만 핸들을 정렬 전용 영역으로 만든다. */}
       <style>{`
         @media (hover: none) and (pointer: coarse) {
           .drag-list-mobile .drag-h {
@@ -167,7 +183,7 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
           }
           return (
             <div key={keyOf(it)} className={cls} style={style} onPointerDown={ev => onPointerDown(ev, i)}>
-              {withBoardChatButton(it, render(it, i))}
+              {enhanceBoardRow(it, render(it, i))}
             </div>
           );
         })}
