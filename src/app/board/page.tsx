@@ -13,7 +13,7 @@ import {
 } from '@/lib/boardStore';
 import { useBoardDisplay } from '@/lib/boardDisplayStore';
 import { boardEntries, buildMenu, useMenuSettings } from '@/lib/menuStore';
-import { SearchBar, Pager, KToggle } from '@/components/ui/Kit';
+import { SearchBar, Pager } from '@/components/ui/Kit';
 import { CropImg } from '@/components/ui/CropEditor';
 import { EditableDesc, PageTitle } from '@/components/ui/PageText';
 
@@ -34,7 +34,7 @@ function BoardInner() {
   const bid = params.get('b') ?? MAIN_BOARD_ID;
   const { boards, loaded: boardsLoaded } = useBoards();
   const board = boards.find(b => b.id === bid) ?? boards[0];
-  const [display, patchDisplay] = useBoardDisplay(board.id);
+  const [display] = useBoardDisplay(board.id);
   const [posts] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
   // 댓글 수 — 댓글은 글과 따로 저장된다 (v2.0). 옛 글 안에 남아 있던 것도 함께 센다
   const [cmtRows] = useLocalList<CommentRow>(COMMENT_KEY, COMMENT_SEED);
@@ -117,17 +117,6 @@ function BoardInner() {
             </button>
           ))}
         </nav>
-      )}
-
-      {isAdmin && (
-        <div className="panel" style={{ padding: '10px 14px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <b style={{ fontSize: 11, color: 'var(--faint)', letterSpacing: '.08em' }}>표시 옵션</b>
-          <KToggle label="공지 분류" checked={display.showNotice} onChange={v => {
-            patchDisplay({ showNotice: v });
-            if (!v && cat === '공지') { setCat('전체'); setPage(1); }
-          }} />
-          <KToggle label="작성자 표시" checked={display.showAuthor} onChange={v => patchDisplay({ showAuthor: v })} />
-        </div>
       )}
 
       <div className="toolrow">
