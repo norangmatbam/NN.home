@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 // 메인 위젯 시스템 + 편집모드 상태 (기획서 4.0)
 // 저장소: localStorage → 추후 Supabase site_settings 로 이전
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
@@ -10,8 +10,8 @@ import { getRawSetting, setSetting } from './settingStore';
 export type WidgetType =
   | 'banner' | 'member'                 // 고정 요소 (삭제 불가)
   | 'menu' | 'memo' | 'diary' | 'latest'
-  | 'dday' | 'todo' | 'upcoming' | 'freetext' | 'deco' | 'memoboard'
-  | 'apply';   // 'image'는 deco(장식 이미지+링크)로 일원화 (v1.9) · apply = 커미션 신청자 (v2.0)
+  | 'dday' | 'todo' | 'upcoming' | 'freetext' | 'deco' | 'character' | 'memoboard'
+  | 'apply';   // 'image'는 deco(장식 이미지+링크)로 일원화 (v1.9) · character = 캐릭터 카드
 
 export interface WidgetConf {
   id: string;
@@ -52,12 +52,13 @@ export const WIDGET_META: Record<WidgetType, { title: string; desc: string }> = 
   upcoming: { title: 'UPCOMING', desc: '다가오는 일정' },
   freetext: { title: '자유 텍스트', desc: '패널 없이 문구만' },
   deco: { title: '이미지', desc: '패널 없이 이미지만' },
+  character: { title: '캐릭터 카드', desc: '대표 썸네일 배경 + 이름 + 한 줄 소개' },
   memoboard: { title: 'STICKY', desc: '스티커 메모 미니보드 — 클릭 시 메모장 (4.6)' },
   apply: { title: 'COMMISSION', desc: '커미션 신청자 — 마감 빠른 순 (몇 명까지 볼지 설정)' },
 };
 
 /** 같은 종류를 여러 개 추가할 수 있는 위젯 (v1.9 사용자 확정 — 나머지는 하나만) */
-export const MULTI_TYPES: WidgetType[] = ['freetext', 'deco', 'banner'];   // banner: v2.0 사용자 요청 — 슬라이드 배너 여러 개
+export const MULTI_TYPES: WidgetType[] = ['freetext', 'deco', 'banner', 'character'];
 
 /** 위젯 표시 이름 — 중복 추가 가능한 위젯이 2개 이상이면 번호를 붙여 구분 (v1.9) */
 export function widgetLabel(widgets: WidgetConf[], w: WidgetConf): string {
@@ -135,11 +136,14 @@ export function MainStoreProvider({ children }: { children: React.ReactNode }) {
       if (raw) {
         const parsed = JSON.parse(raw) as MainState;
         // 새 위젯 타입이 추가돼도 기본값과 병합 · 제거된 'image' 위젯은 걸러냄 (v1.9 — deco로 일원화)
-        // 구 enabled:false(전체 숨김)는 삭제로 이관 — 토글은 이제 모바일 표시만 제어 (v1.9 사용자 확정)
+        // 구버전 캐릭터 카드는 deco + settings.kind=character였으므로 정식 character 타입으로 승격한다.
         const removed = new Set(parsed.removedIds ?? []);
         const kept: WidgetConf[] = [];
-        for (const w of parsed.widgets) {
-          if ((w.type as string) === 'image') continue;
+        for (const rawWidget of parsed.widgets) {
+          if ((rawWidget.type as string) === 'image') continue;
+          const w: WidgetConf = rawWidget.type === 'deco' && rawWidget.settings?.kind === 'character'
+            ? { ...rawWidget, type: 'character' }
+            : rawWidget;
           if (!w.enabled && !w.fixed) { removed.add(w.id); continue; }
           kept.push(w.enabled ? w : { ...w, enabled: true });
         }
@@ -219,9 +223,9 @@ export function MainStoreProvider({ children }: { children: React.ReactNode }) {
   }, [persist]);
 
   const addWidget = useCallback((type: WidgetType, col: 1 | 2 | 3): string => {
-    const id = `${type}-${Date.now().toString(36)}`;
+    const id = `${type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     setState(s => {
-      // 중복 추가 방지 (v1.9) — 이미지·자유 텍스트 외에는 종류당 하나만 (UI에서도 막지만 안전장치)
+      // 중복 추가 방지 (v1.9) — MULTI_TYPES는 종류당 여러 개 허용
       if (!MULTI_TYPES.includes(type) && s.widgets.some(w => w.type === type)) return s;
       // 절대배치 기본 좌표 (v1.9) — 선택한 열 상단 근처, 기존 위젯들 아래
       const colX = { 1: 0, 2: 240, 3: 880 } as const;
