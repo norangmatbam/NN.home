@@ -1,19 +1,17 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { WidgetConf, useMainStore } from '@/lib/mainStore';
 import { useLocalList } from '@/lib/postStore';
-import { Character, CHAR_SEED, charPath } from '@/lib/charStore';
+import { Character, CHAR_SEED } from '@/lib/charStore';
 import { useAuth } from '@/lib/auth';
 import { CroppedBlobImg } from '@/components/ui/CropEditor';
 import { Modal } from '@/components/ui/Modal';
 import { KSelect } from '@/components/ui/Kit';
 
 export function CharacterWidget({ conf }: { conf: WidgetConf }) {
-  const router = useRouter();
   const { user, isAdmin } = useAuth();
-  const { editOn, updateWidget } = useMainStore();
+  const { updateWidget } = useMainStore();
   const [chars] = useLocalList<Character>('ohome.chars.v1', CHAR_SEED);
   const [open, setOpen] = useState(false);
 
@@ -63,19 +61,10 @@ export function CharacterWidget({ conf }: { conf: WidgetConf }) {
     isAdmin || c.visibility === 'public' || (c.visibility === 'member' && !!user)
   );
 
-  const go = (c: Character) => {
-    if (editOn || !canView(c)) return;
-    router.push(charPath(c));
-  };
-
   const renderCard = (c: Character) => {
     const visible = canView(c);
     return (
-      <div
-        key={c.id}
-        className="character-widget-card"
-        onClick={() => go(c)}
-        style={{ cursor: visible && !editOn ? 'var(--cur-pointer,pointer)' : 'default' }}>
+      <div key={c.id} className="character-widget-card">
         {visible ? (
           <>
             <div className="character-widget-image">
