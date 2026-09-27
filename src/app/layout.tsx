@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import './globals.css';
 import './mobile-image-fix.css';
 import './mobile-topbar.css';
+import './chat-write-mobile.css';
 import { ThemeProvider } from '@/lib/ThemeProvider';
 import { AuthProvider } from '@/lib/auth';
 import { MainStoreProvider } from '@/lib/mainStore';
