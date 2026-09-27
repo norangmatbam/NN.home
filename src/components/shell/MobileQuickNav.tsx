@@ -16,8 +16,8 @@ type MobileGroup = {
 };
 
 /** 모바일 TopBar 2행.
- * BACKGROUND / FOREGROUND 같은 상위 그룹을 누르면 프로필 메뉴처럼
- * 하위 게시판·섹션 목록을 드롭다운으로 보여 준다. */
+ * BACKGROUND / FOREGROUND 같은 상위 그룹을 누르면 프로필 메뉴와 같은 스타일의
+ * 드롭다운으로 하위 게시판·섹션 목록을 보여 준다. */
 export function MobileQuickNav() {
   const router = useRouter();
   const { user, isAdmin } = useAuth();
@@ -84,7 +84,7 @@ export function MobileQuickNav() {
       </nav>
 
       {openGroup && (
-        <div className="mobile-group-menu" role="menu" aria-label={`${openGroup.label} 하위 메뉴`}>
+        <div className="user-menu open mobile-group-menu" role="menu" aria-label={`${openGroup.label} 하위 메뉴`}>
           {openGroup.children.map(item => (
             <button key={item.href} role="menuitem" onClick={() => nav(item.href)}>
               {item.label}
