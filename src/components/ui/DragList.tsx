@@ -95,42 +95,48 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
     window.addEventListener('pointercancel', cancel);
   };
 
+  const recordOf = (it: T) => (it && typeof it === 'object' ? it as Record<string, unknown> : null);
   const boardLike = (it: T) => {
-    if (!it || typeof it !== 'object') return null;
-    const b = it as Record<string, unknown>;
-    return typeof b.skin === 'string'
+    const b = recordOf(it);
+    return b
+      && typeof b.skin === 'string'
       && ['list', 'ticket', 'chat'].includes(b.skin)
       && Array.isArray(b.cats)
       && typeof b.permWrite === 'string'
       && typeof b.permComment === 'string'
       ? b : null;
   };
+  const boardBadgeLike = (it: T) => {
+    const b = recordOf(it);
+    return b
+      && typeof b.label === 'string'
+      && typeof b.bg === 'string'
+      && typeof b.border === 'string'
+      && typeof b.fg === 'string'
+      ? b : null;
+  };
 
-  // 게시판 관리 행만: 기존 「기본형 / 티켓형」 세그먼트 안에 대화형을 넣는다.
-  // 행 끝에 별도 버튼을 붙이면 모바일에서 줄바꿈이 생기므로 구조를 유지한 채 세그먼트만 확장한다.
-  const enhanceBoardRow = (it: T, node: React.ReactNode): React.ReactNode => {
-    const b = boardLike(it);
-    if (!b || !React.isValidElement(node)) return node;
+  // 게시판 관리 행: 기존 「기본형 / 티켓형」 세그먼트 안에 대화형을 넣는다.
+  // 게시판 말머리 행: 이름·색·삭제 컨트롤이 모바일에서도 절대 두 줄로 내려가지 않게 고정한다.
+  const enhanceSettingsRow = (it: T, node: React.ReactNode): React.ReactNode => {
+    const board = boardLike(it);
+    const badge = boardBadgeLike(it);
+    if ((!board && !badge) || !React.isValidElement(node)) return node;
 
     const inject = (child: React.ReactNode): React.ReactNode => {
       if (!React.isValidElement(child)) return child;
       const el = child as React.ReactElement<{ className?: string; style?: React.CSSProperties; children?: React.ReactNode }>;
       const cls = el.props.className ?? '';
 
-      if (cls.includes('mini-seg')) {
-        const segStyle: React.CSSProperties = {
-          ...el.props.style,
-          flexWrap: 'nowrap',
-          whiteSpace: 'nowrap',
-          flexShrink: 0,
-        };
+      if (board && cls.includes('mini-seg')) {
+        const style: React.CSSProperties = { ...el.props.style, flexWrap: 'nowrap', whiteSpace: 'nowrap', flexShrink: 0 };
         return React.cloneElement(el, {
-          style: segStyle,
+          style,
           children: <>
             {el.props.children}
             <button
               type="button"
-              className={b.skin === 'chat' ? 'on' : ''}
+              className={board.skin === 'chat' ? 'on' : ''}
               onClick={e => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -144,13 +150,15 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
       }
 
       const children = React.Children.map(el.props.children, inject);
-      let nextStyle: React.CSSProperties | undefined = el.props.style;
+      let style: React.CSSProperties | undefined = el.props.style;
       if (cls.includes('cp-group')) {
-        nextStyle = { ...el.props.style, flexWrap: 'nowrap', whiteSpace: 'nowrap', flexShrink: 0 };
+        style = { ...el.props.style, flexWrap: 'nowrap', whiteSpace: 'nowrap', flexShrink: 0 };
       } else if (cls.includes('set-row')) {
-        nextStyle = { ...el.props.style, flexWrap: 'nowrap', whiteSpace: 'nowrap' };
+        style = { ...el.props.style, flexWrap: 'nowrap', whiteSpace: 'nowrap', minWidth: 0 };
+      } else if (badge && cls.split(/\s+/).includes('l')) {
+        style = { ...el.props.style, flexWrap: 'nowrap', whiteSpace: 'nowrap', flexShrink: 0 };
       }
-      return React.cloneElement(el, { style: nextStyle, children });
+      return React.cloneElement(el, { style, children });
     };
 
     return inject(node);
@@ -190,7 +198,7 @@ export function DragList<T>({ items, keyOf, render, onReorder, disabled }: {
           }
           return (
             <div key={keyOf(it)} className={cls} style={style} onPointerDown={ev => onPointerDown(ev, i)}>
-              {enhanceBoardRow(it, render(it, i))}
+              {enhanceSettingsRow(it, render(it, i))}
             </div>
           );
         })}
