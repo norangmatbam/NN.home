@@ -230,7 +230,10 @@ export async function createSupabaseBackend(
     },
 
     subscribe(coll, onChange) {
-      const ch = sb.channel(`ohome:${coll}`)
+      // 같은 컬렉션을 여러 컴포넌트가 동시에 구독할 수 있다. 예: 메인에 캐릭터 카드가 여러 개.
+      // Supabase Realtime 채널 topic은 인스턴스마다 고유해야 중복 구독 충돌이 나지 않는다.
+      const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const ch = sb.channel(`ohome:${coll}:${suffix}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: coll }, () => onChange())
         .subscribe();
       return () => { void sb.removeChannel(ch); };
