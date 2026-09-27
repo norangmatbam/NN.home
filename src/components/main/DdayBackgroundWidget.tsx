@@ -38,7 +38,6 @@ export function DdayBackgroundWidget({ conf }: { conf: WidgetConf }) {
   const dFontId = (conf.settings.fontId as string | undefined) ?? 'serif';
   const dColor = conf.settings.color as string | undefined;
   const titleColor = conf.settings.titleColor as string | undefined;
-  const manageColor = conf.settings.manageColor as string | undefined;
   const bgImage = conf.settings.bgImage as string | undefined;
   const bgCrop = conf.settings.bgCrop as CropValue | undefined;
   const bgUrl = useBlobUrl(bgImage);
@@ -74,9 +73,7 @@ export function DdayBackgroundWidget({ conf }: { conf: WidgetConf }) {
       )}
 
       <div style={{ position: 'relative', zIndex: 1 }}>
-        <h4 style={{ color: titleColor }}>
-          D-DAY {isAdmin && <span className="more" style={{ color: manageColor }}>관리 ›</span>}
-        </h4>
+        <h4 style={{ color: titleColor }}>D-DAY</h4>
         {items.map(it => {
           const d = ddayLabel(it.date, it.plusOne);
           return (
@@ -102,8 +99,6 @@ export function DdayBackgroundWidget({ conf }: { conf: WidgetConf }) {
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                 <span className="cp-lb">D-DAY</span>
                 <ColorField value={titleColor ?? '#333333'} onChange={hex => setMeta({ titleColor: hex })} />
-                <span className="cp-lb">관리</span>
-                <ColorField value={manageColor ?? '#888888'} onChange={hex => setMeta({ manageColor: hex })} />
               </div>
               <p className="hint" style={{ margin: 0 }}>색상을 직접 바꾸기 전에는 기존 테마 색상이 그대로 적용됩니다.</p>
             </div>
