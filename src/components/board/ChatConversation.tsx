@@ -12,6 +12,9 @@ export function ChatConversation({ chat }: { chat: ChatPostData }) {
   const endRef = useRef<HTMLDivElement>(null);
   const [railVisible, setRailVisible] = useState(false);
   const [railValue, setRailValue] = useState(0);
+  const [railTop, setRailTop] = useState(0);
+  const [railLeft, setRailLeft] = useState(0);
+  const [railWidth, setRailWidth] = useState(0);
   const longChat = chat.messages.length > 30;
 
   const jumpTop = () => {
@@ -35,8 +38,16 @@ export function ChatConversation({ chat }: { chat: ChatPostData }) {
       const bottom = wr.bottom - sr.top + scroller.scrollTop;
       const end = Math.max(start + 1, bottom - scroller.clientHeight);
       const ratio = Math.max(0, Math.min(1, (scroller.scrollTop - start) / (end - start)));
+
       setRailValue(Math.round(ratio * RAIL_MAX));
-      setRailVisible(wr.top < sr.top - 8 && wr.bottom > sr.top + 80);
+      setRailTop(sr.top);
+      setRailLeft(sr.left);
+      setRailWidth(sr.width);
+
+      // 대화 영역이 화면에 걸쳐 있고 사용자가 실제로 스크롤하기 시작하면 바로 표시.
+      // sticky를 부모 안에 두면 대화 카드가 상단에 닿기 전엔 보이지 않아 fixed rail로 분리한다.
+      const chatInView = wr.top < sr.bottom - 40 && wr.bottom > sr.top + 80;
+      setRailVisible(scroller.scrollTop > 16 && chatInView);
     };
 
     sync();
@@ -67,7 +78,11 @@ export function ChatConversation({ chat }: { chat: ChatPostData }) {
       <div ref={topRef} />
 
       {longChat && railVisible && (
-        <div className="chat-view-rail" aria-label="대화 위치 이동">
+        <div
+          className="chat-view-rail"
+          style={{ top: railTop, left: railLeft, width: railWidth }}
+          aria-label="대화 위치 이동"
+        >
           <button type="button" onClick={jumpTop} aria-label="맨 위 대화로 이동">↑</button>
           <input
             type="range"
@@ -121,7 +136,7 @@ export function ChatConversation({ chat }: { chat: ChatPostData }) {
 
       <style>{`
         .chat-conversation-wrap{position:relative}
-        .chat-view-rail{position:sticky;top:0;z-index:54;display:grid;grid-template-columns:28px minmax(0,1fr) 28px;align-items:center;gap:8px;margin:0 -1px 4px;padding:7px 12px;background:color-mix(in srgb,var(--panel-solid) 86%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);box-shadow:0 5px 16px rgba(0,0,0,.08)}
+        .chat-view-rail{position:fixed;z-index:54;display:grid;grid-template-columns:28px minmax(0,1fr) 28px;align-items:center;gap:8px;padding:7px 12px;background:color-mix(in srgb,var(--panel-solid) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);box-shadow:0 5px 16px rgba(0,0,0,.08)}
         .chat-view-rail input{width:100%;accent-color:var(--accent)}
         .chat-view-rail button{height:28px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--sub);font-size:12px}
         .chat-conversation{max-width:760px;margin:0 auto;padding:22px 10px 30px;display:grid;gap:11px}
@@ -146,7 +161,7 @@ export function ChatConversation({ chat }: { chat: ChatPostData }) {
           .chat-message-stack{max-width:76%}
           .chat-bubble{font-size:13px;padding:9px 12px;border-radius:14px}
           .chat-name{font-size:11px}
-          .chat-float-nav{right:14px;bottom:calc(108px + env(safe-area-inset-bottom))}
+          .chat-float-nav{right:14px;bottom:calc(74px + env(safe-area-inset-bottom))}
           .chat-float-nav button{height:34px;padding:0 11px}
         }
       `}</style>
