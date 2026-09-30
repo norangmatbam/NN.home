@@ -1,56 +1,24 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { BlobImg } from '@/lib/blobStore';
 import type { ChatPostData } from '@/lib/postStore';
 
-const COLLAPSE_LIMIT = 30;
-
 export function ChatConversation({ chat }: { chat: ChatPostData }) {
-  const total = chat.messages.length;
-  const [expanded, setExpanded] = useState(total <= COLLAPSE_LIMIT);
-  const [windowStart, setWindowStart] = useState(0);
   const endRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setExpanded(total <= COLLAPSE_LIMIT);
-    setWindowStart(0);
-  }, [total]);
-
-  const collapsed = total > COLLAPSE_LIMIT && !expanded;
-  const start = collapsed ? Math.min(windowStart, Math.max(0, total - COLLAPSE_LIMIT)) : 0;
-  const end = collapsed ? Math.min(total, start + COLLAPSE_LIMIT) : total;
-  const visible = chat.messages.slice(start, end);
+  const longChat = chat.messages.length > 30;
 
   const jumpBottom = () => {
-    if (collapsed) setWindowStart(Math.max(0, total - COLLAPSE_LIMIT));
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }));
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   };
 
   return (
     <div className="chat-conversation-wrap">
-      {total > COLLAPSE_LIMIT && (
-        <div className="chat-foldbar">
-          <span>{collapsed ? `${start + 1}~${end} / ${total}` : `${total}개 전체 표시`}</span>
-          <div>
-            {collapsed && start > 0 && <button onClick={() => setWindowStart(Math.max(0, start - COLLAPSE_LIMIT))}>← 이전 30개</button>}
-            {collapsed && end < total && <button onClick={() => setWindowStart(Math.min(total - COLLAPSE_LIMIT, start + COLLAPSE_LIMIT))}>다음 30개 →</button>}
-            <button onClick={() => {
-              setExpanded(v => !v);
-              if (expanded) setWindowStart(0);
-            }}>{expanded ? '30개로 접기' : '전체 펼치기'}</button>
-          </div>
-        </div>
-      )}
-
       <div className="chat-conversation">
-        {visible.map((m, displayIndex) => {
-          const actualIndex = start + displayIndex;
+        {chat.messages.map((m, i) => {
           const who = m.side === 'left' ? chat.left : chat.right;
-          const prev = chat.messages[actualIndex - 1];
-          const firstInRun = displayIndex === 0 || !prev || prev.side !== m.side;
+          const prev = chat.messages[i - 1];
+          const firstInRun = !prev || prev.side !== m.side;
           return (
             <div key={m.id} className={`chat-line ${m.side}`}>
               {m.side === 'left' && (
@@ -77,15 +45,12 @@ export function ChatConversation({ chat }: { chat: ChatPostData }) {
         <div ref={endRef} />
       </div>
 
-      {total > COLLAPSE_LIMIT && (
+      {longChat && (
         <button type="button" className="chat-float-bottom" onClick={jumpBottom} aria-label="맨 아래 대화로 이동">↓ 맨 아래</button>
       )}
 
       <style>{`
         .chat-conversation-wrap{position:relative}
-        .chat-foldbar{max-width:760px;margin:0 auto 2px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10.5px;color:var(--faint)}
-        .chat-foldbar>div{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
-        .chat-foldbar button{height:27px;padding:0 9px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--sub);font-size:10px}
         .chat-conversation{max-width:760px;margin:0 auto;padding:22px 10px 30px;display:grid;gap:11px}
         .chat-line{display:flex;align-items:flex-start;gap:9px;width:100%}
         .chat-line.right{justify-content:flex-end}
@@ -99,8 +64,6 @@ export function ChatConversation({ chat }: { chat: ChatPostData }) {
         .chat-line.right .chat-bubble{border-top-right-radius:5px;background:color-mix(in srgb,var(--accent) 16%,var(--panel));border-color:color-mix(in srgb,var(--accent) 28%,var(--line))}
         .chat-float-bottom{position:fixed;right:20px;bottom:calc(22px + env(safe-area-inset-bottom));z-index:65;height:36px;padding:0 13px;border-radius:999px;border:1px solid var(--line-dark);background:var(--panel);color:var(--fg);font-size:11px;box-shadow:var(--sh-dd);white-space:nowrap}
         @media(max-width:620px){
-          .chat-foldbar{padding:7px 0;align-items:flex-start;flex-direction:column}
-          .chat-foldbar>div{width:100%;justify-content:flex-start}
           .chat-conversation{padding:14px 0 22px;gap:10px}
           .chat-avatar-slot{width:36px;flex-basis:36px}
           .chat-avatar{width:36px;height:36px}
