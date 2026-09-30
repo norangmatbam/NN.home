@@ -152,8 +152,7 @@ export default function KakaoConvertPage() {
   const rowRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const [fileName, setFileName] = useState('');
   const [rows, setRows] = useState<ParsedMessage[]>([]);
-  const [left, setLeft] = useState('');
-  const [right, setRight] = useState('');
+  const [swapped, setSwapped] = useState(false);
   const [targetBoard, setTargetBoard] = useState('');
   const [query, setQuery] = useState('');
   const [focus, setFocus] = useState(0);
@@ -163,7 +162,16 @@ export default function KakaoConvertPage() {
 
   const requestedBoard = params.get('b') ?? '';
   const chatBoards = useMemo(() => boards.filter(b => b.skin === 'chat'), [boards]);
-  const detectedSpeakers = useMemo(() => [...new Set(rows.map(r => r.speaker))], [rows]);
+  const detectedSpeakers = useMemo(() => {
+    const counts = new Map<string, number>();
+    rows.forEach(r => counts.set(r.speaker, (counts.get(r.speaker) ?? 0) + 1));
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name);
+  }, [rows]);
+  const baseLeft = detectedSpeakers[0] ?? '';
+  const baseRight = detectedSpeakers[1] ?? '';
+  const left = swapped ? baseRight : baseLeft;
+  const right = swapped ? baseLeft : baseRight;
+
   const searchHits = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [] as number[];
@@ -207,8 +215,7 @@ export default function KakaoConvertPage() {
       }
       setRows(parsed);
       setFileName(file.name);
-      setLeft('');
-      setRight('');
+      setSwapped(false);
       setFocus(0);
       setStart(null);
       setEnd(null);
@@ -224,20 +231,15 @@ export default function KakaoConvertPage() {
     setFocus(Math.max(0, Math.min(rows.length - 1, Math.round((rows.length - 1) * ratio))));
   };
 
-  const swapSides = () => {
-    setLeft(right);
-    setRight(left);
-  };
+  const swapSides = () => setSwapped(v => !v);
 
   const sendToWrite = () => {
-    const l = left.trim();
-    const r = right.trim();
-    if (rangeLo == null || rangeHi == null || !l || !r || l === r || !targetBoard) return;
+    if (rangeLo == null || rangeHi == null || !left || !right || !targetBoard) return;
     const selected = rows.slice(rangeLo, rangeHi + 1)
-      .filter(row => row.speaker === l || row.speaker === r)
-      .map<ChatMessage>(row => ({ id: newId(), side: row.speaker === l ? 'left' : 'right', text: row.text }));
+      .filter(row => row.speaker === left || row.speaker === right)
+      .map<ChatMessage>(row => ({ id: newId(), side: row.speaker === left ? 'left' : 'right', text: row.text }));
     if (!selected.length) {
-      setError('선택한 범위에 입력한 두 화자의 메시지가 없습니다. 원본 카카오톡 화자명을 정확히 입력해 주세요.');
+      setError('선택한 범위에 자동 감지된 두 화자의 메시지가 없습니다.');
       return;
     }
 
@@ -267,18 +269,18 @@ export default function KakaoConvertPage() {
         {error && <div className="convert-error">{error}</div>}
 
         {rows.length > 0 && <>
-          <div className="convert-grid3 convert-speakers">
-            <label>왼쪽 원본 화자명<input value={left} onChange={e => setLeft(e.target.value)} placeholder="카카오톡에 표시된 이름 직접 입력" /></label>
-            <div className="convert-swap-wrap"><button className="btn btn-ghost" type="button" onClick={swapSides}>⇄ 좌우 바꾸기</button></div>
-            <label>오른쪽 원본 화자명<input value={right} onChange={e => setRight(e.target.value)} placeholder="카카오톡에 표시된 이름 직접 입력" /></label>
+          <div className="convert-speakers-auto">
+            <div><small>왼쪽</small><b>{left || '화자 없음'}</b></div>
+            <button className="btn btn-ghost" type="button" onClick={swapSides} disabled={!left || !right}>⇄ 좌우 바꾸기</button>
+            <div><small>오른쪽</small><b>{right || '화자 없음'}</b></div>
           </div>
 
           <label className="convert-board-label">보낼 게시판<select value={targetBoard} onChange={e => setTargetBoard(e.target.value)}>{chatBoards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
 
           {!chatBoards.length && <div className="convert-error">대화형으로 설정된 게시판이 없습니다. 먼저 게시판 하나를 대화형으로 설정해 주세요.</div>}
-          {left.trim() && right.trim() && left.trim() === right.trim() && <div className="convert-error">왼쪽과 오른쪽 화자명을 다르게 입력해 주세요.</div>}
+          {detectedSpeakers.length < 2 && <div className="convert-error">두 명의 화자를 감지하지 못했습니다. 2인 카카오톡 대화 파일인지 확인해 주세요.</div>}
           <div className="convert-note">{rows.length.toLocaleString()}개 메시지 · 원본에서 {detectedSpeakers.length}개 화자명 감지</div>
-          <div className="convert-note">여기 입력한 화자명은 좌/우 말풍선 판정용입니다. 글에 표시할 닉네임과 프로필 이미지는 글쓰기에서 직접 입력합니다.</div>
+          <div className="convert-note">가장 많이 등장한 두 화자를 자동 배치합니다. 글에 표시할 닉네임과 프로필 이미지는 글쓰기에서 직접 입력합니다.</div>
 
           <div className="convert-find">
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="기억나는 대화 내용 검색" />
@@ -311,18 +313,18 @@ export default function KakaoConvertPage() {
             <button className="btn btn-ghost" onClick={() => setStart(focus)}>현재 위치를 시작점으로</button>
             <button className="btn btn-ghost" onClick={() => setEnd(focus)}>현재 위치를 끝점으로</button>
             <button className="btn btn-ghost" onClick={() => { setStart(null); setEnd(null); }}>범위 초기화</button>
-            <button className="btn btn-accent" disabled={rangeLo == null || rangeHi == null || !left.trim() || !right.trim() || left.trim() === right.trim() || !targetBoard || !chatBoards.length} onClick={sendToWrite}>대화형 글쓰기로 보내기</button>
+            <button className="btn btn-accent" disabled={rangeLo == null || rangeHi == null || !left || !right || !targetBoard || !chatBoards.length} onClick={sendToWrite}>대화형 글쓰기로 보내기</button>
           </div>
         </>}
       </div>
 
       <style>{`
         .convert-panel{padding:20px;display:grid;gap:14px}.convert-upload{display:flex;gap:12px;align-items:center;justify-content:space-between}.convert-upload>div{display:grid;gap:3px}.convert-upload b{font-size:13px}.convert-upload small,.convert-note,.convert-status{font-size:10.5px;color:var(--faint)}.convert-error{font-size:11px;color:var(--accent)}
-        .convert-grid3{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end}.convert-grid3 label,.convert-board-label{display:grid;gap:5px;font-size:10.5px;color:var(--faint)}.convert-grid3 input,.convert-board-label select,.convert-find input{height:34px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);padding:0 9px;min-width:0;width:100%}.convert-swap-wrap{display:flex;align-items:flex-end}.convert-swap-wrap .btn{height:34px;white-space:nowrap}.convert-board-label{max-width:320px}
+        .convert-speakers-auto{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center}.convert-speakers-auto>div{display:grid;gap:4px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}.convert-speakers-auto>div:last-child{text-align:right}.convert-speakers-auto small{font-size:9.5px;color:var(--faint)}.convert-speakers-auto b{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.convert-speakers-auto .btn{height:34px;white-space:nowrap}.convert-board-label{display:grid;gap:5px;max-width:320px;font-size:10.5px;color:var(--faint)}.convert-board-label select,.convert-find input{height:34px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);padding:0 9px;min-width:0;width:100%}
         .convert-find{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.convert-jumps{display:flex;gap:4px}.convert-jumps button{padding:0 9px;border:1px solid var(--line);border-radius:7px;font-size:10px;color:var(--sub)}
         .convert-results{max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:9px;padding:4px}.convert-results button{display:grid;width:100%;text-align:left;gap:2px;padding:7px 8px;border-radius:6px;font-size:11px;color:var(--sub)}.convert-results button:hover{background:color-mix(in srgb,var(--accent) 8%,transparent)}.convert-results span{font-size:9.5px;color:var(--faint)}
         .convert-status{display:flex;justify-content:space-between;gap:10px}.convert-preview{border:1px solid var(--line);border-radius:10px;overflow-y:auto;overflow-x:hidden;max-height:52vh;scroll-behavior:smooth}.convert-preview>button{display:grid;grid-template-columns:50px 110px minmax(0,1fr);gap:8px;width:100%;padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);font-size:11px;align-items:start}.convert-preview>button:last-child{border-bottom:0}.convert-preview>button.focus{outline:1px solid var(--accent);outline-offset:-1px}.convert-preview>button.selected{background:color-mix(in srgb,var(--accent) 10%,transparent)}.convert-preview>button>span{color:var(--faint)}.convert-preview b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.convert-preview em{font-style:normal;white-space:pre-wrap;word-break:break-word}.convert-actions{display:flex;gap:7px;flex-wrap:wrap}.convert-actions .btn{height:32px;font-size:10px}
-        @media(max-width:620px){.convert-panel{padding:14px}.convert-upload{align-items:flex-start;flex-wrap:wrap}.convert-grid3{grid-template-columns:1fr}.convert-swap-wrap{justify-content:center}.convert-swap-wrap .btn{width:100%}.convert-board-label{max-width:none}.convert-find{grid-template-columns:1fr}.convert-jumps{overflow-x:auto}.convert-jumps button{min-height:30px;flex:1 0 auto}.convert-status{display:grid}.convert-preview{max-height:48vh}.convert-preview>button{grid-template-columns:42px 72px minmax(0,1fr);padding:7px 6px}.convert-actions{display:grid;grid-template-columns:1fr 1fr}.convert-actions .btn:last-child{grid-column:1/-1}}
+        @media(max-width:620px){.convert-panel{padding:14px}.convert-upload{align-items:flex-start;flex-wrap:wrap}.convert-speakers-auto{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.convert-speakers-auto .btn{grid-column:1/-1;grid-row:2;width:100%}.convert-board-label{max-width:none}.convert-find{grid-template-columns:1fr}.convert-jumps{overflow-x:auto}.convert-jumps button{min-height:30px;flex:1 0 auto}.convert-status{display:grid}.convert-preview{max-height:48vh}.convert-preview>button{grid-template-columns:42px 72px minmax(0,1fr);padding:7px 6px}.convert-actions{display:grid;grid-template-columns:1fr 1fr}.convert-actions .btn:last-child{grid-column:1/-1}}
       `}</style>
     </section>
   );
