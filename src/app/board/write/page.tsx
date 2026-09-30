@@ -20,6 +20,7 @@ const hasRichHtml = (html: string) =>
   || /\s(style|class|id)\s*=/i.test(html);
 
 const emptyMessage = (): ChatMessage => ({ id: newId(), side: 'left', text: '' });
+const EDIT_CHAT_PAGE_SIZE = 30;
 
 function WriteInner() {
   const router = useRouter();
@@ -56,6 +57,9 @@ function WriteInner() {
   const [leftAvatar, setLeftAvatar] = useState<string | undefined>();
   const [rightAvatar, setRightAvatar] = useState<string | undefined>();
   const [messages, setMessages] = useState<ChatMessage[]>([emptyMessage()]);
+  const [editChatPage, setEditChatPage] = useState(0);
+  const chatEditorTopRef = useRef<HTMLDivElement>(null);
+  const chatEditorEndRef = useRef<HTMLDivElement>(null);
   const setMessage = (id: string, patch: Partial<ChatMessage>) =>
     setMessages(ms => ms.map(m => m.id === id ? { ...m, ...patch } : m));
   const moveMessage = (index: number, d: -1 | 1) => {
@@ -73,6 +77,31 @@ function WriteInner() {
       const ref = await putBlob(file);
       if (side === 'left') setLeftAvatar(ref); else setRightAvatar(ref);
     } catch { toast('프로필 이미지 업로드에 실패했습니다'); }
+  };
+
+  const editChatChunked = !!editing && isChat && messages.length > EDIT_CHAT_PAGE_SIZE;
+  const editChatPageCount = Math.max(1, Math.ceil(messages.length / EDIT_CHAT_PAGE_SIZE));
+  const safeEditChatPage = Math.min(editChatPage, editChatPageCount - 1);
+  const editChatStart = editChatChunked ? safeEditChatPage * EDIT_CHAT_PAGE_SIZE : 0;
+  const editChatEnd = editChatChunked ? Math.min(messages.length, editChatStart + EDIT_CHAT_PAGE_SIZE) : messages.length;
+  const visibleEditMessages = editChatChunked ? messages.slice(editChatStart, editChatEnd) : messages;
+
+  useEffect(() => {
+    if (editChatPage > editChatPageCount - 1) setEditChatPage(Math.max(0, editChatPageCount - 1));
+  }, [editChatPage, editChatPageCount]);
+
+  const goEditChatPage = (next: number) => {
+    setEditChatPage(Math.max(0, Math.min(editChatPageCount - 1, next)));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      chatEditorTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
+  };
+
+  const jumpEditChatEnd = () => {
+    setEditChatPage(Math.max(0, editChatPageCount - 1));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      chatEditorEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }));
   };
 
   // 티켓형
@@ -107,6 +136,7 @@ function WriteInner() {
       setLeftName(p.chat.left.name); setLeftAvatar(p.chat.left.avatar);
       setRightName(p.chat.right.name); setRightAvatar(p.chat.right.avatar);
       setMessages(p.chat.messages.length ? p.chat.messages : [emptyMessage()]);
+      setEditChatPage(0);
     }
   }, [editPid, postsLoaded, posts]);
 
@@ -203,8 +233,6 @@ function WriteInner() {
               </div>
 
               <KakaoChatImport onImport={data => {
-                setLeftName(data.leftName);
-                setRightName(data.rightName);
                 setMessages(data.messages);
                 toast(`${data.messages.length}개 메시지를 가져왔습니다`);
               }} />
@@ -212,25 +240,43 @@ function WriteInner() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <Participant side="left" /><Participant side="right" />
               </div>
-              <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, display: 'grid', gap: 10 }}>
-                <label className="k-label" style={{ margin: 0 }}>대화</label>
-                {messages.map((m, i) => (
-                  <div key={m.id} style={{ border: '1px solid var(--line)', borderRadius: 10, padding: 10, display: 'grid', gap: 8 }}>
-                    <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
-                      <div className="mini-seg">
-                        <button className={m.side === 'left' ? 'on' : ''} onClick={() => setMessage(m.id, { side: 'left' })}>← {leftName || '왼쪽'}</button>
-                        <button className={m.side === 'right' ? 'on' : ''} onClick={() => setMessage(m.id, { side: 'right' })}>{rightName || '오른쪽'} →</button>
-                      </div>
-                      <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-                        <button className="btn btn-ghost" style={{ width: 29, height: 29, padding: 0 }} disabled={i === 0} onClick={() => moveMessage(i, -1)}>↑</button>
-                        <button className="btn btn-ghost" style={{ width: 29, height: 29, padding: 0 }} disabled={i === messages.length - 1} onClick={() => moveMessage(i, 1)}>↓</button>
-                        <button className="btn btn-ghost" style={{ width: 29, height: 29, padding: 0 }} onClick={() => setMessages(ms => ms.length === 1 ? [emptyMessage()] : ms.filter(x => x.id !== m.id))}>×</button>
-                      </div>
+              <div ref={chatEditorTopRef} style={{ borderTop: '1px solid var(--line)', paddingTop: 16, display: 'grid', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                  <label className="k-label" style={{ margin: 0 }}>대화</label>
+                  {editChatChunked && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <span style={{ fontSize: 10, color: 'var(--faint)' }}>{editChatStart + 1}~{editChatEnd} / {messages.length}</span>
+                      <button className="btn btn-ghost" style={{ height: 28, fontSize: 10 }} disabled={safeEditChatPage === 0} onClick={() => goEditChatPage(safeEditChatPage - 1)}>← 이전 30개</button>
+                      <button className="btn btn-ghost" style={{ height: 28, fontSize: 10 }} disabled={safeEditChatPage >= editChatPageCount - 1} onClick={() => goEditChatPage(safeEditChatPage + 1)}>다음 30개 →</button>
                     </div>
-                    <KTextarea value={m.text} onChange={e => setMessage(m.id, { text: e.target.value })} placeholder="말풍선에 들어갈 대화" style={{ minHeight: 74 }} />
-                  </div>
-                ))}
-                <button className="btn btn-ghost" onClick={() => setMessages(ms => [...ms, emptyMessage()])}>＋ 대화 추가</button>
+                  )}
+                </div>
+
+                {visibleEditMessages.map((m, displayIndex) => {
+                  const i = editChatStart + displayIndex;
+                  return (
+                    <div key={m.id} style={{ border: '1px solid var(--line)', borderRadius: 10, padding: 10, display: 'grid', gap: 8 }}>
+                      <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
+                        <div className="mini-seg">
+                          <button className={m.side === 'left' ? 'on' : ''} onClick={() => setMessage(m.id, { side: 'left' })}>← {leftName || '왼쪽'}</button>
+                          <button className={m.side === 'right' ? 'on' : ''} onClick={() => setMessage(m.id, { side: 'right' })}>{rightName || '오른쪽'} →</button>
+                        </div>
+                        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+                          <button className="btn btn-ghost" style={{ width: 29, height: 29, padding: 0 }} disabled={i === 0} onClick={() => moveMessage(i, -1)}>↑</button>
+                          <button className="btn btn-ghost" style={{ width: 29, height: 29, padding: 0 }} disabled={i === messages.length - 1} onClick={() => moveMessage(i, 1)}>↓</button>
+                          <button className="btn btn-ghost" style={{ width: 29, height: 29, padding: 0 }} onClick={() => setMessages(ms => ms.length === 1 ? [emptyMessage()] : ms.filter(x => x.id !== m.id))}>×</button>
+                        </div>
+                      </div>
+                      <KTextarea value={m.text} onChange={e => setMessage(m.id, { text: e.target.value })} placeholder="말풍선에 들어갈 대화" style={{ minHeight: 74 }} />
+                    </div>
+                  );
+                })}
+                <div ref={chatEditorEndRef} />
+                <button className="btn btn-ghost" onClick={() => {
+                  const nextIndex = messages.length;
+                  setMessages(ms => [...ms, emptyMessage()]);
+                  if (editing) setEditChatPage(Math.floor(nextIndex / EDIT_CHAT_PAGE_SIZE));
+                }}>＋ 대화 추가</button>
               </div>
             </div>
           ) : (
@@ -274,6 +320,22 @@ function WriteInner() {
           <div className="form-actions"><button className="btn btn-onbk" onClick={() => router.push(editing ? `/board/${editing.id}` : boardHref(board.id))}>CANCEL</button><button className="btn btn-accent" onClick={post}>{editing ? 'SAVE' : 'POST'}</button></div>
         </div>
       </div>
+
+      {editChatChunked && (
+        <button
+          type="button"
+          className="chat-edit-float-end"
+          onClick={jumpEditChatEnd}
+          aria-label="맨 끝 대화로 이동"
+        >
+          ↓ 맨 끝으로
+        </button>
+      )}
+
+      <style>{`
+        .chat-edit-float-end{position:fixed;right:20px;bottom:calc(22px + env(safe-area-inset-bottom));z-index:75;height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--line-dark);background:var(--panel);color:var(--fg);font-size:11px;box-shadow:var(--sh-dd);white-space:nowrap}
+        @media(max-width:620px){.chat-edit-float-end{right:14px;bottom:calc(16px + env(safe-area-inset-bottom));height:36px;padding:0 12px}}
+      `}</style>
 
       <ConfirmModal open={askRich !== null} title="여기서 편집하면 일부 태그가 정리됩니다" body="에디터는 굵게·목록·제목·이미지 같은 기본 서식만 다룹니다. 표·div·style·class 등은 편집하는 순간 정리되며 되돌릴 수 없습니다. HTML을 그대로 두려면 취소하세요." onClose={() => setAskRich(null)} buttons={[{ label: 'CANCEL', kind: 'ghost', onClick: () => setAskRich(null) }, { label: '계속', kind: 'accent', onClick: () => { askRich?.(); setAskRich(null); } }]} />
       {cropOpen && thumbSrc && <CropEditor open src={thumbSrc} aspect="16:9" initial={thumbCrop} onClose={() => setCropOpen(false)} onApply={c => { setThumbCrop(c); setCropOpen(false); }} />}
