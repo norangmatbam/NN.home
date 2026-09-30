@@ -10,7 +10,6 @@ import { PageTitle } from '@/components/ui/PageText';
 const TRANSFER_KEY = 'ohome.kakao.convert.v1';
 
 type ParsedMessage = { speaker: string; text: string };
-
 type Headers = Record<string, string>;
 
 function parseHeaders(raw: string): Headers {
@@ -124,11 +123,8 @@ function parseKakaoText(raw: string): ParsedMessage[] {
     m = line.match(/^\d{4}[-./]\d{1,2}[-./]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?\s*,\s*([^,]+?)\s*,\s*(.*)$/);
     if (m) { push(); current = { speaker: m[1], text: m[2] }; continue; }
 
-    m = line.match(/^([^:\n]{1,60})\s*:\s+(.+)$/);
-    if (m && !/^(From|To|Date|Subject|Content-Type|MIME-Version)$/i.test(m[1])) {
-      push(); current = { speaker: m[1], text: m[2] }; continue;
-    }
-
+    // '제안 사유: ...' 같은 일반 본문을 화자로 오인식하지 않도록
+    // 타임스탬프 없는 '이름: 내용' 형식은 새 메시지로 취급하지 않는다.
     if (/^-{3,}.*-{3,}$/.test(line) || /^(채팅방|저장한 날짜|대화 내용)/.test(line)) continue;
     if (current) current.text += `${current.text.endsWith('\n') ? '' : '\n'}${line}`;
   }
@@ -152,6 +148,8 @@ export default function KakaoConvertPage() {
   const { user, isAdmin } = useAuth();
   const { boards, loaded } = useBoards();
   const inputRef = useRef<HTMLInputElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const rowRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const [fileName, setFileName] = useState('');
   const [rows, setRows] = useState<ParsedMessage[]>([]);
   const [left, setLeft] = useState('');
@@ -165,7 +163,7 @@ export default function KakaoConvertPage() {
 
   const requestedBoard = params.get('b') ?? '';
   const chatBoards = useMemo(() => boards.filter(b => b.skin === 'chat'), [boards]);
-  const speakers = useMemo(() => [...new Set(rows.map(r => r.speaker))], [rows]);
+  const detectedSpeakers = useMemo(() => [...new Set(rows.map(r => r.speaker))], [rows]);
   const searchHits = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [] as number[];
@@ -176,8 +174,6 @@ export default function KakaoConvertPage() {
     return hit;
   }, [rows, query]);
 
-  const lo = Math.max(0, Math.min(focus - 10, Math.max(0, rows.length - 21)));
-  const hi = Math.min(rows.length, lo + 21);
   const rangeLo = start == null || end == null ? null : Math.min(start, end);
   const rangeHi = start == null || end == null ? null : Math.max(start, end);
 
@@ -190,6 +186,11 @@ export default function KakaoConvertPage() {
   React.useEffect(() => {
     if (user && !isAdmin) router.replace('/');
   }, [user, isAdmin, router]);
+
+  React.useEffect(() => {
+    const el = rowRefs.current[focus];
+    if (el && previewRef.current) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [focus]);
 
   if (!user || !isAdmin) return null;
 
@@ -204,12 +205,17 @@ export default function KakaoConvertPage() {
         setError('대화 메시지를 찾지 못했습니다. 이 EML의 본문 형식이 다른 경우 파일을 보내주면 파서를 맞출 수 있습니다.');
         return;
       }
-      const names = [...new Set(parsed.map(r => r.speaker))];
-      setRows(parsed); setFileName(file.name);
-      setLeft(names[0] ?? '왼쪽'); setRight(names[1] ?? names[0] ?? '오른쪽');
-      setFocus(0); setStart(null); setEnd(null); setQuery('');
+      setRows(parsed);
+      setFileName(file.name);
+      setLeft('');
+      setRight('');
+      setFocus(0);
+      setStart(null);
+      setEnd(null);
+      setQuery('');
     } catch {
-      setRows([]); setError('파일을 읽거나 변환하지 못했습니다.');
+      setRows([]);
+      setError('파일을 읽거나 변환하지 못했습니다.');
     }
   };
 
@@ -218,14 +224,23 @@ export default function KakaoConvertPage() {
     setFocus(Math.max(0, Math.min(rows.length - 1, Math.round((rows.length - 1) * ratio))));
   };
 
-  const sendToWrite = () => {
-    if (rangeLo == null || rangeHi == null || !left || !right || left === right || !targetBoard) return;
-    const selected = rows.slice(rangeLo, rangeHi + 1)
-      .filter(r => r.speaker === left || r.speaker === right)
-      .map<ChatMessage>(r => ({ id: newId(), side: r.speaker === left ? 'left' : 'right', text: r.text }));
-    if (!selected.length) { setError('선택한 범위에 지정한 두 화자의 메시지가 없습니다.'); return; }
+  const swapSides = () => {
+    setLeft(right);
+    setRight(left);
+  };
 
-    // 화자명은 좌/우 배치 판정에만 사용한다. 게시글의 닉네임/프로필은 글쓰기에서 직접 입력한다.
+  const sendToWrite = () => {
+    const l = left.trim();
+    const r = right.trim();
+    if (rangeLo == null || rangeHi == null || !l || !r || l === r || !targetBoard) return;
+    const selected = rows.slice(rangeLo, rangeHi + 1)
+      .filter(row => row.speaker === l || row.speaker === r)
+      .map<ChatMessage>(row => ({ id: newId(), side: row.speaker === l ? 'left' : 'right', text: row.text }));
+    if (!selected.length) {
+      setError('선택한 범위에 입력한 두 화자의 메시지가 없습니다. 원본 카카오톡 화자명을 정확히 입력해 주세요.');
+      return;
+    }
+
     sessionStorage.setItem(TRANSFER_KEY, JSON.stringify({
       boardId: targetBoard,
       leftName: '왼쪽',
@@ -252,19 +267,21 @@ export default function KakaoConvertPage() {
         {error && <div className="convert-error">{error}</div>}
 
         {rows.length > 0 && <>
-          <div className="convert-grid3">
-            <label>왼쪽 화자<select value={left} onChange={e => setLeft(e.target.value)}>{speakers.map(s => <option key={s}>{s}</option>)}</select></label>
-            <label>오른쪽 화자<select value={right} onChange={e => setRight(e.target.value)}>{speakers.map(s => <option key={s}>{s}</option>)}</select></label>
-            <label>보낼 게시판<select value={targetBoard} onChange={e => setTargetBoard(e.target.value)}>{chatBoards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+          <div className="convert-grid3 convert-speakers">
+            <label>왼쪽 원본 화자명<input value={left} onChange={e => setLeft(e.target.value)} placeholder="카카오톡에 표시된 이름 직접 입력" /></label>
+            <div className="convert-swap-wrap"><button className="btn btn-ghost" type="button" onClick={swapSides}>⇄ 좌우 바꾸기</button></div>
+            <label>오른쪽 원본 화자명<input value={right} onChange={e => setRight(e.target.value)} placeholder="카카오톡에 표시된 이름 직접 입력" /></label>
           </div>
 
+          <label className="convert-board-label">보낼 게시판<select value={targetBoard} onChange={e => setTargetBoard(e.target.value)}>{chatBoards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+
           {!chatBoards.length && <div className="convert-error">대화형으로 설정된 게시판이 없습니다. 먼저 게시판 하나를 대화형으로 설정해 주세요.</div>}
-          {left === right && <div className="convert-error">왼쪽과 오른쪽 화자를 다르게 선택해 주세요.</div>}
-          <div className="convert-note">{rows.length.toLocaleString()}개 메시지 · {speakers.length}명 감지</div>
-          <div className="convert-note">화자 선택은 좌/우 말풍선 배치에만 사용합니다. 글에 표시할 닉네임과 프로필 이미지는 글쓰기에서 직접 입력합니다.</div>
+          {left.trim() && right.trim() && left.trim() === right.trim() && <div className="convert-error">왼쪽과 오른쪽 화자명을 다르게 입력해 주세요.</div>}
+          <div className="convert-note">{rows.length.toLocaleString()}개 메시지 · 원본에서 {detectedSpeakers.length}개 화자명 감지</div>
+          <div className="convert-note">여기 입력한 화자명은 좌/우 말풍선 판정용입니다. 글에 표시할 닉네임과 프로필 이미지는 글쓰기에서 직접 입력합니다.</div>
 
           <div className="convert-find">
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="기억나는 대화 내용이나 닉네임 검색" />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="기억나는 대화 내용 검색" />
             <div className="convert-jumps">
               <button onClick={() => jump(0)}>처음</button><button onClick={() => jump(.25)}>25%</button><button onClick={() => jump(.5)}>50%</button><button onClick={() => jump(.75)}>75%</button><button onClick={() => jump(1)}>끝</button>
             </div>
@@ -276,11 +293,15 @@ export default function KakaoConvertPage() {
 
           <div className="convert-status"><span>현재 #{focus + 1} / {rows.length}</span><span>{rangeLo == null ? '시작점과 끝점을 지정하세요' : `선택 #${rangeLo + 1} ~ #${rangeHi! + 1} · ${rangeHi! - rangeLo + 1}개`}</span></div>
 
-          <div className="convert-preview">
-            {rows.slice(lo, hi).map((r, j) => {
-              const i = lo + j;
+          <div className="convert-preview" ref={previewRef}>
+            {rows.map((r, i) => {
               const selected = rangeLo != null && rangeHi != null && i >= rangeLo && i <= rangeHi;
-              return <button key={i} className={`${i === focus ? 'focus' : ''} ${selected ? 'selected' : ''}`} onClick={() => setFocus(i)}>
+              return <button
+                key={i}
+                ref={el => { rowRefs.current[i] = el; }}
+                className={`${i === focus ? 'focus' : ''} ${selected ? 'selected' : ''}`}
+                onClick={() => setFocus(i)}
+              >
                 <span>#{i + 1}</span><b>{r.speaker}</b><em>{r.text}</em>
               </button>;
             })}
@@ -290,18 +311,18 @@ export default function KakaoConvertPage() {
             <button className="btn btn-ghost" onClick={() => setStart(focus)}>현재 위치를 시작점으로</button>
             <button className="btn btn-ghost" onClick={() => setEnd(focus)}>현재 위치를 끝점으로</button>
             <button className="btn btn-ghost" onClick={() => { setStart(null); setEnd(null); }}>범위 초기화</button>
-            <button className="btn btn-accent" disabled={rangeLo == null || rangeHi == null || left === right || !targetBoard || !chatBoards.length} onClick={sendToWrite}>대화형 글쓰기로 보내기</button>
+            <button className="btn btn-accent" disabled={rangeLo == null || rangeHi == null || !left.trim() || !right.trim() || left.trim() === right.trim() || !targetBoard || !chatBoards.length} onClick={sendToWrite}>대화형 글쓰기로 보내기</button>
           </div>
         </>}
       </div>
 
       <style>{`
         .convert-panel{padding:20px;display:grid;gap:14px}.convert-upload{display:flex;gap:12px;align-items:center;justify-content:space-between}.convert-upload>div{display:grid;gap:3px}.convert-upload b{font-size:13px}.convert-upload small,.convert-note,.convert-status{font-size:10.5px;color:var(--faint)}.convert-error{font-size:11px;color:var(--accent)}
-        .convert-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.convert-grid3 label{display:grid;gap:5px;font-size:10.5px;color:var(--faint)}.convert-grid3 select,.convert-find input{height:34px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);padding:0 9px;min-width:0;width:100%}
+        .convert-grid3{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end}.convert-grid3 label,.convert-board-label{display:grid;gap:5px;font-size:10.5px;color:var(--faint)}.convert-grid3 input,.convert-board-label select,.convert-find input{height:34px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);padding:0 9px;min-width:0;width:100%}.convert-swap-wrap{display:flex;align-items:flex-end}.convert-swap-wrap .btn{height:34px;white-space:nowrap}.convert-board-label{max-width:320px}
         .convert-find{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.convert-jumps{display:flex;gap:4px}.convert-jumps button{padding:0 9px;border:1px solid var(--line);border-radius:7px;font-size:10px;color:var(--sub)}
         .convert-results{max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:9px;padding:4px}.convert-results button{display:grid;width:100%;text-align:left;gap:2px;padding:7px 8px;border-radius:6px;font-size:11px;color:var(--sub)}.convert-results button:hover{background:color-mix(in srgb,var(--accent) 8%,transparent)}.convert-results span{font-size:9.5px;color:var(--faint)}
-        .convert-status{display:flex;justify-content:space-between;gap:10px}.convert-preview{border:1px solid var(--line);border-radius:10px;overflow:hidden}.convert-preview>button{display:grid;grid-template-columns:50px 110px minmax(0,1fr);gap:8px;width:100%;padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);font-size:11px;align-items:start}.convert-preview>button:last-child{border-bottom:0}.convert-preview>button.focus{outline:1px solid var(--accent);outline-offset:-1px}.convert-preview>button.selected{background:color-mix(in srgb,var(--accent) 10%,transparent)}.convert-preview>button>span{color:var(--faint)}.convert-preview b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.convert-preview em{font-style:normal;white-space:pre-wrap;word-break:break-word}.convert-actions{display:flex;gap:7px;flex-wrap:wrap}.convert-actions .btn{height:32px;font-size:10px}
-        @media(max-width:620px){.convert-panel{padding:14px}.convert-upload{align-items:flex-start;flex-wrap:wrap}.convert-grid3{grid-template-columns:1fr}.convert-find{grid-template-columns:1fr}.convert-jumps{overflow-x:auto}.convert-jumps button{min-height:30px;flex:1 0 auto}.convert-status{display:grid}.convert-preview>button{grid-template-columns:42px 72px minmax(0,1fr);padding:7px 6px}.convert-actions{display:grid;grid-template-columns:1fr 1fr}.convert-actions .btn:last-child{grid-column:1/-1}}
+        .convert-status{display:flex;justify-content:space-between;gap:10px}.convert-preview{border:1px solid var(--line);border-radius:10px;overflow-y:auto;overflow-x:hidden;max-height:52vh;scroll-behavior:smooth}.convert-preview>button{display:grid;grid-template-columns:50px 110px minmax(0,1fr);gap:8px;width:100%;padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);font-size:11px;align-items:start}.convert-preview>button:last-child{border-bottom:0}.convert-preview>button.focus{outline:1px solid var(--accent);outline-offset:-1px}.convert-preview>button.selected{background:color-mix(in srgb,var(--accent) 10%,transparent)}.convert-preview>button>span{color:var(--faint)}.convert-preview b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.convert-preview em{font-style:normal;white-space:pre-wrap;word-break:break-word}.convert-actions{display:flex;gap:7px;flex-wrap:wrap}.convert-actions .btn{height:32px;font-size:10px}
+        @media(max-width:620px){.convert-panel{padding:14px}.convert-upload{align-items:flex-start;flex-wrap:wrap}.convert-grid3{grid-template-columns:1fr}.convert-swap-wrap{justify-content:center}.convert-swap-wrap .btn{width:100%}.convert-board-label{max-width:none}.convert-find{grid-template-columns:1fr}.convert-jumps{overflow-x:auto}.convert-jumps button{min-height:30px;flex:1 0 auto}.convert-status{display:grid}.convert-preview{max-height:48vh}.convert-preview>button{grid-template-columns:42px 72px minmax(0,1fr);padding:7px 6px}.convert-actions{display:grid;grid-template-columns:1fr 1fr}.convert-actions .btn:last-child{grid-column:1/-1}}
       `}</style>
     </section>
   );
