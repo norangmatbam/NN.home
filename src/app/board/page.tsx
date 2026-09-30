@@ -100,10 +100,19 @@ function BoardInner() {
       )}
 
       <div className="toolrow">
-        <div className="seg">
-          {filterNames.map(c => <button key={c} className={cat === c ? 'on' : ''} onClick={() => { setCat(c); setPage(1); }}>{c}</button>)}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+          <div className="seg">
+            {filterNames.map(c => <button key={c} className={cat === c ? 'on' : ''} onClick={() => { setCat(c); setPage(1); }}>{c}</button>)}
+          </div>
           {isAdmin && board.skin === 'chat' && (
-            <button onClick={() => router.push(`/convert/kakao?b=${encodeURIComponent(board.id)}`)}>↔ CONVERT</button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ height: 30, padding: '0 11px', fontSize: 10.5, whiteSpace: 'nowrap' }}
+              onClick={() => router.push(`/convert/kakao?b=${encodeURIComponent(board.id)}`)}
+            >
+              ↔ CONVERT
+            </button>
           )}
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
