@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useBoards, boardHref } from '@/lib/boardStore';
 import { newId, type ChatMessage } from '@/lib/postStore';
@@ -148,6 +148,7 @@ function parseEml(raw: string): ParsedMessage[] {
 
 export default function KakaoConvertPage() {
   const router = useRouter();
+  const params = useSearchParams();
   const { user, isAdmin } = useAuth();
   const { boards, loaded } = useBoards();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -162,6 +163,7 @@ export default function KakaoConvertPage() {
   const [end, setEnd] = useState<number | null>(null);
   const [error, setError] = useState('');
 
+  const requestedBoard = params.get('b') ?? '';
   const chatBoards = useMemo(() => boards.filter(b => b.skin === 'chat'), [boards]);
   const speakers = useMemo(() => [...new Set(rows.map(r => r.speaker))], [rows]);
   const searchHits = useMemo(() => {
@@ -181,8 +183,9 @@ export default function KakaoConvertPage() {
 
   React.useEffect(() => {
     if (!loaded || targetBoard || !chatBoards.length) return;
-    setTargetBoard(chatBoards[0].id);
-  }, [loaded, targetBoard, chatBoards]);
+    const requested = chatBoards.find(b => b.id === requestedBoard);
+    setTargetBoard(requested?.id ?? chatBoards[0].id);
+  }, [loaded, targetBoard, chatBoards, requestedBoard]);
 
   React.useEffect(() => {
     if (user && !isAdmin) router.replace('/');
@@ -221,14 +224,21 @@ export default function KakaoConvertPage() {
       .filter(r => r.speaker === left || r.speaker === right)
       .map<ChatMessage>(r => ({ id: newId(), side: r.speaker === left ? 'left' : 'right', text: r.text }));
     if (!selected.length) { setError('선택한 범위에 지정한 두 화자의 메시지가 없습니다.'); return; }
-    sessionStorage.setItem(TRANSFER_KEY, JSON.stringify({ boardId: targetBoard, leftName: left, rightName: right, messages: selected }));
+
+    // 화자명은 좌/우 배치 판정에만 사용한다. 게시글의 닉네임/프로필은 글쓰기에서 직접 입력한다.
+    sessionStorage.setItem(TRANSFER_KEY, JSON.stringify({
+      boardId: targetBoard,
+      leftName: '왼쪽',
+      rightName: '오른쪽',
+      messages: selected,
+    }));
     router.push(targetBoard === 'main' ? '/board/write' : `/board/write?b=${encodeURIComponent(targetBoard)}`);
   };
 
   return (
     <section className="page convert-page">
       <div className="page-head">
-        <PageTitle>CONVERT</PageTitle>
+        <PageTitle href={targetBoard ? boardHref(targetBoard) : '/board'}>CONVERT</PageTitle>
         <p>카카오톡 EML에서 필요한 대화 구간만 골라 대화형 게시판 글쓰기로 보냅니다.</p>
       </div>
 
@@ -251,6 +261,7 @@ export default function KakaoConvertPage() {
           {!chatBoards.length && <div className="convert-error">대화형으로 설정된 게시판이 없습니다. 먼저 게시판 하나를 대화형으로 설정해 주세요.</div>}
           {left === right && <div className="convert-error">왼쪽과 오른쪽 화자를 다르게 선택해 주세요.</div>}
           <div className="convert-note">{rows.length.toLocaleString()}개 메시지 · {speakers.length}명 감지</div>
+          <div className="convert-note">화자 선택은 좌/우 말풍선 배치에만 사용합니다. 글에 표시할 닉네임과 프로필 이미지는 글쓰기에서 직접 입력합니다.</div>
 
           <div className="convert-find">
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="기억나는 대화 내용이나 닉네임 검색" />
