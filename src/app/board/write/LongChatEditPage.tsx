@@ -86,7 +86,7 @@ export function LongChatEditPage({ post, posts, setPosts }: Props) {
     router.push(`/board/${post.id}`);
   };
 
-  const Participant = ({ side }: { side: 'left' | 'right' }) => {
+  const renderParticipant = (side: 'left' | 'right') => {
     const name = side === 'left' ? leftName : rightName;
     const avatar = side === 'left' ? leftAvatar : rightAvatar;
     const setName = side === 'left' ? setLeftName : setRightName;
@@ -126,7 +126,7 @@ export function LongChatEditPage({ post, posts, setPosts }: Props) {
             <span className="long-chat-hint">비워두면 작성일 표시</span>
           </div>
 
-          <div className="long-chat-participants"><Participant side="left" /><Participant side="right" /></div>
+          <div className="long-chat-participants">{renderParticipant('left')}{renderParticipant('right')}</div>
 
           <div className="long-chat-editor-section">
             <div className="long-chat-editor-head">
