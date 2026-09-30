@@ -13,6 +13,7 @@ import { RichEditor } from '@/components/ui/RichEditor';
 import { useToast } from '@/components/ui/Toast';
 import { PageTitle, EditableDesc } from '@/components/ui/PageText';
 import { BlobImg, putBlob } from '@/lib/blobStore';
+import { KakaoChatImport } from '@/components/board/KakaoChatImport';
 
 const hasRichHtml = (html: string) =>
   /<(table|thead|tbody|tr|td|th|div|span|section|article|video|audio|details|summary|font|center)\b/i.test(html)
@@ -200,6 +201,14 @@ function WriteInner() {
                 <KInput type="date" value={chatDate} onChange={e => setChatDate(e.target.value)} style={{ width: 170 }} />
                 <span style={{ fontSize: 10.5, color: 'var(--faint)' }}>비워두면 작성일 표시</span>
               </div>
+
+              <KakaoChatImport onImport={data => {
+                setLeftName(data.leftName);
+                setRightName(data.rightName);
+                setMessages(data.messages);
+                toast(`${data.messages.length}개 메시지를 가져왔습니다`);
+              }} />
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <Participant side="left" /><Participant side="right" />
               </div>
