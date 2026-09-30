@@ -14,7 +14,6 @@ import { useBoardDisplay } from '@/lib/boardDisplayStore';
 import { boardEntries, buildMenu, useMenuSettings } from '@/lib/menuStore';
 import { SearchBar, Pager } from '@/components/ui/Kit';
 import { CropImg } from '@/components/ui/CropEditor';
-import { BlobImg } from '@/lib/blobStore';
 import { EditableDesc, PageTitle } from '@/components/ui/PageText';
 
 const PER_PAGE = 10;
@@ -135,10 +134,7 @@ function BoardInner() {
             const first = chat?.messages.find(m => m.text.trim());
             return (
               <div key={p.id} className="panel" onClick={() => { if (canRead(p)) router.push(`/board/${p.id}`); }}
-                style={{ padding: '14px 16px', cursor: canRead(p) ? 'var(--cur-pointer,pointer)' : undefined, display: 'grid', gridTemplateColumns: '44px minmax(0,1fr) auto', gap: 12, alignItems: 'center' }}>
-                <div style={{ width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', border: '1px solid var(--line)', background: 'var(--panel)' }}>
-                  {chat ? <BlobImg fileRef={chat.left.avatar} label={chat.left.name.slice(0, 1)} /> : <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%', color: 'var(--faint)' }}>•</div>}
-                </div>
+                style={{ padding: '14px 16px', cursor: canRead(p) ? 'var(--cur-pointer,pointer)' : undefined, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 12, alignItems: 'center' }}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                     {postBadge(p)}
