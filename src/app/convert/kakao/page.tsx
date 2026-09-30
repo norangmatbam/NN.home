@@ -8,6 +8,7 @@ import { newId, type ChatMessage } from '@/lib/postStore';
 import { PageTitle } from '@/components/ui/PageText';
 
 const TRANSFER_KEY = 'ohome.kakao.convert.v1';
+const PREVIEW_LIMIT = 30;
 
 type ParsedMessage = { speaker: string; text: string };
 type Headers = Record<string, string>;
@@ -26,7 +27,7 @@ function parseHeaders(raw: string): Headers {
 function bytesToText(bytes: Uint8Array, charset = 'utf-8'): string {
   const cs = charset.toLowerCase().replace(/["']/g, '');
   const aliases: Record<string, string> = {
-    'ks_c_5601-1987': 'euc-kr', 'ks_c_5601-1989': 'euc-kr', 'cp949': 'euc-kr', 'ms949': 'euc-kr',
+    'ks_c_5601-1987': 'euc-kr', 'ks_c_5601-1989': 'euc-kr', cp949: 'euc-kr', ms949: 'euc-kr',
   };
   try { return new TextDecoder(aliases[cs] ?? cs).decode(bytes); }
   catch { return new TextDecoder('utf-8').decode(bytes); }
@@ -48,8 +49,7 @@ function decodeQuotedPrintable(body: string, charset?: string): string {
       bytes.push(parseInt(src.slice(i + 1, i + 3), 16));
       i += 2;
     } else {
-      const enc = new TextEncoder().encode(src[i]);
-      bytes.push(...enc);
+      bytes.push(...new TextEncoder().encode(src[i]));
     }
   }
   return bytesToText(new Uint8Array(bytes), charset);
@@ -96,8 +96,7 @@ function extractMimeTexts(raw: string): string[] {
   if (/text\/html/i.test(ct)) return [htmlToText(decoded)];
   if (/text\/plain/i.test(ct) || !ct || /message\/rfc822/i.test(ct)) return [decoded];
   const disp = headers['content-disposition'] ?? '';
-  const name = `${headers['content-type'] ?? ''};${disp}`;
-  if (/\.(txt|csv)/i.test(name)) return [decoded];
+  if (/\.(txt|csv)/i.test(`${ct};${disp}`)) return [decoded];
   return [];
 }
 
@@ -123,8 +122,6 @@ function parseKakaoText(raw: string): ParsedMessage[] {
     m = line.match(/^\d{4}[-./]\d{1,2}[-./]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?\s*,\s*([^,]+?)\s*,\s*(.*)$/);
     if (m) { push(); current = { speaker: m[1], text: m[2] }; continue; }
 
-    // '제안 사유: ...' 같은 일반 본문을 화자로 오인식하지 않도록
-    // 타임스탬프 없는 '이름: 내용' 형식은 새 메시지로 취급하지 않는다.
     if (/^-{3,}.*-{3,}$/.test(line) || /^(채팅방|저장한 날짜|대화 내용)/.test(line)) continue;
     if (current) current.text += `${current.text.endsWith('\n') ? '' : '\n'}${line}`;
   }
@@ -158,6 +155,7 @@ export default function KakaoConvertPage() {
   const [focus, setFocus] = useState(0);
   const [start, setStart] = useState<number | null>(null);
   const [end, setEnd] = useState<number | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const [error, setError] = useState('');
 
   const requestedBoard = params.get('b') ?? '';
@@ -184,6 +182,12 @@ export default function KakaoConvertPage() {
 
   const rangeLo = start == null || end == null ? null : Math.min(start, end);
   const rangeHi = start == null || end == null ? null : Math.max(start, end);
+  const collapsed = rows.length > PREVIEW_LIMIT && !showAll;
+  const previewStart = collapsed
+    ? Math.max(0, Math.min(focus - Math.floor(PREVIEW_LIMIT / 2), rows.length - PREVIEW_LIMIT))
+    : 0;
+  const previewEnd = collapsed ? Math.min(rows.length, previewStart + PREVIEW_LIMIT) : rows.length;
+  const previewRows = rows.slice(previewStart, previewEnd);
 
   React.useEffect(() => {
     if (!loaded || targetBoard || !chatBoards.length) return;
@@ -203,7 +207,7 @@ export default function KakaoConvertPage() {
     const elRect = el.getBoundingClientRect();
     const top = box.scrollTop + (elRect.top - boxRect.top) - box.clientHeight / 2 + elRect.height / 2;
     box.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-  }, [focus]);
+  }, [focus, previewStart, showAll]);
 
   if (!user || !isAdmin) return null;
 
@@ -224,6 +228,7 @@ export default function KakaoConvertPage() {
       setFocus(0);
       setStart(null);
       setEnd(null);
+      setShowAll(false);
       setQuery('');
     } catch {
       setRows([]);
@@ -236,7 +241,11 @@ export default function KakaoConvertPage() {
     setFocus(Math.max(0, Math.min(rows.length - 1, Math.round((rows.length - 1) * ratio))));
   };
 
-  const swapSides = () => setSwapped(v => !v);
+  const jumpBottom = () => {
+    if (!rows.length) return;
+    setShowAll(false);
+    setFocus(rows.length - 1);
+  };
 
   const sendToWrite = () => {
     if (rangeLo == null || rangeHi == null || !left || !right || !targetBoard) return;
@@ -276,7 +285,7 @@ export default function KakaoConvertPage() {
         {rows.length > 0 && <>
           <div className="convert-speakers-auto">
             <div><small>왼쪽</small><b>{left || '화자 없음'}</b></div>
-            <button className="btn btn-ghost" type="button" onClick={swapSides} disabled={!left || !right}>⇄ 좌우 바꾸기</button>
+            <button className="btn btn-ghost" type="button" onClick={() => setSwapped(v => !v)} disabled={!left || !right}>⇄ 좌우 바꾸기</button>
             <div><small>오른쪽</small><b>{right || '화자 없음'}</b></div>
           </div>
 
@@ -302,26 +311,22 @@ export default function KakaoConvertPage() {
 
           <div className="convert-position-slider">
             <span>처음</span>
-            <input
-              type="range"
-              min={0}
-              max={Math.max(0, rows.length - 1)}
-              value={Math.min(focus, Math.max(0, rows.length - 1))}
-              onChange={e => setFocus(Number(e.target.value))}
-              aria-label="대화 위치 이동"
-            />
+            <input type="range" min={0} max={Math.max(0, rows.length - 1)} value={Math.min(focus, Math.max(0, rows.length - 1))} onChange={e => setFocus(Number(e.target.value))} aria-label="대화 위치 이동" />
             <span>끝</span>
           </div>
 
+          {rows.length > PREVIEW_LIMIT && (
+            <div className="convert-foldbar">
+              <span>{collapsed ? `${previewStart + 1}~${previewEnd} / ${rows.length} · 30개만 표시 중` : `${rows.length}개 전체 표시 중`}</span>
+              <button className="btn btn-ghost" type="button" onClick={() => setShowAll(v => !v)}>{showAll ? '30개로 접기' : '전체 펼치기'}</button>
+            </div>
+          )}
+
           <div className="convert-preview" ref={previewRef}>
-            {rows.map((r, i) => {
+            {previewRows.map((r, j) => {
+              const i = previewStart + j;
               const selected = rangeLo != null && rangeHi != null && i >= rangeLo && i <= rangeHi;
-              return <button
-                key={i}
-                ref={el => { rowRefs.current[i] = el; }}
-                className={`${i === focus ? 'focus' : ''} ${selected ? 'selected' : ''}`}
-                onClick={() => setFocus(i)}
-              >
+              return <button key={i} ref={el => { rowRefs.current[i] = el; }} className={`${i === focus ? 'focus' : ''} ${selected ? 'selected' : ''}`} onClick={() => setFocus(i)}>
                 <span>#{i + 1}</span><b>{r.speaker}</b><em>{r.text}</em>
               </button>;
             })}
@@ -336,13 +341,18 @@ export default function KakaoConvertPage() {
         </>}
       </div>
 
+      {rows.length > PREVIEW_LIMIT && <button type="button" className="convert-float-bottom" onClick={jumpBottom}>↓ 맨 아래</button>}
+
       <style>{`
         .convert-panel{padding:20px;display:grid;gap:14px}.convert-upload{display:flex;gap:12px;align-items:center;justify-content:space-between}.convert-upload>div{display:grid;gap:3px}.convert-upload b{font-size:13px}.convert-upload small,.convert-note,.convert-status{font-size:10.5px;color:var(--faint)}.convert-error{font-size:11px;color:var(--accent)}
         .convert-speakers-auto{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center}.convert-speakers-auto>div{display:grid;gap:4px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}.convert-speakers-auto>div:last-child{text-align:right}.convert-speakers-auto small{font-size:9.5px;color:var(--faint)}.convert-speakers-auto b{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.convert-speakers-auto .btn{height:34px;white-space:nowrap}.convert-board-label{display:grid;gap:5px;max-width:320px;font-size:10.5px;color:var(--faint)}.convert-board-label select,.convert-find input{height:34px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);padding:0 9px;min-width:0;width:100%}
         .convert-find{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.convert-jumps{display:flex;gap:4px}.convert-jumps button{padding:0 9px;border:1px solid var(--line);border-radius:7px;font-size:10px;color:var(--sub)}
         .convert-results{max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:9px;padding:4px}.convert-results button{display:grid;width:100%;text-align:left;gap:2px;padding:7px 8px;border-radius:6px;font-size:11px;color:var(--sub)}.convert-results button:hover{background:color-mix(in srgb,var(--accent) 8%,transparent)}.convert-results span{font-size:9.5px;color:var(--faint)}
-        .convert-status{display:flex;justify-content:space-between;gap:10px}.convert-position-slider{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:0 2px;font-size:9.5px;color:var(--faint)}.convert-position-slider input[type=range]{width:100%;min-width:0;margin:0;cursor:pointer;accent-color:var(--accent)}.convert-preview{border:1px solid var(--line);border-radius:10px;overflow-y:auto;overflow-x:hidden;max-height:52vh;scroll-behavior:smooth}.convert-preview>button{display:grid;grid-template-columns:50px 110px minmax(0,1fr);gap:8px;width:100%;padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);font-size:11px;align-items:start}.convert-preview>button:last-child{border-bottom:0}.convert-preview>button.focus{outline:1px solid var(--accent);outline-offset:-1px}.convert-preview>button.selected{background:color-mix(in srgb,var(--accent) 10%,transparent)}.convert-preview>button>span{color:var(--faint)}.convert-preview b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.convert-preview em{font-style:normal;white-space:pre-wrap;word-break:break-word}.convert-actions{display:flex;gap:7px;flex-wrap:wrap}.convert-actions .btn{height:32px;font-size:10px}
-        @media(max-width:620px){.convert-panel{padding:14px}.convert-upload{align-items:flex-start;flex-wrap:wrap}.convert-speakers-auto{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.convert-speakers-auto .btn{grid-column:1/-1;grid-row:2;width:100%}.convert-board-label{max-width:none}.convert-find{grid-template-columns:1fr}.convert-jumps{overflow-x:auto}.convert-jumps button{min-height:30px;flex:1 0 auto}.convert-status{display:grid}.convert-position-slider input[type=range]{min-height:28px}.convert-preview{max-height:48vh}.convert-preview>button{grid-template-columns:42px 72px minmax(0,1fr);padding:7px 6px}.convert-actions{display:grid;grid-template-columns:1fr 1fr}.convert-actions .btn:last-child{grid-column:1/-1}}
+        .convert-status{display:flex;justify-content:space-between;gap:10px}.convert-position-slider{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:0 2px;font-size:9.5px;color:var(--faint)}.convert-position-slider input[type=range]{width:100%;min-width:0;margin:0;cursor:pointer;accent-color:var(--accent)}
+        .convert-foldbar{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10.5px;color:var(--faint)}.convert-foldbar .btn{height:29px;font-size:10px;white-space:nowrap}
+        .convert-preview{border:1px solid var(--line);border-radius:10px;overflow-y:auto;overflow-x:hidden;max-height:52vh;scroll-behavior:smooth}.convert-preview>button{display:grid;grid-template-columns:50px 110px minmax(0,1fr);gap:8px;width:100%;padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);font-size:11px;align-items:start}.convert-preview>button:last-child{border-bottom:0}.convert-preview>button.focus{outline:1px solid var(--accent);outline-offset:-1px}.convert-preview>button.selected{background:color-mix(in srgb,var(--accent) 10%,transparent)}.convert-preview>button>span{color:var(--faint)}.convert-preview b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.convert-preview em{font-style:normal;white-space:pre-wrap;word-break:break-word}.convert-actions{display:flex;gap:7px;flex-wrap:wrap}.convert-actions .btn{height:32px;font-size:10px}
+        .convert-float-bottom{position:fixed;right:20px;bottom:calc(22px + env(safe-area-inset-bottom));z-index:65;height:36px;padding:0 13px;border:1px solid var(--line-dark);border-radius:999px;background:var(--panel);color:var(--fg);font-size:11px;box-shadow:var(--sh-dd);white-space:nowrap}
+        @media(max-width:620px){.convert-panel{padding:14px}.convert-upload{align-items:flex-start;flex-wrap:wrap}.convert-speakers-auto{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.convert-speakers-auto .btn{grid-column:1/-1;grid-row:2;width:100%}.convert-board-label{max-width:none}.convert-find{grid-template-columns:1fr}.convert-jumps{overflow-x:auto}.convert-jumps button{min-height:30px;flex:1 0 auto}.convert-status{display:grid}.convert-position-slider input[type=range]{min-height:28px}.convert-foldbar{align-items:flex-start;flex-direction:column}.convert-preview{max-height:48vh}.convert-preview>button{grid-template-columns:42px 72px minmax(0,1fr);padding:7px 6px}.convert-actions{display:grid;grid-template-columns:1fr 1fr}.convert-actions .btn:last-child{grid-column:1/-1}.convert-float-bottom{right:14px;bottom:calc(16px + env(safe-area-inset-bottom));height:34px;padding:0 11px}}
       `}</style>
     </section>
   );
