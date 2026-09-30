@@ -10,7 +10,7 @@ function EditDispatch({ editPid }: { editPid: string }) {
   const [posts, setPosts, loaded] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
   if (!loaded) return <section className="page" />;
   const post = posts.find(p => p.id === editPid);
-  if (post?.chat && post.chat.messages.length > 30) {
+  if (post?.chat) {
     return <LongChatEditPage post={post} posts={posts} setPosts={setPosts} />;
   }
   return <LegacyWritePage />;
