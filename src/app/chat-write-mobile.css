@@ -2,15 +2,17 @@
 /* 대화 관련 floating 컨트롤은 고정 BGM 플레이어와 겹치지 않도록 공통 안전 높이를 사용한다. */
 .chat-edit-float-end,
 .chat-editor-floats,
-.chat-float-bottom {
+.chat-float-bottom,
+.chat-float-nav {
   bottom: calc(96px + env(safe-area-inset-bottom)) !important;
 }
 
 @media (max-width: 620px) {
   .chat-edit-float-end,
   .chat-editor-floats,
-  .chat-float-bottom {
-    bottom: calc(108px + env(safe-area-inset-bottom)) !important;
+  .chat-float-bottom,
+  .chat-float-nav {
+    bottom: calc(74px + env(safe-area-inset-bottom)) !important;
   }
 
   .write-grid .panel:has(input[type="date"]) {
