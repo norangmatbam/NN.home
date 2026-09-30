@@ -196,8 +196,13 @@ export default function KakaoConvertPage() {
   }, [user, isAdmin, router]);
 
   React.useEffect(() => {
+    const box = previewRef.current;
     const el = rowRefs.current[focus];
-    if (el && previewRef.current) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (!box || !el) return;
+    const boxRect = box.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const top = box.scrollTop + (elRect.top - boxRect.top) - box.clientHeight / 2 + elRect.height / 2;
+    box.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
   }, [focus]);
 
   if (!user || !isAdmin) return null;
@@ -295,6 +300,19 @@ export default function KakaoConvertPage() {
 
           <div className="convert-status"><span>현재 #{focus + 1} / {rows.length}</span><span>{rangeLo == null ? '시작점과 끝점을 지정하세요' : `선택 #${rangeLo + 1} ~ #${rangeHi! + 1} · ${rangeHi! - rangeLo + 1}개`}</span></div>
 
+          <div className="convert-position-slider">
+            <span>처음</span>
+            <input
+              type="range"
+              min={0}
+              max={Math.max(0, rows.length - 1)}
+              value={Math.min(focus, Math.max(0, rows.length - 1))}
+              onChange={e => setFocus(Number(e.target.value))}
+              aria-label="대화 위치 이동"
+            />
+            <span>끝</span>
+          </div>
+
           <div className="convert-preview" ref={previewRef}>
             {rows.map((r, i) => {
               const selected = rangeLo != null && rangeHi != null && i >= rangeLo && i <= rangeHi;
@@ -323,8 +341,8 @@ export default function KakaoConvertPage() {
         .convert-speakers-auto{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center}.convert-speakers-auto>div{display:grid;gap:4px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}.convert-speakers-auto>div:last-child{text-align:right}.convert-speakers-auto small{font-size:9.5px;color:var(--faint)}.convert-speakers-auto b{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.convert-speakers-auto .btn{height:34px;white-space:nowrap}.convert-board-label{display:grid;gap:5px;max-width:320px;font-size:10.5px;color:var(--faint)}.convert-board-label select,.convert-find input{height:34px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);padding:0 9px;min-width:0;width:100%}
         .convert-find{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.convert-jumps{display:flex;gap:4px}.convert-jumps button{padding:0 9px;border:1px solid var(--line);border-radius:7px;font-size:10px;color:var(--sub)}
         .convert-results{max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:9px;padding:4px}.convert-results button{display:grid;width:100%;text-align:left;gap:2px;padding:7px 8px;border-radius:6px;font-size:11px;color:var(--sub)}.convert-results button:hover{background:color-mix(in srgb,var(--accent) 8%,transparent)}.convert-results span{font-size:9.5px;color:var(--faint)}
-        .convert-status{display:flex;justify-content:space-between;gap:10px}.convert-preview{border:1px solid var(--line);border-radius:10px;overflow-y:auto;overflow-x:hidden;max-height:52vh;scroll-behavior:smooth}.convert-preview>button{display:grid;grid-template-columns:50px 110px minmax(0,1fr);gap:8px;width:100%;padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);font-size:11px;align-items:start}.convert-preview>button:last-child{border-bottom:0}.convert-preview>button.focus{outline:1px solid var(--accent);outline-offset:-1px}.convert-preview>button.selected{background:color-mix(in srgb,var(--accent) 10%,transparent)}.convert-preview>button>span{color:var(--faint)}.convert-preview b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.convert-preview em{font-style:normal;white-space:pre-wrap;word-break:break-word}.convert-actions{display:flex;gap:7px;flex-wrap:wrap}.convert-actions .btn{height:32px;font-size:10px}
-        @media(max-width:620px){.convert-panel{padding:14px}.convert-upload{align-items:flex-start;flex-wrap:wrap}.convert-speakers-auto{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.convert-speakers-auto .btn{grid-column:1/-1;grid-row:2;width:100%}.convert-board-label{max-width:none}.convert-find{grid-template-columns:1fr}.convert-jumps{overflow-x:auto}.convert-jumps button{min-height:30px;flex:1 0 auto}.convert-status{display:grid}.convert-preview{max-height:48vh}.convert-preview>button{grid-template-columns:42px 72px minmax(0,1fr);padding:7px 6px}.convert-actions{display:grid;grid-template-columns:1fr 1fr}.convert-actions .btn:last-child{grid-column:1/-1}}
+        .convert-status{display:flex;justify-content:space-between;gap:10px}.convert-position-slider{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:0 2px;font-size:9.5px;color:var(--faint)}.convert-position-slider input[type=range]{width:100%;min-width:0;margin:0;cursor:pointer;accent-color:var(--accent)}.convert-preview{border:1px solid var(--line);border-radius:10px;overflow-y:auto;overflow-x:hidden;max-height:52vh;scroll-behavior:smooth}.convert-preview>button{display:grid;grid-template-columns:50px 110px minmax(0,1fr);gap:8px;width:100%;padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);font-size:11px;align-items:start}.convert-preview>button:last-child{border-bottom:0}.convert-preview>button.focus{outline:1px solid var(--accent);outline-offset:-1px}.convert-preview>button.selected{background:color-mix(in srgb,var(--accent) 10%,transparent)}.convert-preview>button>span{color:var(--faint)}.convert-preview b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.convert-preview em{font-style:normal;white-space:pre-wrap;word-break:break-word}.convert-actions{display:flex;gap:7px;flex-wrap:wrap}.convert-actions .btn{height:32px;font-size:10px}
+        @media(max-width:620px){.convert-panel{padding:14px}.convert-upload{align-items:flex-start;flex-wrap:wrap}.convert-speakers-auto{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.convert-speakers-auto .btn{grid-column:1/-1;grid-row:2;width:100%}.convert-board-label{max-width:none}.convert-find{grid-template-columns:1fr}.convert-jumps{overflow-x:auto}.convert-jumps button{min-height:30px;flex:1 0 auto}.convert-status{display:grid}.convert-position-slider input[type=range]{min-height:28px}.convert-preview{max-height:48vh}.convert-preview>button{grid-template-columns:42px 72px minmax(0,1fr);padding:7px 6px}.convert-actions{display:grid;grid-template-columns:1fr 1fr}.convert-actions .btn:last-child{grid-column:1/-1}}
       `}</style>
     </section>
   );
