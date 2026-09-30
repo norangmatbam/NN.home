@@ -12,6 +12,7 @@ import { FontProvider } from '@/lib/fontStore';
 import { ToastProvider } from '@/components/ui/Toast';
 import { TopBar } from '@/components/shell/TopBar';
 import { MobileQuickNav } from '@/components/shell/MobileQuickNav';
+import { AdminConvertMenu } from '@/components/shell/AdminConvertMenu';
 import { GroupSiblingNav } from '@/components/shell/GroupSiblingNav';
 import { BgmPlayer } from '@/components/shell/BgmPlayer';
 import { TipLayer } from '@/components/ui/TipLayer';
@@ -92,6 +93,7 @@ if(navigator.userAgent.indexOf('Whale/')>-1){document.documentElement.style.colo
                   <SetupGate>
                   <TopBar />
                   <MobileQuickNav />
+                  <AdminConvertMenu />
                   {/* 앱 셸: 스크롤은 이 영역 안에서만 (7장) */}
                   {/* PageFrame: 같은 메뉴를 다시 누르면 이 안쪽만 remount (BGM·상단바는 유지, v1.9) */}
                   {/* MenuGuard: 비공개로 둔 메뉴는 주소로 들어와도 열리지 않게 (v2.0 사용자 요청) */}
