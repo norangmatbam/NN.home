@@ -1,5 +1,14 @@
 /* 대화형 게시판 글쓰기 — 모바일 전용 레이아웃 보정 */
+/* 긴 대화 EDIT 이동 버튼은 우하단 BGM 플레이어와 겹치지 않게 한 칸 위에 둔다. */
+.chat-edit-float-end {
+  bottom: calc(92px + env(safe-area-inset-bottom)) !important;
+}
+
 @media (max-width: 620px) {
+  .chat-edit-float-end {
+    bottom: calc(86px + env(safe-area-inset-bottom)) !important;
+  }
+
   .write-grid .panel:has(input[type="date"]) {
     min-width: 0;
     overflow: hidden;
