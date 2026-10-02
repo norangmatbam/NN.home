@@ -10,6 +10,11 @@ import { PageTitle } from '@/components/ui/PageText';
 const TRANSFER_KEY = 'ohome.kakao.convert.v1';
 const PREVIEW_LIMIT = 30;
 
+const KAKAO_KR_MESSAGE_RE = /^\d{4}년\s*\d{1,2}월\s*\d{1,2}일\s*(?:오전|오후)\s*\d{1,2}:\d{2},\s*(.+?)\s*:\s*(.*)$/;
+const KAKAO_KR_DAY_RE = /^\d{4}년\s*\d{1,2}월\s*\d{1,2}일\s*(?:오전|오후)\s*\d{1,2}:\d{2}\s*$/;
+const KAKAO_KR_EMPTY_EVENT_RE = /^\d{4}년\s*\d{1,2}월\s*\d{1,2}일\s*(?:오전|오후)\s*\d{1,2}:\d{2},\s*$/;
+const KAKAO_HEADER_RE = /^(?:.*님과 카카오톡 대화|저장한 날짜\s*:.*|채팅방\s*:.*|대화 내용\s*:.*)$/;
+
 type ParsedMessage = { speaker: string; text: string };
 type Headers = Record<string, string>;
 
@@ -100,36 +105,88 @@ function extractMimeTexts(raw: string): string[] {
   return [];
 }
 
+function shouldDropMessage(text: string): boolean {
+  return text.trim() === '이모티콘';
+}
+
+function looksLikeDirectKakaoExport(raw: string): boolean {
+  const normalized = raw.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+  let hits = 0;
+  for (const line of normalized.split('\n')) {
+    if (KAKAO_KR_MESSAGE_RE.test(line.trimEnd())) {
+      hits += 1;
+      if (hits >= 5) return true;
+    }
+  }
+  return hits >= 2 && (/카카오톡 대화/.test(normalized) || /저장한 날짜\s*:/.test(normalized));
+}
+
 function parseKakaoText(raw: string): ParsedMessage[] {
   const lines = raw.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').split('\n');
   const out: ParsedMessage[] = [];
   let current: ParsedMessage | null = null;
+
   const push = () => {
-    if (current?.speaker.trim() && current.text.trim()) out.push({ speaker: current.speaker.trim(), text: current.text.trim() });
+    if (!current) return;
+    const speaker = current.speaker.trim();
+    const text = current.text.trim();
+    if (speaker && text && !shouldDropMessage(text)) out.push({ speaker, text });
     current = null;
   };
 
   for (const source of lines) {
     const line = source.trimEnd();
-    if (!line.trim()) { if (current) current.text += '\n'; continue; }
+    if (!line.trim()) {
+      if (current) current.text += '\n';
+      continue;
+    }
 
     let m = line.match(/^\[(.+?)\]\s*\[(?:오전|오후)?\s*\d{1,2}:\d{2}\]\s*(.*)$/);
-    if (m) { push(); current = { speaker: m[1], text: m[2] }; continue; }
+    if (m) {
+      push();
+      current = { speaker: m[1], text: m[2] };
+      continue;
+    }
 
-    m = line.match(/^\d{4}년\s*\d{1,2}월\s*\d{1,2}일\s*(?:오전|오후)?\s*\d{1,2}:\d{2},\s*(.+?)\s*:\s*(.*)$/);
-    if (m) { push(); current = { speaker: m[1], text: m[2] }; continue; }
+    m = line.match(KAKAO_KR_MESSAGE_RE);
+    if (m) {
+      push();
+      current = { speaker: m[1], text: m[2] };
+      continue;
+    }
 
     m = line.match(/^\d{4}[-./]\d{1,2}[-./]\d{1,2}\s+\d{1,2}:\d{2}(?::\d{2})?\s*,\s*([^,]+?)\s*,\s*(.*)$/);
-    if (m) { push(); current = { speaker: m[1], text: m[2] }; continue; }
+    if (m) {
+      push();
+      current = { speaker: m[1], text: m[2] };
+      continue;
+    }
 
-    if (/^-{3,}.*-{3,}$/.test(line) || /^(채팅방|저장한 날짜|대화 내용)/.test(line)) continue;
+    // 카카오 내보내기의 날짜 구분선/빈 이벤트는 이전 말풍선에 붙이면 안 된다.
+    if (KAKAO_KR_DAY_RE.test(line) || KAKAO_KR_EMPTY_EVENT_RE.test(line)) {
+      push();
+      continue;
+    }
+
+    // 내보내기 헤더와 삭제 알림은 실제 대화 메시지가 아니다.
+    if (KAKAO_HEADER_RE.test(line) || line.trim() === '메시지가 삭제되었습니다.' || /^-{3,}.*-{3,}$/.test(line)) {
+      push();
+      continue;
+    }
+
+    // 타임스탬프 없이 이어지는 줄은 직전 사용자의 멀티라인 메시지로 보존한다.
     if (current) current.text += `${current.text.endsWith('\n') ? '' : '\n'}${line}`;
   }
+
   push();
   return out;
 }
 
 function parseEml(raw: string): ParsedMessage[] {
+  // 카카오가 .eml 확장자로 저장해도 실제 내용이 MIME 메일이 아니라 평문인 경우가 있다.
+  // 그런 파일은 MIME 분해보다 원문을 먼저 파싱해야 멀티라인/날짜 구분을 정확히 보존할 수 있다.
+  if (looksLikeDirectKakaoExport(raw)) return parseKakaoText(raw);
+
   const candidates = extractMimeTexts(raw);
   let best: ParsedMessage[] = [];
   for (const text of candidates.length ? candidates : [raw]) {
@@ -219,7 +276,7 @@ export default function KakaoConvertPage() {
       const parsed = file.name.toLowerCase().endsWith('.eml') ? parseEml(raw) : parseKakaoText(raw);
       if (!parsed.length) {
         setRows([]);
-        setError('대화 메시지를 찾지 못했습니다. 이 EML의 본문 형식이 다른 경우 파일을 보내주면 파서를 맞출 수 있습니다.');
+        setError('대화 메시지를 찾지 못했습니다. 이 파일의 내보내기 형식이 다른 경우 파일을 보내주면 파서를 맞출 수 있습니다.');
         return;
       }
       setRows(parsed);
@@ -270,14 +327,14 @@ export default function KakaoConvertPage() {
     <section className="page convert-page">
       <div className="page-head">
         <PageTitle href={targetBoard ? boardHref(targetBoard) : '/board'}>CONVERT</PageTitle>
-        <p>카카오톡 EML에서 필요한 대화 구간만 골라 대화형 게시판 글쓰기로 보냅니다.</p>
+        <p>카카오톡 내보내기 파일에서 필요한 대화 구간만 골라 대화형 게시판 글쓰기로 보냅니다.</p>
       </div>
 
       <div className="panel convert-panel">
         <div className="convert-upload">
-          <div><b>카카오톡 대화 파일</b><small>{fileName || '.eml 권장 · .txt도 지원'}</small></div>
+          <div><b>카카오톡 대화 파일</b><small>{fileName || '.eml / .txt 지원'}</small></div>
           <input ref={inputRef} type="file" accept=".eml,message/rfc822,.txt,text/plain" hidden onChange={e => { void load(e.target.files?.[0]); e.target.value = ''; }} />
-          <button className="btn btn-ghost" type="button" onClick={() => inputRef.current?.click()}>{rows.length ? '파일 다시 선택' : 'EML 선택'}</button>
+          <button className="btn btn-ghost" type="button" onClick={() => inputRef.current?.click()}>{rows.length ? '파일 다시 선택' : '파일 선택'}</button>
         </div>
 
         {error && <div className="convert-error">{error}</div>}
@@ -294,6 +351,7 @@ export default function KakaoConvertPage() {
           {!chatBoards.length && <div className="convert-error">대화형으로 설정된 게시판이 없습니다. 먼저 게시판 하나를 대화형으로 설정해 주세요.</div>}
           {detectedSpeakers.length < 2 && <div className="convert-error">두 명의 화자를 감지하지 못했습니다. 2인 카카오톡 대화 파일인지 확인해 주세요.</div>}
           <div className="convert-note">{rows.length.toLocaleString()}개 메시지 · 원본에서 {detectedSpeakers.length}개 화자명 감지</div>
+          <div className="convert-note">단독 ‘이모티콘’과 삭제 알림은 자동 제외합니다. 여러 줄 메시지·사진 표기·링크는 그대로 보존하며, 답장 연결 정보는 내보내기 파일에 없어 복원하지 않습니다.</div>
           <div className="convert-note">가장 많이 등장한 두 화자를 자동 배치합니다. 글에 표시할 닉네임과 프로필 이미지는 글쓰기에서 직접 입력합니다.</div>
 
           <div className="convert-find">
