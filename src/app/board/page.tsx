@@ -115,7 +115,7 @@ function BoardInner() {
           )}
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          {isAdmin && (
+          {isAdmin && board.skin !== 'list' && (
             <div className="mini-seg" data-tip="게시판 보기 형식">
               {(['list', 'ticket', 'chat'] as BoardSkin[]).map(s => (
                 <button key={s} className={board.skin === s ? 'on' : ''} onClick={() => patchBoard(board.id, { skin: s })}>{skinLabel(s)}</button>
