@@ -62,6 +62,36 @@ export default function BoardDetailPage() {
   const update = (patch: Partial<Post>) => setPosts(posts.map(p => p.id === post.id ? { ...p, ...patch } : p));
   const comments = commentsFor(cmtRows, 'post', post.id, post.comments);
 
+  const downloadChatTxt = () => {
+    const chat = post.chat;
+    if (!chat) return;
+
+    const header = [
+      `제목: ${post.title}`,
+      `날짜: ${post.chatDate ?? fmtPostDate(post)}`,
+      `왼쪽: ${chat.left.name}`,
+      `오른쪽: ${chat.right.name}`,
+      `메시지: ${chat.messages.length.toLocaleString()}개`,
+    ];
+    const transcript = chat.messages.map(m => {
+      const name = m.side === 'left' ? chat.left.name : chat.right.name;
+      const text = m.text.replace(/\r\n?/g, '\n').replace(/\n/g, '\n  ');
+      return `[${name}] ${text}`;
+    });
+    const text = `${header.join('\n')}\n\n---\n\n${transcript.join('\n\n')}\n`;
+    const blob = new Blob(['\uFEFF', text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeTitle = post.title.replace(/[\\/:*?"<>|]/g, '_').trim() || 'chat';
+    const date = (post.chatDate || post.date.slice(0, 10)).replace(/[^0-9.-]/g, '');
+    a.href = url;
+    a.download = `${safeTitle}${date ? `_${date}` : ''}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
   const addComment = () => {
     if (!canComment) { toast('댓글은 로그인 후 작성할 수 있습니다'); return; }
     if (!cmt.trim()) return;
@@ -111,6 +141,7 @@ export default function BoardDetailPage() {
         <PageTitle href={boardHref(board.id)}>{boardTitle}</PageTitle>
         <p>{post.notice ? '공지' : post.category}{display.showAuthor && <> · {post.author}</>}{' · '}{fmtPostDate(post)}</p>
         <div className="head-actions">
+          {post.chat && <button className="btn btn-dark" onClick={downloadChatTxt}>TXT ↓</button>}
           {isAuthor && <button className="btn btn-dark" onClick={() => router.push(`/board/write?edit=${post.id}`)}>EDIT</button>}
           {canManage && <button className="btn btn-dark" onClick={() => setDelAsk(true)}>DELETE</button>}
         </div>
