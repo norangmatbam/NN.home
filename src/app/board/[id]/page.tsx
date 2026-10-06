@@ -29,7 +29,7 @@ export default function BoardDetailPage() {
   const toast = useToast();
   const [posts, setPosts, loaded] = useLocalList<Post>('ohome.board.v1', BOARD_SEED);
   const [cmtRows, setCmtRows] = useLocalList<CommentRow>(COMMENT_KEY, COMMENT_SEED);
-  const { boards } = useBoards();
+  const { boards, patchBoard } = useBoards();
   const [open, setOpen] = useState(false);
   const [cmt, setCmt] = useState('');
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -180,7 +180,7 @@ export default function BoardDetailPage() {
       </div>
 
       <ConfirmModal open={delAsk} title="글을 삭제하시겠습니까?" body="삭제한 글은 복구할 수 없습니다." onClose={() => setDelAsk(false)} buttons={[
-        { label: 'DELETE', kind: 'accent', onClick: () => { setPosts(posts.filter(p => p.id !== post.id)); setCmtRows(cmtRows.filter(c => !(c.target === 'post' && c.targetId === post.id))); router.push(boardHref(board.id)); } },
+        { label: 'DELETE', kind: 'accent', onClick: () => { const skin = board.skin; setPosts(posts.filter(p => p.id !== post.id)); setCmtRows(cmtRows.filter(c => !(c.target === 'post' && c.targetId === post.id))); patchBoard(board.id, { skin }); router.push(boardHref(board.id)); } },
         { label: 'CANCEL', kind: 'ghost', onClick: () => setDelAsk(false) },
       ]} />
     </section>
