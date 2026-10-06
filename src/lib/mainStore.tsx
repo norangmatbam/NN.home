@@ -8,7 +8,7 @@ import { useAuth } from './auth';
 import { getRawSetting, setSetting } from './settingStore';
 
 export type WidgetType =
-  | 'banner' | 'member'                 // 고정 요소 (삭제 불가)
+  | 'banner' | 'member'                 // member만 고정 삭제 불가 · banner는 일반 위젯처럼 삭제 가능
   | 'menu' | 'memo' | 'diary' | 'latest'
   | 'dday' | 'todo' | 'upcoming' | 'freetext' | 'deco' | 'character' | 'memoboard'
   | 'apply';   // 'image'는 deco(장식 이미지+링크)로 일원화 (v1.9) · character = 캐릭터 카드
@@ -41,7 +41,7 @@ interface MainState {
 }
 
 export const WIDGET_META: Record<WidgetType, { title: string; desc: string }> = {
-  banner: { title: '슬라이드 배너', desc: '고정 요소 — 최상단' },
+  banner: { title: '슬라이드 배너', desc: '이미지 슬라이드 배너' },
   member: { title: '회원정보창', desc: '고정 요소 — 로그인/프로필' },
   menu: { title: '메뉴리스트', desc: '모바일 전용 — PC에서는 상단 메뉴가 대신함' },
   memo: { title: 'MEMO', desc: '관리자 메모 (클릭 시 관리 모달)' },
@@ -77,7 +77,7 @@ const DEFAULT_STATE: MainState = {
     // 메뉴리스트는 모바일 전용(PC 숨김)이라 좌표는 의미 없음
     { id: 'menu', type: 'menu', col: 1, enabled: true, tx: 0, ty: 0, ax: 0, ay: 0, w: 230, h: 80, settings: {} },
     { id: 'memo', type: 'memo', col: 1, enabled: true, tx: 0, ty: 0, ax: 0, ay: 0, w: 230, h: 80, settings: { text: '' } },
-    { id: 'banner', type: 'banner', col: 2, enabled: true, fixed: true, tx: 0, ty: 0, ax: 240, ay: 0, w: 610, h: 210, settings: {} },
+    { id: 'banner', type: 'banner', col: 2, enabled: true, tx: 0, ty: 0, ax: 240, ay: 0, w: 610, h: 210, settings: {} },
     { id: 'diary', type: 'diary', col: 2, enabled: true, tx: 0, ty: 0, ax: 240, ay: 220, w: 300, h: 150, settings: {} },
     { id: 'latest', type: 'latest', col: 2, enabled: true, tx: 0, ty: 0, ax: 550, ay: 220, w: 300, h: 150, settings: {} },
     // 회원정보창은 로그인 상태 내용(프로필+버튼)에 딱 맞는 높이 — 더 키우면 아래가 비어 보임 (v1.9 사용자 확정)
@@ -141,9 +141,12 @@ export function MainStoreProvider({ children }: { children: React.ReactNode }) {
         const kept: WidgetConf[] = [];
         for (const rawWidget of parsed.widgets) {
           if ((rawWidget.type as string) === 'image') continue;
-          const w: WidgetConf = rawWidget.type === 'deco' && rawWidget.settings?.kind === 'character'
+          let w: WidgetConf = rawWidget.type === 'deco' && rawWidget.settings?.kind === 'character'
             ? { ...rawWidget, type: 'character' }
             : rawWidget;
+          // 구버전 기본 슬라이드 배너는 fixed:true로 저장돼 삭제할 수 없었다.
+          // 배너는 중복 추가 가능한 일반 위젯이므로 로드 시 잠금을 해제한다.
+          if (w.type === 'banner' && w.fixed) w = { ...w, fixed: undefined };
           if (!w.enabled && !w.fixed) { removed.add(w.id); continue; }
           kept.push(w.enabled ? w : { ...w, enabled: true });
         }
@@ -244,7 +247,7 @@ export function MainStoreProvider({ children }: { children: React.ReactNode }) {
   const removeWidget = useCallback((id: string) => {
     setState(s => ({
       ...s,
-      widgets: s.widgets.filter(w => w.id !== id || w.fixed),
+      widgets: s.widgets.filter(w => w.id !== id || (w.fixed && w.type !== 'banner')),
       mobileOrder: s.mobileOrder.filter(x => x !== id),
       removedIds: [...(s.removedIds ?? []), id],   // 기본 위젯이면 다음 로드의 병합에서도 제외 (v1.9)
     }));
