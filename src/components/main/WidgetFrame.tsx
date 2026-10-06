@@ -227,7 +227,7 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
           <i style={{ width: 20, height: 3, borderRadius: 999, background: 'rgba(255,255,255,.78)', pointerEvents: 'none' }} />
         </span>
       )}
-      {editOn && !conf.fixed && (
+      {editOn && (!conf.fixed || conf.type === 'banner') && (
         <button
           type="button"
           className="wgt-delete"
