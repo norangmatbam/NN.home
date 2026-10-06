@@ -11,7 +11,7 @@ import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { KRadio } from '@/components/ui/Kit';
 import { useToast } from '@/components/ui/Toast';
 
-const ADDABLE: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'upcoming', 'freetext', 'deco', 'character', 'diary', 'latest', 'apply'];
+const ADDABLE: WidgetType[] = ['banner', 'member', 'memo', 'dday', 'todo', 'upcoming', 'freetext', 'deco', 'character', 'diary', 'latest', 'apply'];
 /** 내용 설정 모달이 있는 위젯 — 우클릭 「설정」 노출 대상 (v1.9) */
 const EDITABLE: WidgetType[] = ['banner', 'memo', 'dday', 'todo', 'freetext', 'deco', 'character', 'apply'];
 
@@ -199,14 +199,14 @@ export default function MainPage() {
             <button onClick={() => { updateWidget(me.id, { freeMove: !me.freeMove }); setCtx(null); }}>
               {me.freeMove ? '그리드 반영' : '그리드 무시'}
             </button>
-            {(EDITABLE.includes(me.type) || !me.fixed || me.type === 'banner') && <div className="sep" />}
+            {(EDITABLE.includes(me.type) || !me.fixed || me.type === 'banner' || me.type === 'member') && <div className="sep" />}
             {EDITABLE.includes(me.type) && (
               <button onClick={() => {
                 window.dispatchEvent(new CustomEvent('ohome-widget-edit', { detail: { id: me.id } }));
                 setCtx(null);
               }}>설정</button>
             )}
-            {(!me.fixed || me.type === 'banner') && (
+            {(!me.fixed || me.type === 'banner' || me.type === 'member') && (
               <button className="danger" onClick={() => { setDelAsk(me); setCtx(null); }}>위젯 삭제</button>
             )}
           </div>
