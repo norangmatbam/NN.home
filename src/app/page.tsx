@@ -158,12 +158,12 @@ export default function MainPage() {
           enabled.map(w =>
             w.type === 'member'
               ? <WidgetFrame key={w.id} conf={w} mobileOrder={mOrder(w.id)} onCtx={(id, x, y) => setCtx({ id, x, y })}><MemberBox /></WidgetFrame>
-              : frame(w, w.type === 'menu' ? 'wgt-hide-pc' : undefined))
+              : frame(w, w.type === 'menu' && !editOn ? 'wgt-hide-pc' : undefined))
         ) : (
           <>
             {/* (마이그레이션 전 1회용) 기존 열 흐름 렌더 — 위치 스냅샷 후 절대배치로 전환 */}
             <div>
-              {byCol(1).map(w => frame(w, w.type === 'menu' ? 'wgt-hide-pc' : undefined))}
+              {byCol(1).map(w => frame(w, w.type === 'menu' && !editOn ? 'wgt-hide-pc' : undefined))}
             </div>
             <div>
               {byCol(2).map(w =>
