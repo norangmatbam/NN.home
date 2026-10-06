@@ -13,12 +13,13 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
   style?: React.CSSProperties;
   onCtx: (id: string, x: number, y: number) => void;
 }) {
-  const { editOn, gridOn, updateWidget } = useMainStore();
+  const { editOn, gridOn, updateWidget, removeWidget } = useMainStore();
   // 메인은 항상 고정 캔버스 (v1.9 — 반응형 옵션 제거, PC/모바일 두 가지만) — 저장 크기 상시 유지
   const useSize = true;
   const ref = useRef<HTMLDivElement>(null);
   // Shift+드래그 중앙 정렬에서 폭이 20px 배수가 아니라 딱 가운데가 안 될 때의 안내 (v1.9 사용자 요청)
   const [centerAsk, setCenterAsk] = useState<{ w: number; canvasW: number; grow: number; shrink: number } | null>(null);
+  const [deleteAsk, setDeleteAsk] = useState(false);
 
   // 편집모드 진입 시 크기 동결 (v1.8)
   useEffect(() => {
@@ -41,7 +42,7 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
     if (!editOn || e.button !== 0) return;
     const t = e.target as HTMLElement;
     if (!ref.current?.contains(t)) return;
-    if (t.closest('.rs') || t.closest('.rr')) return;
+    if (t.closest('.rs') || t.closest('.rr') || t.closest('.wgt-delete')) return;
     // 폰에서 브라우저의 '데스크톱 사이트'로 편집할 때는 손가락 스크롤과 위젯 드래그가 충돌한다.
     // 터치는 작은 상단 그립에서만 이동을 시작하고, 마우스는 기존처럼 위젯 어디서든 드래그 가능.
     if (e.pointerType === 'touch' && !t.closest('.wgt-move-handle')) return;
@@ -207,7 +208,7 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
         if (!editOn) return;
         const t = e.target as HTMLElement;
         if (!ref.current?.contains(t)) return;
-        if (t.closest('.rs') || t.closest('.rr') || t.closest('.wgt-move-handle')) return;
+        if (t.closest('.rs') || t.closest('.rr') || t.closest('.wgt-move-handle') || t.closest('.wgt-delete')) return;
         e.stopPropagation(); e.preventDefault();
       }}
     >
@@ -226,7 +227,35 @@ export function WidgetFrame({ conf, mobileOrder, children, className, style, onC
           <i style={{ width: 20, height: 3, borderRadius: 999, background: 'rgba(255,255,255,.78)', pointerEvents: 'none' }} />
         </span>
       )}
+      {editOn && !conf.fixed && (
+        <button
+          type="button"
+          className="wgt-delete"
+          data-tip="위젯 삭제"
+          aria-label="위젯 삭제"
+          onPointerDown={e => { e.stopPropagation(); }}
+          onClick={e => { e.stopPropagation(); e.preventDefault(); setDeleteAsk(true); }}
+          style={{
+            position: 'absolute', top: 6, right: 6, zIndex: 50,
+            width: 25, height: 25, padding: 0, display: 'grid', placeItems: 'center',
+            borderRadius: '50%', border: '1px solid rgba(255,255,255,.2)',
+            background: 'rgba(26,28,33,.72)', color: '#fff',
+            fontSize: 16, lineHeight: 1, fontWeight: 500,
+            boxShadow: '0 2px 8px rgba(0,0,0,.18)',
+            cursor: 'pointer', touchAction: 'manipulation',
+            backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)',
+          }}
+        >×</button>
+      )}
       {children}
+      <ConfirmModal open={deleteAsk}
+        title="이 위젯을 삭제할까요?"
+        body="위젯이 메인에서 삭제됩니다. 편집 종료 시 「저장 후 종료」를 선택해야 확정되고, 「저장하지 않고 종료」를 선택하면 되돌아옵니다."
+        onClose={() => setDeleteAsk(false)}
+        buttons={[
+          { label: 'DELETE', kind: 'accent', onClick: () => { removeWidget(conf.id); setDeleteAsk(false); } },
+          { label: 'CANCEL', kind: 'ghost', onClick: () => setDeleteAsk(false) },
+        ]} />
       <ConfirmModal open={centerAsk !== null}
         title="가운데에 딱 맞추려면 가로 크기를 조정해야 합니다"
         body={centerAsk
