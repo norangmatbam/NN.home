@@ -4,7 +4,7 @@ export const runtime = 'nodejs';
 
 const API_BASE = 'https://open.mabimobi.life/v1';
 
-const SEARCH_TERMS = [
+const MATERIAL_TERMS = [
   '마력석',
   '영혼석',
   '백금강괴',
@@ -12,9 +12,11 @@ const SEARCH_TERMS = [
   '특급 가죽',
   '특급 옷감',
   '특급 실크',
-  '해연의',
-  '잔영의',
 ];
+
+const EQUIPMENT_TERMS = ['해연', '잔영'];
+const PAGE_SIZE = 100;
+const MAX_EQUIPMENT_PAGES = 8;
 
 type ApiPrice = {
   kind_id: number;
@@ -32,13 +34,18 @@ type PriceResponse = {
   last_updated_at?: string;
 };
 
-async function fetchTerm(term: string, key: string, fresh: boolean) {
+async function fetchTerm(
+  term: string,
+  key: string,
+  fresh: boolean,
+  offset = 0,
+) {
   const qs = new URLSearchParams({
     search: term,
     sort: 'pct_change_24h_desc',
     min_count: '1',
-    limit: '100',
-    offset: '0',
+    limit: String(PAGE_SIZE),
+    offset: String(offset),
   });
 
   const init: RequestInit & { next?: { revalidate: number } } = {
@@ -56,6 +63,25 @@ async function fetchTerm(term: string, key: string, fresh: boolean) {
   return await response.json() as PriceResponse;
 }
 
+async function fetchEquipmentTerm(term: string, key: string, fresh: boolean) {
+  const merged: ApiPrice[] = [];
+  let lastUpdatedAt = '';
+
+  for (let page = 0; page < MAX_EQUIPMENT_PAGES; page += 1) {
+    const payload = await fetchTerm(term, key, fresh, page * PAGE_SIZE);
+    const rows = payload.data ?? [];
+
+    merged.push(...rows);
+    if (payload.last_updated_at && payload.last_updated_at > lastUpdatedAt) {
+      lastUpdatedAt = payload.last_updated_at;
+    }
+
+    if (rows.length < PAGE_SIZE) break;
+  }
+
+  return { data: merged, last_updated_at: lastUpdatedAt || undefined } satisfies PriceResponse;
+}
+
 export async function GET(request: NextRequest) {
   const key = process.env.MABIMOBI_API_KEY;
   if (!key) {
@@ -68,11 +94,14 @@ export async function GET(request: NextRequest) {
   const fresh = request.nextUrl.searchParams.get('fresh') === '1';
 
   try {
-    // 9회 조회로 재료군 + 해연/잔영 완제품 전체를 한 번에 모은다.
-    // 키당 분당 30회 제한을 피하기 위해 항목별 개별 조회는 하지 않는다.
-    const payloads = await Promise.all(
-      SEARCH_TERMS.map(term => fetchTerm(term, key, fresh))
-    );
+    // 재료는 종류별 1회 조회, 완제품은 "해연" / "잔영"으로 넓게 검색하고
+    // 100개 제한에 걸리지 않도록 페이지를 넘겨 수집한다.
+    // 최대 호출 수는 7 + (8 × 2) = 23회로 키당 분당 30회 제한 안에 둔다.
+    const [materialPayloads, equipmentPayloads] = await Promise.all([
+      Promise.all(MATERIAL_TERMS.map(term => fetchTerm(term, key, fresh))),
+      Promise.all(EQUIPMENT_TERMS.map(term => fetchEquipmentTerm(term, key, fresh))),
+    ]);
+    const payloads = [...materialPayloads, ...equipmentPayloads];
 
     const byName = new Map<string, ApiPrice>();
     let lastUpdatedAt = '';
