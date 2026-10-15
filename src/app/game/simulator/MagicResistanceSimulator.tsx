@@ -588,13 +588,21 @@ export default function MagicResistanceSimulator() {
         setBonusDrafts(bonusDraftsFromState(next));
       }
 
+    } catch {}
+
+    // Restore the section layout separately so corrupt simulator data
+    // does not prevent previously saved expand/collapse states from loading.
+    try {
       const savedFolds = localStorage.getItem(FOLD_STORAGE_KEY);
       if (savedFolds) {
-        const parsed = JSON.parse(savedFolds) as Partial<typeof folds>;
-        setFolds({
-          materials: typeof parsed.materials === 'boolean' ? parsed.materials : true,
-          equipment: typeof parsed.equipment === 'boolean' ? parsed.equipment : true,
-        });
+        const parsed: unknown = JSON.parse(savedFolds);
+        if (parsed && typeof parsed === 'object') {
+          const saved = parsed as Partial<typeof folds>;
+          setFolds({
+            materials: typeof saved.materials === 'boolean' ? saved.materials : true,
+            equipment: typeof saved.equipment === 'boolean' ? saved.equipment : true,
+          });
+        }
       }
     } catch {}
     setLoaded(true);
@@ -604,6 +612,13 @@ export default function MagicResistanceSimulator() {
     if (!loaded) return;
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
   }, [state, loaded]);
+
+  // Persist only after the first localStorage read to avoid overwriting
+  // a previously collapsed section with the initial defaults.
+  useEffect(() => {
+    if (!loaded) return;
+    try { localStorage.setItem(FOLD_STORAGE_KEY, JSON.stringify(folds)); } catch {}
+  }, [folds, loaded]);
 
   const loadMarket = useCallback(async (fresh = false) => {
     setMarketLoading(true);
@@ -734,12 +749,8 @@ export default function MagicResistanceSimulator() {
     setEditingSlot(null);
   };
 
-  const setFoldOpen = (key: 'materials' | 'equipment', open: boolean) => {
-    setFolds(currentFolds => {
-      const next = { ...currentFolds, [key]: open };
-      try { localStorage.setItem(FOLD_STORAGE_KEY, JSON.stringify(next)); } catch {}
-      return next;
-    });
+  const toggleFold = (key: 'materials' | 'equipment') => {
+    setFolds(currentFolds => ({ ...currentFolds, [key]: !currentFolds[key] }));
   };
 
   const jumpPage = (where: 'top' | 'bottom') => {
@@ -843,9 +854,8 @@ export default function MagicResistanceSimulator() {
       <details
         className={styles.fold}
         open={folds.materials}
-        onToggle={e => setFoldOpen('materials', e.currentTarget.open)}
       >
-        <summary>
+        <summary onClick={e => { e.preventDefault(); toggleFold('materials'); }}>
           <div>
             <h2>보유 재료</h2>
             <span>계산기와 공용 · 제작비 계산에 자동 반영</span>
@@ -871,9 +881,8 @@ export default function MagicResistanceSimulator() {
       <details
         className={styles.fold}
         open={folds.equipment}
-        onToggle={e => setFoldOpen('equipment', e.currentTarget.open)}
       >
-        <summary>
+        <summary onClick={e => { e.preventDefault(); toggleFold('equipment'); }}>
           <div>
             <h2>현재 장비</h2>
             <span>10성 룬은 기본 장착(+300) · 주입 상승분만 입력</span>
