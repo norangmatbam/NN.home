@@ -81,6 +81,7 @@ type PlanResult = {
 
 const BASE_PER_SLOT = 300;
 const STORAGE_KEY = 'nn-game-resistance-sim-v1';
+const FOLD_STORAGE_KEY = 'nn-game-simulator-folds-v1';
 
 const SLOTS: { id: SlotId; label: string; infusable: boolean; weapon?: boolean }[] = [
   { id: 'weapon', label: '무기', infusable: true, weapon: true },
@@ -572,6 +573,7 @@ export default function MagicResistanceSimulator() {
   const [marketLoading, setMarketLoading] = useState(true);
   const [marketError, setMarketError] = useState('');
   const [editingSlot, setEditingSlot] = useState<SlotId | null>(null);
+  const [folds, setFolds] = useState({ materials: true, equipment: true });
   const {
     owned: sharedOwned,
     setMaterial: setSharedMaterial,
@@ -584,6 +586,15 @@ export default function MagicResistanceSimulator() {
         const next = hydrate(JSON.parse(raw));
         setState(next);
         setBonusDrafts(bonusDraftsFromState(next));
+      }
+
+      const savedFolds = localStorage.getItem(FOLD_STORAGE_KEY);
+      if (savedFolds) {
+        const parsed = JSON.parse(savedFolds) as Partial<typeof folds>;
+        setFolds({
+          materials: typeof parsed.materials === 'boolean' ? parsed.materials : true,
+          equipment: typeof parsed.equipment === 'boolean' ? parsed.equipment : true,
+        });
       }
     } catch {}
     setLoaded(true);
@@ -723,6 +734,14 @@ export default function MagicResistanceSimulator() {
     setEditingSlot(null);
   };
 
+  const setFoldOpen = (key: 'materials' | 'equipment', open: boolean) => {
+    setFolds(currentFolds => {
+      const next = { ...currentFolds, [key]: open };
+      try { localStorage.setItem(FOLD_STORAGE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
   const jumpPage = (where: 'top' | 'bottom') => {
     const scroller = document.getElementById('appMain');
     if (!scroller) return;
@@ -821,7 +840,11 @@ export default function MagicResistanceSimulator() {
         </div>
       </section>
 
-      <details className={styles.fold}>
+      <details
+        className={styles.fold}
+        open={folds.materials}
+        onToggle={e => setFoldOpen('materials', e.currentTarget.open)}
+      >
         <summary>
           <div>
             <h2>보유 재료</h2>
@@ -845,7 +868,11 @@ export default function MagicResistanceSimulator() {
         </div>
       </details>
 
-      <details className={styles.fold} open>
+      <details
+        className={styles.fold}
+        open={folds.equipment}
+        onToggle={e => setFoldOpen('equipment', e.currentTarget.open)}
+      >
         <summary>
           <div>
             <h2>현재 장비</h2>
