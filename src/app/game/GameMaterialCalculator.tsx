@@ -2,6 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import styles from './game.module.css';
+import {
+  emptySharedOwned,
+  useSharedOwnedMaterials,
+  type SharedMaterialName,
+} from './sharedOwnedMaterials';
 
 type Grade = '해연' | '잔영';
 type Slot = '무기' | '모자' | '상의' | '장갑' | '하의' | '신발' | '목걸이' | '반지';
@@ -22,7 +27,7 @@ type Profile = {
 };
 type CalcState = { price: MaterialMap; activeId: string; characters: Profile[] };
 
-const MATERIALS: { id: MaterialId; name: string; group: string; price: number; owned: number }[] = [
+const MATERIALS: { id: MaterialId; name: SharedMaterialName; group: string; price: number; owned: number }[] = [
   { id: '허상', name: '허상의 마력석', group: '어비스', price: 32, owned: 1 },
   { id: '포식', name: '포식의 마력석', group: '어비스', price: 104, owned: 2 },
   { id: '심해', name: '심해의 마력석', group: '어비스', price: 247, owned: 3 },
@@ -180,6 +185,12 @@ export default function GameMaterialCalculator() {
   const [state, setState] = useState<CalcState>(() => initialState());
   const [loaded, setLoaded] = useState(false);
   const [saved, setSaved] = useState(false);
+  const {
+    owned: sharedOwned,
+    setMaterial: setSharedMaterial,
+    replaceOwned: replaceSharedOwned,
+    loaded: sharedOwnedLoaded,
+  } = useSharedOwnedMaterials();
 
   useEffect(() => {
     try {
@@ -203,6 +214,18 @@ export default function GameMaterialCalculator() {
 
   const active = state.characters.find(c => c.id === state.activeId) || state.characters[0];
 
+  useEffect(() => {
+    if (!sharedOwnedLoaded || !active) return;
+    const hasShared = Object.values(sharedOwned).some(value => value > 0);
+    if (hasShared) return;
+
+    const migrated = emptySharedOwned();
+    for (const material of MATERIALS) {
+      migrated[material.name] = Math.max(0, active.owned[material.id] || 0);
+    }
+    replaceSharedOwned(migrated);
+  }, [sharedOwnedLoaded, active, sharedOwned, replaceSharedOwned]);
+
   const need = useMemo(() => {
     const total = blankMaterialMap();
     if (!active) return total;
@@ -215,7 +238,8 @@ export default function GameMaterialCalculator() {
   if (!active) return null;
 
   const grand = MATERIAL_IDS.reduce((sum, id) => {
-    const rest = Math.max(0, need[id] - active.owned[id]);
+    const material = MATERIALS.find(item => item.id === id)!;
+    const rest = Math.max(0, need[id] - sharedOwned[material.name]);
     return sum + rest * state.price[id];
   }, 0);
 
@@ -455,7 +479,7 @@ export default function GameMaterialCalculator() {
         <section className={styles.side}>
           <div className={styles.sectionHead}>
             <h2>재료 집계</h2>
-            <span>거래소 데카는 공용, 보유 수량은 슬롯별</span>
+            <span>보유 수량은 계산기·시뮬레이터 공용</span>
           </div>
 
           <div className={styles.ledger}>
@@ -464,7 +488,7 @@ export default function GameMaterialCalculator() {
             </div>
 
             {MATERIALS.map(material => {
-              const rest = Math.max(0, need[material.id] - active.owned[material.id]);
+              const rest = Math.max(0, need[material.id] - sharedOwned[material.name]);
               const cost = rest * state.price[material.id];
               const dotClass = styles['dot' + material.group] || '';
               return (
@@ -497,14 +521,8 @@ export default function GameMaterialCalculator() {
                     <input
                       type="number"
                       min={0}
-                      value={active.owned[material.id]}
-                      onChange={e => updateActive(profile => ({
-                        ...profile,
-                        owned: {
-                          ...profile.owned,
-                          [material.id]: Math.max(0, Number(e.target.value) || 0),
-                        },
-                      }))}
+                      value={sharedOwned[material.name]}
+                      onChange={e => setSharedMaterial(material.name, Number(e.target.value))}
                     />
                   </label>
                   <div className={styles.mobileCell}><span>잔여</span><b>{fmt(rest)}</b></div>
