@@ -574,6 +574,7 @@ export default function MagicResistanceSimulator() {
   const [marketError, setMarketError] = useState('');
   const [editingSlot, setEditingSlot] = useState<SlotId | null>(null);
   const [folds, setFolds] = useState({ materials: true, equipment: true });
+  const [focusedMaterial, setFocusedMaterial] = useState<SharedMaterialName | null>(null);
   const {
     owned: sharedOwned,
     setMaterial: setSharedMaterial,
@@ -870,7 +871,9 @@ export default function MagicResistanceSimulator() {
                 type="number"
                 inputMode="numeric"
                 min={0}
-                value={sharedOwned[name]}
+                value={focusedMaterial === name && sharedOwned[name] === 0 ? '' : sharedOwned[name]}
+                onFocus={() => setFocusedMaterial(name)}
+                onBlur={() => setFocusedMaterial(null)}
                 onChange={e => setSharedMaterial(name, Number(e.target.value))}
               />
             </label>
