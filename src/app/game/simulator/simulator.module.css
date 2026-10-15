@@ -24,9 +24,9 @@
 .fold>summary>div{display:flex;align-items:baseline;gap:9px;min-width:0;flex-wrap:wrap}
 .fold>summary h2{margin:0;color:var(--page-title);font-size:18px}
 .fold>summary span{color:var(--page-desc);font-size:13px}
-.fold>summary>b{flex:none;color:var(--page-desc);font-size:11px;font-weight:700}
-.fold[open]>summary>b::after{content:' ▲'}
-.fold:not([open])>summary>b::after{content:' ▼'}
+.fold>summary>b{flex:none;color:var(--page-desc);font-size:0;font-weight:700}
+.fold[open]>summary>b::after{content:'접기 ▲';font-size:11px}
+.fold:not([open])>summary>b::after{content:'펼치기 ▼';font-size:11px}
 .materialGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;background:#fff;border:1px solid var(--s-line2);border-radius:12px;padding:12px}
 .materialInput{display:grid;grid-template-columns:minmax(0,1fr) 110px;align-items:center;gap:10px;padding:8px 9px;border:1px solid var(--s-line2);border-radius:9px;background:#fafbfd}
 .materialInput span{min-width:0;color:var(--s-sub);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
