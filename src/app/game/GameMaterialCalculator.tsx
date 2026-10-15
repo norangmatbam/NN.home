@@ -172,11 +172,10 @@ function slotMaterials(
   return MATERIAL_IDS.filter(id => total[id] > 0).map(id => [id, total[id]] as const);
 }
 
-export default function GameMaterialCalculator({ mode = 'M' }: { mode?: 'M' | 'D' }) {
+export default function GameMaterialCalculator() {
   const [state, setState] = useState<CalcState>(() => initialState());
   const [loaded, setLoaded] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [decaBudget, setDecaBudget] = useState(0);
   const [focusedMaterial, setFocusedMaterial] = useState<MaterialId | null>(null);
   const [folds, setFolds] = useState({ materials: true, equipment: true });
   const [marketPrices, setMarketPrices] = useState<Partial<MaterialMap>>({});
@@ -210,7 +209,6 @@ export default function GameMaterialCalculator({ mode = 'M' }: { mode?: 'M' | 'D
         }
       }
     } catch {}
-    try { setDecaBudget(Math.max(0, Math.floor(Number(localStorage.getItem('nn-game-simulator-deca-budget-v1')) || 0))); } catch {}
     setLoaded(true);
   }, []);
 
@@ -230,11 +228,6 @@ export default function GameMaterialCalculator({ mode = 'M' }: { mode?: 'M' | 'D
     if (!loaded) return;
     try { localStorage.setItem(FOLD_STORAGE_KEY, JSON.stringify(folds)); } catch {}
   }, [folds, loaded]);
-
-  useEffect(() => {
-    if (!loaded || mode !== 'D') return;
-    try { localStorage.setItem('nn-game-simulator-deca-budget-v1', String(decaBudget)); } catch {}
-  }, [mode, decaBudget, loaded]);
 
   const toggleFold = (key: 'materials' | 'equipment') => {
     setFolds(current => ({ ...current, [key]: !current[key] }));
@@ -368,7 +361,7 @@ export default function GameMaterialCalculator({ mode = 'M' }: { mode?: 'M' | 'D
     <div className={styles.wrap}>
       <header className={styles.header}>
         <div className={styles.brand}>
-          <h1>장비 재료 계산기 {mode}</h1>
+          <h1>장비 재료 계산기</h1>
           <div className={styles.steps}>
             <p>1. 제작할 장비에서 직업과 방어구 종류, 개수를 선택합니다.</p>
             <p>2. 모비라이프 거래소 최저가를 자동으로 조회합니다.</p>
@@ -378,12 +371,6 @@ export default function GameMaterialCalculator({ mode = 'M' }: { mode?: 'M' | 'D
         </div>
         <div className={styles.total}>
           <div className={styles.totalLabel}>모자란 재료 구매 비용</div>
-          {mode === 'D' && <label style={{display:'grid',gap:4,margin:'8px 0',textAlign:'left',fontSize:12,color:'#4c5a78'}}>
-            <span>사용 가능한 데카 (시뮬레이터 D와 동일 입력값)</span>
-            <input type="number" min={0} value={decaBudget}
-              onChange={e => setDecaBudget(Math.max(0,Math.floor(Number(e.target.value)||0)))}
-              style={{height:38,border:'1px solid #d8e0ec',borderRadius:8,padding:'0 10px',background:'#fff',color:'#18203a'}} />
-          </label>}
           <div className={styles.totalValue + (grand == null ? ' ' + styles.lookupFailed : '')}>
             {grand == null ? priceText(grand) : <>{fmt(grand)}<small>데카</small></>}
           </div>
@@ -403,13 +390,6 @@ export default function GameMaterialCalculator({ mode = 'M' }: { mode?: 'M' | 'D
           </div>
         </div>
       </header>
-      {mode === 'D' && <div className={styles.marketBar} style={{margin:'0 0 16px',border:'1px solid #d8e0ec',borderRadius:10,padding:'10px 14px'}}>
-        <div className={styles.marketInfo}>
-          <b>현재 선택한 제작 계획의 예산 비교</b>
-          <span>{grand == null ? '재료 시세 조회 실패' : decaBudget >= grand ? '예산 내 제작 가능 · 잔여 ' + fmt(decaBudget-grand) + ' 데카' : '예산보다 ' + fmt(grand-decaBudget) + ' 데카 부족'}</span>
-        </div>
-      </div>}
-
       <div className={styles.chars}>
         <span className={styles.charsLabel}>슬롯</span>
         {state.characters.map(profile =>
