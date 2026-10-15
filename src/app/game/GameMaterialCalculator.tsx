@@ -216,15 +216,14 @@ export default function GameMaterialCalculator() {
 
   useEffect(() => {
     if (!sharedOwnedLoaded || !active) return;
-    const hasShared = Object.values(sharedOwned).some(value => value > 0);
-    if (hasShared) return;
+    if (localStorage.getItem('nn-game-owned-materials-v1') !== null) return;
 
     const migrated = emptySharedOwned();
     for (const material of MATERIALS) {
       migrated[material.name] = Math.max(0, active.owned[material.id] || 0);
     }
     replaceSharedOwned(migrated);
-  }, [sharedOwnedLoaded, active, sharedOwned, replaceSharedOwned]);
+  }, [sharedOwnedLoaded, active, replaceSharedOwned]);
 
   const need = useMemo(() => {
     const total = blankMaterialMap();
