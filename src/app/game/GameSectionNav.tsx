@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 const ITEMS = [
   { label: '계산기', href: '/game' },
   { label: '시뮬레이터', href: '/game/simulator' },
+  { label: '드래케인', href: '/game/drakein' },
 ];
 
 export default function GameSectionNav() {
