@@ -146,6 +146,7 @@ export default function GameMaterialCalculator() {
   const [state, setState] = useState<CalcState>(() => initialState());
   const [loaded, setLoaded] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [focusedMaterial, setFocusedMaterial] = useState<MaterialId | null>(null);
   const [folds, setFolds] = useState({ materials: true, equipment: true });
   const [marketPrices, setMarketPrices] = useState<Partial<MaterialMap>>({});
   const [marketLoading, setMarketLoading] = useState(true);
@@ -468,7 +469,10 @@ export default function GameMaterialCalculator() {
                     <input
                       type="number"
                       min={0}
-                      value={sharedOwned[material.name]}
+                      inputMode="numeric"
+                      value={focusedMaterial === material.id && sharedOwned[material.name] === 0 ? '' : sharedOwned[material.name]}
+                      onFocus={() => setFocusedMaterial(material.id)}
+                      onBlur={() => setFocusedMaterial(null)}
                       onChange={e => setSharedMaterial(material.name, Number(e.target.value))}
                     />
                   </label>
