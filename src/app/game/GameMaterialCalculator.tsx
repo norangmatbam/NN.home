@@ -236,6 +236,15 @@ export default function GameMaterialCalculator() {
     });
   };
 
+  const jumpPage = (where: 'top' | 'bottom') => {
+    const scroller = document.getElementById('appMain');
+    if (!scroller) return;
+    scroller.scrollTo({
+      top: where === 'top' ? 0 : scroller.scrollHeight,
+      behavior: 'smooth',
+    });
+  };
+
   return (
     <div className={styles.wrap}>
       <header className={styles.header}>
@@ -513,6 +522,11 @@ export default function GameMaterialCalculator() {
           <p className={styles.note}><b>필요</b>는 선택한 장비의 재료를 모두 더한 값, <b>잔여</b>는 필요에서 보유를 뺀 값입니다.</p>
           <p className={styles.note}><b>필요 데카</b>는 잔여 수량 × 직접 입력한 거래소 데카입니다. 현재는 거래소 API를 사용하지 않습니다.</p>
         </section>
+      </div>
+
+      <div className={styles.floatNav} aria-label="페이지 위치 이동">
+        <button type="button" onClick={() => jumpPage('top')} aria-label="맨 위로 이동">↑ 맨 위</button>
+        <button type="button" onClick={() => jumpPage('bottom')} aria-label="맨 아래로 이동">↓ 맨 아래</button>
       </div>
     </div>
   );
