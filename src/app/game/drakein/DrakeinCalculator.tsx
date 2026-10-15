@@ -54,6 +54,7 @@ const JOB_WEAPONS: { job: string; weapon: string; group: keyof typeof EXTRAS }[]
 const CHANGE_COST = 5000;
 const DRAGON_OWNED_KEY = 'nn-drakein-dragon-scales-v1';
 const TARGET_KEY = 'nn-drakein-target-job-v1';
+const MATERIAL_FOLD_KEY = 'nn-drakein-materials-open-v1';
 const fmt = (n: number) => n.toLocaleString('ko-KR');
 const normalize = (v: string) => v.replace(/\s+/g, ' ').trim();
 
@@ -66,7 +67,8 @@ export default function DrakeinCalculator() {
   const [job, setJob] = useState('화염술사');
   const [dragonOwned, setDragonOwned] = useState(0);
   const [loaded, setLoaded] = useState(false);
-  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
+  const [materialDraft, setMaterialDraft] = useState<{ name: Material; text: string } | null>(null);
+  const [materialsOpen, setMaterialsOpen] = useState(true);
   const [prices, setPrices] = useState<Partial<Record<Material, number>>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -79,6 +81,8 @@ export default function DrakeinCalculator() {
       if (j && JOB_WEAPONS.some(w => w.job === j)) setJob(j);
       const value = localStorage.getItem(DRAGON_OWNED_KEY);
       if (value != null) setDragonOwned(Math.max(0, Math.floor(Number(value) || 0)));
+      const fold = localStorage.getItem(MATERIAL_FOLD_KEY);
+      if (fold !== null) setMaterialsOpen(fold === 'true');
     } catch {}
     setLoaded(true);
   }, []);
@@ -89,6 +93,14 @@ export default function DrakeinCalculator() {
       localStorage.setItem(DRAGON_OWNED_KEY, String(dragonOwned));
     } catch {}
   }, [job, dragonOwned, loaded]);
+
+  const toggleMaterials = () => {
+    setMaterialsOpen(current => {
+      const next = !current;
+      try { localStorage.setItem(MATERIAL_FOLD_KEY, String(next)); } catch {}
+      return next;
+    });
+  };
 
   const loadMarket = useCallback(async (fresh = false) => {
     setLoading(true);
@@ -201,25 +213,30 @@ export default function DrakeinCalculator() {
       </section>
 
       <section className={styles.panel}>
-        <div className={styles.sectionTitle}><h2>보유 재료</h2><span>기존 계산기·시뮬레이터의 보유량 공유</span></div>
-        <div className={styles.inventory}>
+        <div className={styles.foldTitle}>
+          <div className={styles.sectionTitle}><h2>보유 재료</h2><span>기존 계산기·시뮬레이터의 보유량 공유</span></div>
+          <button type="button" className={styles.foldButton} aria-expanded={materialsOpen} aria-controls="drakein-owned-materials" onClick={toggleMaterials}>{materialsOpen ? '접기 ▲' : '펼치기 ▼'}</button>
+        </div>
+        {materialsOpen && <div className={styles.inventory} id="drakein-owned-materials">
           {Array.from(new Set(results.flatMap(r => r.rows.map(row => row.name)))).map(name => {
             const value = name === '마력 깃든 용비늘' ? dragonOwned : owned[name as SharedMaterialName];
             return <label key={name} className={styles.material}>
               <span>{name}</span>
               <input type="number" min={0} inputMode="numeric"
-                value={editingMaterial === name && value === 0 ? '' : value}
-                onFocus={() => setEditingMaterial(name)}
-                onBlur={() => setEditingMaterial(null)}
+                value={materialDraft?.name === name ? materialDraft.text : value}
+                onFocus={() => setMaterialDraft({ name, text: value === 0 ? '' : String(value) })}
+                onBlur={() => setMaterialDraft(null)}
                 onChange={e => {
-                  const next = Math.max(0, Math.floor(Number(e.target.value) || 0));
+                  const text = e.target.value;
+                  setMaterialDraft({ name, text });
+                  const next = Math.max(0, Math.floor(Number(text) || 0));
                   if (name === '마력 깃든 용비늘') setDragonOwned(next);
                   else setMaterial(name as SharedMaterialName, next);
                 }}
               />
             </label>;
           })}
-        </div>
+        </div>}
       </section>
 
       <section className={styles.panel}>
