@@ -343,24 +343,22 @@ export default function GameMaterialCalculator() {
           <div className={styles.totalValue + (grand == null ? ' ' + styles.lookupFailed : '')}>
             {grand == null ? priceText(grand) : <>{fmt(grand)}<small>데카</small></>}
           </div>
+          <div className={styles.marketBar}>
+            <div className={styles.marketInfo} role="status" aria-live="polite">
+              <b>모비라이프 거래소</b>
+              {marketLoading
+                ? <span>최저가 조회 중…</span>
+                : marketError
+                  ? <span className={styles.marketError}>조회 실패 · {marketError}</span>
+                  : <span>최저가 {marketMatchedCount}/{MATERIALS.length}종{marketUpdatedAt ? ' · ' + marketTimeLabel(marketUpdatedAt) : ''}{marketMatchedCount < MATERIALS.length ? ' · 일부 조회 실패' : ''}</span>
+              }
+            </div>
+            <button type="button" className={styles.marketRefresh} disabled={marketLoading} onClick={() => void loadMarket(true)}>
+              {marketLoading ? '조회 중…' : '시세 새로고침'}
+            </button>
+          </div>
         </div>
       </header>
-
-      <div className={styles.marketBar}>
-        <div className={styles.marketInfo} role="status" aria-live="polite">
-          <b>모비라이프 거래소 시세</b>
-          {marketLoading
-            ? <span>거래소 최저가 조회 중…</span>
-            : marketError
-              ? <span className={styles.marketError}>조회 실패 · {marketError}</span>
-              : <span>최저가 {marketMatchedCount}/{MATERIALS.length}종 조회{marketUpdatedAt ? ' · ' + marketTimeLabel(marketUpdatedAt) : ''}{marketMatchedCount < MATERIALS.length ? ' · 미조회 재료는 조회 실패 표시' : ''}</span>
-          }
-          <span>단가는 API 조회값만 사용합니다</span>
-        </div>
-        <button type="button" className={styles.marketRefresh} disabled={marketLoading} onClick={() => void loadMarket(true)}>
-          {marketLoading ? '조회 중…' : '시세 새로고침'}
-        </button>
-      </div>
 
       <div className={styles.chars}>
         <span className={styles.charsLabel}>슬롯</span>
