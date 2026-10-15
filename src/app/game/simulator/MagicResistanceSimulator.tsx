@@ -1157,7 +1157,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
                 <span>현재 {fmt(current)}</span>
                 <i>→</i>
                 <span>주입 후 {fmt(projected)}</span>
-                <b>+{fmt(pricePlan.gain)}</b>
+                <b>+{fmt(activePlan.gain)}</b>
               </div>
             </div>
 
