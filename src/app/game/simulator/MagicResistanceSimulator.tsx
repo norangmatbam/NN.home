@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './simulator.module.css';
 import {
+  SHARED_MATERIAL_NAMES,
+  useSharedOwnedMaterials,
+  type SharedOwnedMaterials,
+  type SharedMaterialName,
+} from '../sharedOwnedMaterials';
+import {
   ARMOR_KINDS,
   JOB_GROUPS,
   getEquipmentName,
@@ -473,6 +479,88 @@ function timeLabel(value?: string | null) {
   }).format(date);
 }
 
+function applyOwnedInventory(
+  plan: PlanResult,
+  state: SimState,
+  items: MarketItem[],
+  owned: SharedOwnedMaterials,
+): PlanResult {
+  if (!plan) return null;
+
+  const remaining = { ...owned };
+  const steps = plan.steps.map(step => {
+    if (step.kind === '룬') return step;
+
+    const recipe = getRecipe(step.slot, step.kind, state.job, state.armorKind);
+    const purchaseCost = step.acquisition?.purchaseCost ?? null;
+
+    let craftCost: number | null = null;
+    let canCraft = !!recipe?.complete;
+    const materialUse: Partial<Record<SharedMaterialName, number>> = {};
+
+    if (recipe?.complete) {
+      let cost = 0;
+      for (const [rawName, qty] of Object.entries(recipe.materials) as [MaterialName, number][]) {
+        const name = rawName as SharedMaterialName;
+        const price = marketPrice(items, rawName);
+        if (price == null) {
+          canCraft = false;
+          break;
+        }
+
+        const have = remaining[name] ?? 0;
+        const use = Math.min(have, qty);
+        const buy = qty - use;
+        materialUse[name] = use;
+        cost += buy * price;
+      }
+      if (canCraft) craftCost = cost;
+    }
+
+    let method: '제작' | '구매' | null = null;
+    let cost: number | null = null;
+
+    if (craftCost != null && purchaseCost != null) {
+      if (craftCost <= purchaseCost) {
+        method = '제작';
+        cost = craftCost;
+      } else {
+        method = '구매';
+        cost = purchaseCost;
+      }
+    } else if (craftCost != null) {
+      method = '제작';
+      cost = craftCost;
+    } else if (purchaseCost != null) {
+      method = '구매';
+      cost = purchaseCost;
+    }
+
+    if (method === '제작') {
+      for (const [name, used] of Object.entries(materialUse) as [SharedMaterialName, number][]) {
+        remaining[name] = Math.max(0, (remaining[name] ?? 0) - used);
+      }
+    }
+
+    return {
+      ...step,
+      cost: cost ?? step.cost,
+      acquisition: step.acquisition ? {
+        ...step.acquisition,
+        craftCost,
+        bestCost: cost,
+        method,
+      } : step.acquisition,
+    };
+  });
+
+  return {
+    ...plan,
+    steps,
+    cost: steps.reduce((sum, step) => sum + step.cost, 0),
+  };
+}
+
 export default function MagicResistanceSimulator() {
   const [state, setState] = useState<SimState>(() => defaultState());
   const [bonusDrafts, setBonusDrafts] = useState<Record<SlotId, string>>(
@@ -484,6 +572,10 @@ export default function MagicResistanceSimulator() {
   const [marketLoading, setMarketLoading] = useState(true);
   const [marketError, setMarketError] = useState('');
   const [editingSlot, setEditingSlot] = useState<SlotId | null>(null);
+  const {
+    owned: sharedOwned,
+    setMaterial: setSharedMaterial,
+  } = useSharedOwnedMaterials();
 
   useEffect(() => {
     try {
@@ -526,9 +618,13 @@ export default function MagicResistanceSimulator() {
 
   const current = useMemo(() => totalResistance(state), [state]);
   const lack = Math.max(0, state.target - current);
-  const pricePlan = useMemo(
+  const basePricePlan = useMemo(
     () => marketItems.length ? buildCostPlan(state, marketItems, current) : null,
     [state, marketItems, current],
+  );
+  const pricePlan = useMemo(
+    () => applyOwnedInventory(basePricePlan, state, marketItems, sharedOwned),
+    [basePricePlan, state, marketItems, sharedOwned],
   );
   const projected = pricePlan ? current + pricePlan.gain : current;
   const progress = state.target > 0 ? Math.min(100, Math.round((current / state.target) * 100)) : 100;
@@ -725,13 +821,41 @@ export default function MagicResistanceSimulator() {
         </div>
       </section>
 
-      <div className={styles.sectionHead}>
-        <h2>현재 장비</h2>
-        <span>10성 룬은 기본 장착(+300) · 주입 상승분만 입력</span>
-      </div>
+      <details className={styles.fold}>
+        <summary>
+          <div>
+            <h2>보유 재료</h2>
+            <span>계산기와 공용 · 제작비 계산에 자동 반영</span>
+          </div>
+          <b>펼치기</b>
+        </summary>
+        <div className={styles.materialGrid}>
+          {SHARED_MATERIAL_NAMES.map(name => (
+            <label className={styles.materialInput} key={name}>
+              <span>{name}</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={sharedOwned[name]}
+                onChange={e => setSharedMaterial(name, Number(e.target.value))}
+              />
+            </label>
+          ))}
+        </div>
+      </details>
 
-      <section className={styles.grid}>
-        {SLOTS.map(slot => {
+      <details className={styles.fold} open>
+        <summary>
+          <div>
+            <h2>현재 장비</h2>
+            <span>10성 룬은 기본 장착(+300) · 주입 상승분만 입력</span>
+          </div>
+          <b>접기</b>
+        </summary>
+
+        <section className={styles.grid}>
+          {SLOTS.map(slot => {
           const slotState = state.slots[slot.id];
           const stage = stageFromBonus(slot.id, slotState.bonus);
           const draft = bonusDrafts[slot.id];
@@ -820,8 +944,9 @@ export default function MagicResistanceSimulator() {
               </div>
             </article>
           );
-        })}
-      </section>
+          })}
+        </section>
+      </details>
 
       <div className={styles.sectionHead}>
         <h2>목표까지 추천</h2>
@@ -902,7 +1027,8 @@ export default function MagicResistanceSimulator() {
             </div>
 
             <p className={styles.note}>
-              해연 제작비는 네 레시피의 가공 재료와 마력석·영혼석을 모두 포함합니다.
+              해연 제작비는 보유 재료를 먼저 차감한 뒤 부족분만 거래소가로 계산합니다.
+              여러 장비를 제작해도 같은 보유 재료를 중복 차감하지 않습니다.
               잔영은 추가 재료가 아직 비어 있어 제작비를 추천 판단에 사용하지 않고 완제품 거래소가를 사용합니다.
             </p>
           </>
