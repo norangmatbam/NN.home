@@ -12,6 +12,7 @@ const MATERIAL_TERMS = [
   '특급 가죽',
   '특급 옷감',
   '특급 실크',
+  '용비늘',
 ];
 
 const EQUIPMENT_TERMS = ['해연', '잔영'];
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
   try {
     // 재료는 종류별 1회 조회, 완제품은 "해연" / "잔영"으로 넓게 검색하고
     // 100개 제한에 걸리지 않도록 페이지를 넘겨 수집한다.
-    // 최대 호출 수는 7 + (8 × 2) = 23회로 키당 분당 30회 제한 안에 둔다.
+    // 최대 호출 수는 8 + (8 × 2) = 24회로 키당 분당 30회 제한 안에 둔다.
     const [materialPayloads, equipmentPayloads] = await Promise.all([
       Promise.all(MATERIAL_TERMS.map(term => fetchTerm(term, key, fresh))),
       Promise.all(EQUIPMENT_TERMS.map(term => fetchEquipmentTerm(term, key, fresh))),
