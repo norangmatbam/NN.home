@@ -894,7 +894,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
     <div className={styles.wrap}>
       <header className={styles.header}>
         <h1>{mode === 'D' ? '데카 시뮬레이터 D' : '마도저항 시뮬레이터 M'}</h1>
-        <p>현재 상태와 목표를 입력하면 거래소 시세 기준으로 제작·구매 비용을 비교해 가장 저렴한 경로를 계산합니다.</p>
+        <p>{mode === 'D' ? '현재 장비 스택과 보유 데카를 기준으로 마도저항을 가장 많이 올리는 경로를 찾습니다.' : '목표 마도저항까지 제작·구매 비용을 비교해 가장 저렴한 경로를 계산합니다.'}</p>
       </header>
 
       <section className={styles.summary}>
@@ -1145,7 +1145,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
           </div>
         ) : !activePlan ? (
           <div className={styles.complete}>
-            <b>현재 시세로 목표까지 계산할 수 있는 경로가 없습니다.</b>
+            <b>{mode === 'D' ? '현재 예산과 시세로 계산 가능한 경로가 없습니다.' : '현재 시세로 목표까지 계산할 수 있는 경로가 없습니다.'}</b>
             <span>매물이 없는 장비가 있거나 유효하지 않은 주입 수치가 있는지 확인해 주세요.</span>
           </div>
         ) : (
@@ -1161,6 +1161,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
               </div>
             </div>
 
+            {mode === 'D' && <p style={{margin:'8px 14px',fontSize:12,color:'#52738a'}}>남는 데카: {fmt(Math.max(0, decaBudget - activePlan.cost))}</p>}
             <div className={styles.planSummary}>
               <div><span>{mode === 'D' ? '예상 상승량' : '필요 상승량'}</span><b>{fmt(mode === 'D' ? activePlan.gain : lack)}</b></div>
               <div><span>해연</span><b>{planGradeTotals.해연}개</b></div>
