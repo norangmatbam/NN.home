@@ -55,6 +55,7 @@ const ARMOR_KINDS: ArmorKind[] = ['중갑', '경갑', '천옷'];
 const GRADES: Grade[] = ['해연', '잔영'];
 const MAX_COUNT = 99;
 const STORAGE_KEY = 'nn-game-material-calc-v1';
+const FOLD_STORAGE_KEY = 'nn-game-calculator-folds-v1';
 
 // Keep crafting counts in sync with the simulator's single recipe source.
 const SLOT_IDS: Record<Slot, SlotId> = {
@@ -145,6 +146,7 @@ export default function GameMaterialCalculator() {
   const [state, setState] = useState<CalcState>(() => initialState());
   const [loaded, setLoaded] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [folds, setFolds] = useState({ materials: true, equipment: true });
   const [marketPrices, setMarketPrices] = useState<Partial<MaterialMap>>({});
   const [marketLoading, setMarketLoading] = useState(true);
   const [marketError, setMarketError] = useState('');
@@ -162,6 +164,20 @@ export default function GameMaterialCalculator() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) setState(JSON.parse(raw) as CalcState);
     } catch {}
+
+    try {
+      const raw = localStorage.getItem(FOLD_STORAGE_KEY);
+      if (raw) {
+        const parsed: unknown = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          const savedFolds = parsed as Partial<typeof folds>;
+          setFolds({
+            materials: typeof savedFolds.materials === 'boolean' ? savedFolds.materials : true,
+            equipment: typeof savedFolds.equipment === 'boolean' ? savedFolds.equipment : true,
+          });
+        }
+      }
+    } catch {}
     setLoaded(true);
   }, []);
 
@@ -176,6 +192,15 @@ export default function GameMaterialCalculator() {
     }, 250);
     return () => window.clearTimeout(timer);
   }, [state, loaded]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    try { localStorage.setItem(FOLD_STORAGE_KEY, JSON.stringify(folds)); } catch {}
+  }, [folds, loaded]);
+
+  const toggleFold = (key: 'materials' | 'equipment') => {
+    setFolds(current => ({ ...current, [key]: !current[key] }));
+  };
 
   const active = state.characters.find(c => c.id === state.activeId) || state.characters[0];
 
@@ -406,13 +431,75 @@ export default function GameMaterialCalculator() {
         <button type="button" className={styles.ghost + ' ' + styles.reset} onClick={() => setAllGrade(null)}>초기화</button>
       </div>
 
-      <div className={styles.cols}>
-        <section>
-          <div className={styles.sectionHead}>
-            <h2>제작할 장비</h2>
-            <span>{SLOTS.reduce((sum, slot) => sum + active.plan[slot].해연 + active.plan[slot].잔영, 0)}개 제작</span>
+      <div className={styles.sections}>
+        <details className={styles.fold} open={folds.materials}>
+          <summary onClick={e => { e.preventDefault(); toggleFold('materials'); }}>
+            <div>
+              <h2>보유 재료</h2>
+              <span>보유 수량은 계산기·시뮬레이터 공용 · 제작비 계산에 자동 반영</span>
+            </div>
+            <span className={styles.foldToggle}>{folds.materials ? '접기 ▲' : '펼치기 ▼'}</span>
+          </summary>
+          <section className={styles.side}>
+          <div className={styles.ledger}>
+            <div className={styles.ledgerHead}>
+              <div>재료</div><div>거래소 데카</div><div>필요</div><div>보유</div><div>잔여</div><div>필요 데카</div>
+            </div>
+
+            {MATERIALS.map(material => {
+              const rest = Math.max(0, need[material.id] - sharedOwned[material.name]);
+              const unitPrice = marketPrices[material.id];
+              const cost = totalCost([[material.id, rest]]);
+              const dotClass = styles['dot' + material.group] || '';
+              return (
+                <div
+                  className={styles.ledgerRow + (need[material.id] > 0 && rest === 0 ? ' ' + styles.done : '')}
+                  key={material.id}
+                >
+                  <div className={styles.who}>
+                    <i className={styles.dot + ' ' + dotClass} />
+                    <span>{material.name}</span>
+                  </div>
+                  <div className={styles.mobileCell}>
+                    <span>거래소 데카</span>
+                    <b className={unitPrice == null ? styles.lookupFailed : ''}>{priceText(unitPrice ?? null)}</b>
+                  </div>
+                  <div className={styles.mobileCell}><span>필요</span><b>{fmt(need[material.id])}</b></div>
+                  <label className={styles.mobileCell}>
+                    <span>보유</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={sharedOwned[material.name]}
+                      onChange={e => setSharedMaterial(material.name, Number(e.target.value))}
+                    />
+                  </label>
+                  <div className={styles.mobileCell}><span>잔여</span><b>{fmt(rest)}</b></div>
+                  <div className={styles.rowCost + (cost == null ? ' ' + styles.lookupFailed : '')}>{priceText(cost)}</div>
+                </div>
+              );
+            })}
+
+            <div className={styles.ledgerFoot}>
+              <span>{active.name || '이름 없음'} 합계</span>
+              <b className={grand == null ? styles.lookupFailed : ''}>{priceText(grand)}{grand == null ? '' : ' 데카'}</b>
+            </div>
           </div>
 
+          <p className={styles.note}><b>필요</b>는 선택한 장비의 재료를 모두 더한 값, <b>잔여</b>는 필요에서 보유를 뺀 값입니다.</p>
+          <p className={styles.note}><b>필요 데카</b>는 잔여 수량 × 모비라이프 거래소 최저가입니다. 필요한 재료의 시세 조회에 실패하면 해당 비용과 합계에도 <b>조회 실패</b>를 표시합니다. 기존 입력 단가나 임의 가격으로 대신 계산하지 않습니다.</p>
+          </section>
+        </details>
+
+        <details className={styles.fold} open={folds.equipment}>
+          <summary onClick={e => { e.preventDefault(); toggleFold('equipment'); }}>
+            <div>
+              <h2>제작할 장비</h2>
+              <span>{SLOTS.reduce((sum, slot) => sum + active.plan[slot].해연 + active.plan[slot].잔영, 0)}개 제작</span>
+            </div>
+            <span className={styles.foldToggle}>{folds.equipment ? '접기 ▲' : '펼치기 ▼'}</span>
+          </summary>
+          <section>
           <div className={styles.gear}>
             {SLOTS.map(slot => {
               const materials = slotMaterials(slot, active);
@@ -526,62 +613,8 @@ export default function GameMaterialCalculator() {
               );
             })}
           </div>
-        </section>
-
-        <section className={styles.side}>
-          <div className={styles.sectionHead}>
-            <h2>재료 집계</h2>
-            <span>보유 수량은 계산기·시뮬레이터 공용</span>
-          </div>
-
-          <div className={styles.ledger}>
-            <div className={styles.ledgerHead}>
-              <div>재료</div><div>거래소 데카</div><div>필요</div><div>보유</div><div>잔여</div><div>필요 데카</div>
-            </div>
-
-            {MATERIALS.map(material => {
-              const rest = Math.max(0, need[material.id] - sharedOwned[material.name]);
-              const unitPrice = marketPrices[material.id];
-              const cost = totalCost([[material.id, rest]]);
-              const dotClass = styles['dot' + material.group] || '';
-              return (
-                <div
-                  className={styles.ledgerRow + (need[material.id] > 0 && rest === 0 ? ' ' + styles.done : '')}
-                  key={material.id}
-                >
-                  <div className={styles.who}>
-                    <i className={styles.dot + ' ' + dotClass} />
-                    <span>{material.name}</span>
-                  </div>
-                  <div className={styles.mobileCell}>
-                    <span>거래소 데카</span>
-                    <b className={unitPrice == null ? styles.lookupFailed : ''}>{priceText(unitPrice ?? null)}</b>
-                  </div>
-                  <div className={styles.mobileCell}><span>필요</span><b>{fmt(need[material.id])}</b></div>
-                  <label className={styles.mobileCell}>
-                    <span>보유</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={sharedOwned[material.name]}
-                      onChange={e => setSharedMaterial(material.name, Number(e.target.value))}
-                    />
-                  </label>
-                  <div className={styles.mobileCell}><span>잔여</span><b>{fmt(rest)}</b></div>
-                  <div className={styles.rowCost + (cost == null ? ' ' + styles.lookupFailed : '')}>{priceText(cost)}</div>
-                </div>
-              );
-            })}
-
-            <div className={styles.ledgerFoot}>
-              <span>{active.name || '이름 없음'} 합계</span>
-              <b className={grand == null ? styles.lookupFailed : ''}>{priceText(grand)}{grand == null ? '' : ' 데카'}</b>
-            </div>
-          </div>
-
-          <p className={styles.note}><b>필요</b>는 선택한 장비의 재료를 모두 더한 값, <b>잔여</b>는 필요에서 보유를 뺀 값입니다.</p>
-          <p className={styles.note}><b>필요 데카</b>는 잔여 수량 × 모비라이프 거래소 최저가입니다. 필요한 재료의 시세 조회에 실패하면 해당 비용과 합계에도 <b>조회 실패</b>를 표시합니다. 기존 입력 단가나 임의 가격으로 대신 계산하지 않습니다.</p>
-        </section>
+          </section>
+        </details>
       </div>
 
       <div className={styles.floatNav} aria-label="페이지 위치 이동">
