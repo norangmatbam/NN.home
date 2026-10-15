@@ -1,3 +1,5 @@
+import GameMaterialCalculator from './GameMaterialCalculator';
+
 export default function GamePage() {
-  return <section className="page" aria-label="GAME" />;
+  return <GameMaterialCalculator />;
 }
