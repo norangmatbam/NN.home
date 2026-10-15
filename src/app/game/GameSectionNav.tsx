@@ -3,8 +3,10 @@
 import { usePathname, useRouter } from 'next/navigation';
 
 const ITEMS = [
-  { label: '계산기', href: '/game' },
-  { label: '시뮬레이터', href: '/game/simulator' },
+  { label: '계산기 M', href: '/game' },
+  { label: '계산기 D', href: '/game/calculator-d' },
+  { label: '시뮬레이터 M', href: '/game/simulator' },
+  { label: '시뮬레이터 D', href: '/game/simulator-d' },
   { label: '드래케인', href: '/game/drakein' },
   { label: '데카', href: '/game/deca' },
 ];
