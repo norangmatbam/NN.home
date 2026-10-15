@@ -282,7 +282,7 @@ export function getEquipmentName(
   armorKind: ArmorKind,
 ) {
   const prefix = grade + '의 ';
-  const suffix = ' ZZ';
+  const suffix = 'ZZ';
 
   if (slot === 'weapon') return prefix + (WEAPON_MARKET_NAME[job] ?? WEAPON_MARKET_NAME['화염술사']) + suffix;
   if (slot === 'necklace') return prefix + '페리도트 네크리스' + suffix;
