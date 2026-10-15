@@ -105,6 +105,12 @@ function defaultState(): SimState {
   };
 }
 
+function bonusDraftsFromState(state: SimState): Record<SlotId, string> {
+  return Object.fromEntries(
+    SLOTS.map(slot => [slot.id, String(state.slots[slot.id].bonus)])
+  ) as Record<SlotId, string>;
+}
+
 function fmt(value: number) {
   return Number(value || 0).toLocaleString('ko-KR');
 }
@@ -465,6 +471,9 @@ function timeLabel(value?: string | null) {
 
 export default function MagicResistanceSimulator() {
   const [state, setState] = useState<SimState>(() => defaultState());
+  const [bonusDrafts, setBonusDrafts] = useState<Record<SlotId, string>>(
+    () => bonusDraftsFromState(defaultState())
+  );
   const [loaded, setLoaded] = useState(false);
   const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
   const [marketUpdatedAt, setMarketUpdatedAt] = useState<string | null>(null);
@@ -474,7 +483,11 @@ export default function MagicResistanceSimulator() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setState(hydrate(JSON.parse(raw)));
+      if (raw) {
+        const next = hydrate(JSON.parse(raw));
+        setState(next);
+        setBonusDrafts(bonusDraftsFromState(next));
+      }
     } catch {}
     setLoaded(true);
   }, []);
@@ -580,6 +593,30 @@ export default function MagicResistanceSimulator() {
     }));
   };
 
+  const commitBonusDraft = (slot: SlotId) => {
+    const raw = bonusDrafts[slot].trim();
+    if (raw === '') {
+      setBonusDrafts(drafts => ({ ...drafts, [slot]: String(state.slots[slot].bonus) }));
+      return;
+    }
+
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) {
+      setBonusDrafts(drafts => ({ ...drafts, [slot]: String(state.slots[slot].bonus) }));
+      return;
+    }
+
+    const committed = clampBonus(slot, parsed);
+    patchSlot(slot, { bonus: committed });
+    setBonusDrafts(drafts => ({ ...drafts, [slot]: String(committed) }));
+  };
+
+  const resetSimulator = () => {
+    const next = defaultState();
+    setState(next);
+    setBonusDrafts(bonusDraftsFromState(next));
+  };
+
   const jumpPage = (where: 'top' | 'bottom') => {
     const scroller = document.getElementById('appMain');
     if (!scroller) return;
@@ -659,7 +696,7 @@ export default function MagicResistanceSimulator() {
             <span>무기 강화 제외</span>
             <small>현재 수치는 포함하고 추천 경로에서만 제외</small>
           </label>
-          <button type="button" className={styles.reset} onClick={() => setState(defaultState())}>초기화</button>
+          <button type="button" className={styles.reset} onClick={resetSimulator}>초기화</button>
         </div>
 
         <div className={styles.marketBar}>
@@ -721,11 +758,19 @@ export default function MagicResistanceSimulator() {
                       <span>주입 마도저항</span>
                       <div>
                         <input
-                          type="number"
-                          min={0}
-                          max={maxBonus(slot.id)}
-                          value={slotState.bonus}
-                          onChange={e => patchSlot(slot.id, { bonus: Number(e.target.value) })}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={bonusDrafts[slot.id]}
+                          onFocus={e => e.currentTarget.select()}
+                          onChange={e => {
+                            const next = e.target.value.replace(/[^0-9]/g, '');
+                            setBonusDrafts(drafts => ({ ...drafts, [slot.id]: next }));
+                          }}
+                          onBlur={() => commitBonusDraft(slot.id)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
+                          }}
                         />
                         <small>/ {fmt(maxBonus(slot.id))}</small>
                       </div>
