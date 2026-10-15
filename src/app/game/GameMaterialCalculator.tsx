@@ -27,18 +27,18 @@ type Profile = {
   plan: Plan;
   owned: MaterialMap;
 };
-type CalcState = { price: MaterialMap; activeId: string; characters: Profile[] };
+type CalcState = { activeId: string; characters: Profile[] };
 
-const MATERIALS: { id: MaterialId; name: SharedMaterialName; group: string; price: number; owned: number }[] = [
-  { id: '허상', name: '허상의 마력석', group: '어비스', price: 32, owned: 1 },
-  { id: '포식', name: '포식의 마력석', group: '어비스', price: 104, owned: 2 },
-  { id: '심해', name: '심해의 마력석', group: '어비스', price: 247, owned: 3 },
-  { id: '야생', name: '야생의 영혼석', group: '피오드', price: 24, owned: 26 },
-  { id: '삼림', name: '삼림의 영혼석', group: '피오드', price: 5, owned: 20 },
-  { id: '공명', name: '공명의 영혼석', group: '룬디', price: 24, owned: 53 },
-  { id: '파동', name: '파동의 영혼석', group: '룬디', price: 22, owned: 80 },
-  { id: '망령', name: '망령의 영혼석', group: '페론', price: 68, owned: 19 },
-  { id: '원념', name: '원념의 영혼석', group: '페론', price: 60, owned: 11 },
+const MATERIALS: { id: MaterialId; name: SharedMaterialName; group: string; owned: number }[] = [
+  { id: '허상', name: '허상의 마력석', group: '어비스', owned: 1 },
+  { id: '포식', name: '포식의 마력석', group: '어비스', owned: 2 },
+  { id: '심해', name: '심해의 마력석', group: '어비스', owned: 3 },
+  { id: '야생', name: '야생의 영혼석', group: '피오드', owned: 26 },
+  { id: '삼림', name: '삼림의 영혼석', group: '피오드', owned: 20 },
+  { id: '공명', name: '공명의 영혼석', group: '룬디', owned: 53 },
+  { id: '파동', name: '파동의 영혼석', group: '룬디', owned: 80 },
+  { id: '망령', name: '망령의 영혼석', group: '페론', owned: 19 },
+  { id: '원념', name: '원념의 영혼석', group: '페론', owned: 11 },
 ];
 
 const MATERIAL_IDS = MATERIALS.map(m => m.id);
@@ -147,7 +147,6 @@ function initialState(): CalcState {
   const profile = newProfile('슬롯 1');
   for (const slot of SLOTS) profile.plan[slot].해연 = 1;
   return {
-    price: Object.fromEntries(MATERIALS.map(m => [m.id, m.price])) as MaterialMap,
     activeId: profile.id,
     characters: [profile],
   };
@@ -196,6 +195,7 @@ export default function GameMaterialCalculator() {
   const [state, setState] = useState<CalcState>(() => initialState());
   const [loaded, setLoaded] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [marketPrices, setMarketPrices] = useState<Partial<MaterialMap>>({});
   const [marketLoading, setMarketLoading] = useState(true);
   const [marketError, setMarketError] = useState('');
   const [marketUpdatedAt, setMarketUpdatedAt] = useState<string | null>(null);
@@ -252,6 +252,7 @@ export default function GameMaterialCalculator() {
   // Use the same server-side market proxy as the simulator.
   const loadMarket = useCallback(async (fresh = false) => {
     setMarketLoading(true);
+    setMarketPrices({});
     setMarketError('');
     try {
       const response = await fetch('/api/game/market' + (fresh ? '?fresh=1' : ''), {
@@ -276,10 +277,10 @@ export default function GameMaterialCalculator() {
         if (price != null) updates[material.id] = price;
       }
       const matched = Object.keys(updates).length;
-      if (matched === 0) throw new Error('재료 시세를 찾지 못했습니다. 기존 입력 단가를 유지합니다.');
+      if (matched === 0) throw new Error('재료 시세를 찾지 못했습니다.');
 
-      // Merge only actual API quotes; unavailable materials retain saved input.
-      setState(current => ({ ...current, price: { ...current.price, ...updates } }));
+      // API quotes are the only prices used; missing items must stay unknown.
+      setMarketPrices(updates);
       setMarketUpdatedAt(payload.last_updated_at ?? null);
       setMarketMatchedCount(matched);
     } catch (error) {
@@ -304,11 +305,25 @@ export default function GameMaterialCalculator() {
 
   if (!active) return null;
 
-  const grand = MATERIAL_IDS.reduce((sum, id) => {
-    const material = MATERIALS.find(item => item.id === id)!;
-    const rest = Math.max(0, need[id] - sharedOwned[material.name]);
-    return sum + rest * (state.price[id] ?? 0);
-  }, 0);
+  // Return null instead of understating the cost when a needed quote is missing.
+  const totalCost = (materials: ReadonlyArray<readonly [MaterialId, number]>): number | null => {
+    let total = 0;
+    for (const [id, qty] of materials) {
+      if (qty <= 0) continue;
+      const unitPrice = marketPrices[id];
+      if (unitPrice == null) return null;
+      total += qty * unitPrice;
+    }
+    return total;
+  };
+
+  const priceText = (cost: number | null) =>
+    cost == null ? (marketLoading ? '조회 중…' : '조회 실패') : fmt(cost);
+
+  const grand = totalCost(MATERIALS.map(material => [
+    material.id,
+    Math.max(0, need[material.id] - sharedOwned[material.name]),
+  ] as const));
 
   const updateActive = (change: (profile: Profile) => Profile) => {
     setState(current => ({
@@ -343,14 +358,16 @@ export default function GameMaterialCalculator() {
           <h1>장비 재료 계산기</h1>
           <div className={styles.steps}>
             <p>1. 제작할 장비에서 직업과 방어구 종류, 개수를 선택합니다.</p>
-            <p>2. 모비라이프 거래소 최저가를 자동으로 가져옵니다. 단가는 직접 수정할 수도 있습니다.</p>
+            <p>2. 모비라이프 거래소 최저가를 자동으로 조회합니다.</p>
             <p>3. 시뮬레이터와 공유되는 보유량을 입력합니다.</p>
             <p>4. 필요 데카를 확인합니다.</p>
           </div>
         </div>
         <div className={styles.total}>
           <div className={styles.totalLabel}>모자란 재료 구매 비용</div>
-          <div className={styles.totalValue}>{fmt(grand)}<small>데카</small></div>
+          <div className={styles.totalValue + (grand == null ? ' ' + styles.lookupFailed : '')}>
+            {grand == null ? priceText(grand) : <>{fmt(grand)}<small>데카</small></>}
+          </div>
         </div>
       </header>
 
@@ -360,10 +377,10 @@ export default function GameMaterialCalculator() {
           {marketLoading
             ? <span>거래소 최저가 조회 중…</span>
             : marketError
-              ? <span className={styles.marketError}>{marketError} · 현재 입력 단가로 계산 중</span>
-              : <span>최저가 {marketMatchedCount}/{MATERIALS.length}종 반영{marketUpdatedAt ? ' · ' + marketTimeLabel(marketUpdatedAt) : ''}{marketMatchedCount < MATERIALS.length ? ' · 미조회 재료는 기존 단가 사용' : ''}</span>
+              ? <span className={styles.marketError}>조회 실패 · {marketError}</span>
+              : <span>최저가 {marketMatchedCount}/{MATERIALS.length}종 조회{marketUpdatedAt ? ' · ' + marketTimeLabel(marketUpdatedAt) : ''}{marketMatchedCount < MATERIALS.length ? ' · 미조회 재료는 조회 실패 표시' : ''}</span>
           }
-          <span>단가 직접 수정 가능 · 시세 새로고침 시 조회값 재적용</span>
+          <span>단가는 API 조회값만 사용합니다</span>
         </div>
         <button type="button" className={styles.marketRefresh} disabled={marketLoading} onClick={() => void loadMarket(true)}>
           {marketLoading ? '조회 중…' : '시세 새로고침'}
@@ -450,14 +467,14 @@ export default function GameMaterialCalculator() {
             {SLOTS.map(slot => {
               const materials = slotMaterials(slot, active);
               const selected = active.plan[slot].해연 + active.plan[slot].잔영;
-              const sum = materials.reduce((acc, [id, qty]) => acc + qty * (state.price[id] ?? 0), 0);
+              const sum = totalCost(materials);
               const isArmor = ARMOR_SLOTS.includes(slot as ArmorSlot);
 
               return (
                 <article className={styles.card + ' ' + (selected ? styles.cardOn : styles.cardOff)} key={slot}>
                   <div className={styles.cardTop}>
                     <span className={styles.cardName}>{slot}</span>
-                    <span className={styles.cardSum}>{fmt(sum)} 데카</span>
+                    <span className={styles.cardSum + (sum == null ? ' ' + styles.lookupFailed : '')}>{priceText(sum)}{sum == null ? '' : ' 데카'}</span>
                   </div>
 
                   {(slot === '무기' || isArmor) && (
@@ -548,7 +565,9 @@ export default function GameMaterialCalculator() {
                             <b>{material.name}</b>
                           </div>
                           <div>{fmt(qty)}</div>
-                          <div className={styles.gold}>{fmt(qty * (state.price[id] ?? 0))}</div>
+                          <div className={styles.gold + (marketPrices[id] == null ? ' ' + styles.lookupFailed : '')}>
+                            {priceText(totalCost([[id, qty]]))}
+                          </div>
                         </div>
                       );
                     })}
@@ -572,7 +591,8 @@ export default function GameMaterialCalculator() {
 
             {MATERIALS.map(material => {
               const rest = Math.max(0, need[material.id] - sharedOwned[material.name]);
-              const cost = rest * (state.price[material.id] ?? 0);
+              const unitPrice = marketPrices[material.id];
+              const cost = totalCost([[material.id, rest]]);
               const dotClass = styles['dot' + material.group] || '';
               return (
                 <div
@@ -583,21 +603,10 @@ export default function GameMaterialCalculator() {
                     <i className={styles.dot + ' ' + dotClass} />
                     <span>{material.name}</span>
                   </div>
-                  <label className={styles.mobileCell}>
+                  <div className={styles.mobileCell}>
                     <span>거래소 데카</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={state.price[material.id] ?? 0}
-                      onChange={e => setState(current => ({
-                        ...current,
-                        price: {
-                          ...current.price,
-                          [material.id]: Math.max(0, Number(e.target.value) || 0),
-                        },
-                      }))}
-                    />
-                  </label>
+                    <b className={unitPrice == null ? styles.lookupFailed : ''}>{priceText(unitPrice ?? null)}</b>
+                  </div>
                   <div className={styles.mobileCell}><span>필요</span><b>{fmt(need[material.id])}</b></div>
                   <label className={styles.mobileCell}>
                     <span>보유</span>
@@ -609,19 +618,19 @@ export default function GameMaterialCalculator() {
                     />
                   </label>
                   <div className={styles.mobileCell}><span>잔여</span><b>{fmt(rest)}</b></div>
-                  <div className={styles.rowCost}>{fmt(cost)}</div>
+                  <div className={styles.rowCost + (cost == null ? ' ' + styles.lookupFailed : '')}>{priceText(cost)}</div>
                 </div>
               );
             })}
 
             <div className={styles.ledgerFoot}>
               <span>{active.name || '이름 없음'} 합계</span>
-              <b>{fmt(grand)} 데카</b>
+              <b className={grand == null ? styles.lookupFailed : ''}>{priceText(grand)}{grand == null ? '' : ' 데카'}</b>
             </div>
           </div>
 
           <p className={styles.note}><b>필요</b>는 선택한 장비의 재료를 모두 더한 값, <b>잔여</b>는 필요에서 보유를 뺀 값입니다.</p>
-          <p className={styles.note}><b>필요 데카</b>는 잔여 수량 × 거래소 최저가(또는 직접 수정한 단가)입니다. 조회에 실패하거나 매물이 없는 재료는 마지막으로 저장된 단가를 사용합니다.</p>
+          <p className={styles.note}><b>필요 데카</b>는 잔여 수량 × 모비라이프 거래소 최저가입니다. 필요한 재료의 시세 조회에 실패하면 해당 비용과 합계에도 <b>조회 실패</b>를 표시합니다. 기존 입력 단가나 임의 가격으로 대신 계산하지 않습니다.</p>
         </section>
       </div>
 
