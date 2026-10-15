@@ -17,6 +17,21 @@
 .optionBottom{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-top:2px}.checkRow{display:flex;align-items:center;gap:8px;min-width:0;color:var(--s-ink);font-weight:700}.checkRow input{width:17px;height:17px;accent-color:var(--accent)}.checkRow small{color:var(--s-muted);font-size:11px;font-weight:400}.reset{margin-left:auto;border:1px solid #eec9c9;background:#fdf6f6;color:var(--s-red);border-radius:8px;padding:8px 12px}
 .marketBar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--s-line2);padding-top:11px}.marketBar>div{display:grid;gap:1px}.marketBar b{font-size:12px;color:var(--s-sub)}.marketBar span{font-size:11px;color:var(--s-muted)}.marketBar .marketError{color:var(--s-red)}.marketBar button{border:1px solid var(--s-line);background:#fff;color:var(--s-sub);border-radius:8px;padding:8px 11px;font-size:12px}.marketBar button:disabled{opacity:.55}
 
+
+.fold{margin-bottom:18px;border:0}
+.fold>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;margin-bottom:10px}
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary>div{display:flex;align-items:baseline;gap:9px;min-width:0;flex-wrap:wrap}
+.fold>summary h2{margin:0;color:var(--page-title);font-size:18px}
+.fold>summary span{color:var(--page-desc);font-size:13px}
+.fold>summary>b{flex:none;color:var(--page-desc);font-size:11px;font-weight:700}
+.fold[open]>summary>b::after{content:' ▲'}
+.fold:not([open])>summary>b::after{content:' ▼'}
+.materialGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;background:#fff;border:1px solid var(--s-line2);border-radius:12px;padding:12px}
+.materialInput{display:grid;grid-template-columns:minmax(0,1fr) 110px;align-items:center;gap:10px;padding:8px 9px;border:1px solid var(--s-line2);border-radius:9px;background:#fafbfd}
+.materialInput span{min-width:0;color:var(--s-sub);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.materialInput input{width:100%;height:36px;border:1px solid #aebcd2;border-radius:8px;background:#fff;color:var(--s-ink);font:inherit;text-align:right;padding:0 9px}
+
 .sectionHead{display:flex;align-items:baseline;gap:9px;margin:0 0 10px}.sectionHead h2{margin:0;color:var(--page-title);font-size:18px}.sectionHead span{color:var(--page-desc);font-size:13px}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:22px}.card{background:#fff;border:1px solid var(--s-line2);border-radius:12px;overflow:hidden;box-shadow:0 1px 8px rgba(24,32,58,.035);transition:.15s}.excluded{opacity:.62}
 .cardTop{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;background:var(--s-soft)}.cardTitle{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.cardTop strong{font-size:16px}.tag,.lockTag,.excludeTag{font-size:10px;font-weight:700;padding:3px 6px;border-radius:999px}.tag{color:var(--s-gold);background:#fbf3e1}.lockTag{color:var(--s-muted);background:#e8edf5}.excludeTag{color:var(--s-red);background:#fbecec}
@@ -37,7 +52,7 @@
 @media(max-width:760px){
   .wrap{padding:18px 12px 84px}.header h1{font-size:22px}.summary{padding:15px 14px}.summaryTop{grid-template-columns:1fr 1fr}.summaryTop>.stat:last-child{grid-column:1/-1;border-top:1px solid var(--s-line2);padding-top:10px}.stat strong{font-size:25px}.targetBox input{font-size:18px}
   .options{grid-template-columns:1fr;padding:13px}.optionBottom,.marketBar{grid-column:1}.optionBottom{align-items:flex-start}.checkRow{flex-wrap:wrap}.checkRow small{flex-basis:100%;padding-left:25px}.jobPick select{font-size:16px}.marketBar{align-items:flex-end}
-  .grid{grid-template-columns:1fr}.cardTop{padding:11px 13px}.cardBody{padding:11px 13px}.bonusInput input{font-size:16px}
+  .materialGrid{grid-template-columns:1fr;padding:10px}.materialInput{grid-template-columns:minmax(0,1fr) 96px}.materialInput input{font-size:16px}.fold>summary{align-items:flex-start}.fold>summary>div{display:grid;gap:2px}.grid{grid-template-columns:1fr}.cardTop{padding:11px 13px}.cardBody{padding:11px 13px}.bonusInput input{font-size:16px}
   .sectionHead{flex-wrap:wrap}.planSummary{grid-template-columns:1fr 1fr}.planSummary>div:last-child{grid-column:1/-1;border-left:0;border-top:1px solid var(--s-line2)}.costHero>strong{font-size:27px}.planCards{padding:10px}.compareRow{grid-template-columns:1fr}.planCardTop small{white-space:normal}
   .floatNav{right:14px;bottom:calc(74px + env(safe-area-inset-bottom))}.floatNav button{height:34px;padding:0 11px}
 }
