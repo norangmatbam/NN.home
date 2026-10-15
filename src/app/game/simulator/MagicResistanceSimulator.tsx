@@ -860,7 +860,7 @@ export default function MagicResistanceSimulator() {
             <h2>보유 재료</h2>
             <span>계산기와 공용 · 제작비 계산에 자동 반영</span>
           </div>
-          <b>펼치기</b>
+          <span className={styles.foldToggle}>{folds.materials ? '접기 ▲' : '펼치기 ▼'}</span>
         </summary>
         <div className={styles.materialGrid}>
           {SHARED_MATERIAL_NAMES.map(name => (
@@ -887,7 +887,7 @@ export default function MagicResistanceSimulator() {
             <h2>현재 장비</h2>
             <span>10성 룬은 기본 장착(+300) · 주입 상승분만 입력</span>
           </div>
-          <b>접기</b>
+          <span className={styles.foldToggle}>{folds.equipment ? '접기 ▲' : '펼치기 ▼'}</span>
         </summary>
 
         <section className={styles.grid}>
