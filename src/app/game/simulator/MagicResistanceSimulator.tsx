@@ -349,6 +349,7 @@ function slotOptions(
   current: SlotState,
   acquisition: Record<Grade, Acquisition>,
   excluded: boolean,
+  intermediate?: Record<Grade, Acquisition>,
 ) {
   type Option = { gain: number; cost: number; steps: PlanStep[] };
   const results = new Map<number, Option>();
@@ -387,7 +388,7 @@ function slotOptions(
       const found = best.get(bonus)!;
       const stateAtBonus = { ...runeVariant.state, bonus };
 
-      for (const step of infusionTransitions(slot, stateAtBonus, acquisition)) {
+      for (const step of infusionTransitions(slot, stateAtBonus, intermediate ?? acquisition)) {
         const nextBonus = step.next.bonus;
         const nextCost = found.cost + step.cost;
         const previous = best.get(nextBonus);
@@ -412,7 +413,40 @@ function slotOptions(
     }
   }
 
-  return Array.from(results.values());
+  if (!intermediate) return Array.from(results.values());
+
+  const adjusted = new Map<number, Option>();
+  for (const option of results.values()) {
+    const infusionIndexes = option.steps.map((step, index) => step.kind === '룬' ? -1 : index).filter(index => index >= 0);
+    const finalIndex = infusionIndexes[infusionIndexes.length - 1];
+    const steps = option.steps.map((step, index) => {
+      if (step.kind === '룬') return step;
+      if (index === finalIndex) {
+        const selected = acquisition[step.kind];
+        return selected.bestCost == null ? step : { ...step, cost: selected.bestCost, acquisition: selected };
+      }
+      const cheap = intermediate[step.kind];
+      return cheap.bestCost == null ? step : { ...step, cost: cheap.bestCost, acquisition: cheap };
+    });
+    const final = finalIndex == null ? null : steps[finalIndex];
+    if (final?.kind !== '룬' && final && acquisition[final.kind].bestCost == null) continue;
+    const cost = steps.reduce((sum, step) => sum + step.cost, 0);
+    const previous = adjusted.get(option.gain);
+    if (!previous || cost < previous.cost) adjusted.set(option.gain, { ...option, cost, steps });
+  }
+  return Array.from(adjusted.values());
+}
+
+function cheapestArmorAcquisitions(slot: SlotId, state: SimState, items: MarketItem[]) {
+  if (!['hat', 'top', 'bottom', 'gloves', 'shoes'].includes(slot)) return undefined;
+  const cheap = (grade: Grade): Acquisition => {
+    const choices = ARMOR_KINDS
+      .map(kind => acquisitionFor(slot, grade, { ...state, armorKind: kind }, items))
+      .filter(choice => choice.bestCost != null)
+      .sort((a, b) => (a.bestCost ?? Infinity) - (b.bestCost ?? Infinity));
+    return choices[0] ?? acquisitionFor(slot, grade, state, items);
+  };
+  return { 해연: cheap('해연'), 잔영: cheap('잔영') };
 }
 
 function buildCostPlan(
@@ -439,6 +473,7 @@ function buildCostPlan(
       state.slots[slot.id],
       acquisition,
       !!slot.weapon && state.excludeWeapon,
+      cheapestArmorAcquisitions(slot.id, state, items),
     );
 
     const next = new Map<number, Node>();
@@ -473,6 +508,55 @@ function buildCostPlan(
   return { gain: best[0], cost: best[1].cost, steps: best[1].steps };
 }
 
+function buildBudgetPlan(
+  state: SimState,
+  items: MarketItem[],
+  budget: number,
+  owned: SharedOwnedMaterials,
+): PlanResult {
+  type Candidate = { cost: number; gain: number; steps: PlanStep[] };
+  // Shared material savings are applied to each completed candidate, with the
+  // final actual purchase cost checked against the entered budget.
+  let frontier: Candidate[] = [{ cost: 0, gain: 0, steps: [] }];
+  const maxBudget = Math.max(0, Math.floor(budget));
+
+  for (const slot of SLOTS) {
+    const acquisition = {
+      잔영: acquisitionFor(slot.id, '잔영', state, items),
+      해연: acquisitionFor(slot.id, '해연', state, items),
+    };
+    const options = slotOptions(slot.id, state.slots[slot.id], acquisition,
+      !!slot.weapon && state.excludeWeapon,
+      cheapestArmorAcquisitions(slot.id, state, items));
+    const next: Candidate[] = [];
+    for (const prior of frontier) {
+      for (const option of options) {
+        const steps = [...prior.steps, ...option.steps];
+        // Real affordability (including already-owned materials) is checked,
+        // not the pre-inventory estimate.
+        const candidate: PlanResult = { steps, cost: 0, gain: prior.gain + option.gain };
+        const actual = applyOwnedInventory(candidate, state, items, owned);
+        if (!actual || actual.cost > maxBudget) continue;
+        next.push({ cost: actual.cost, gain: candidate.gain, steps });
+      }
+    }
+    // Keep the cheapest feasible plan for each achievable resistance gain.
+    const bestByGain = new Map<number, Candidate>();
+    for (const candidate of next) {
+      const previous = bestByGain.get(candidate.gain);
+      if (!previous || candidate.cost < previous.cost) bestByGain.set(candidate.gain, candidate);
+    }
+    frontier = Array.from(bestByGain.values());
+    if (frontier.length === 0) return null;
+  }
+
+  frontier.sort((a, b) => b.gain - a.gain || a.cost - b.cost);
+  const best = frontier[0];
+  if (!best) return null;
+  const final = applyOwnedInventory({ steps: best.steps, gain: best.gain, cost: 0 }, state, items, owned);
+  return final && final.cost <= maxBudget ? final : null;
+}
+
 function timeLabel(value?: string | null) {
   if (!value) return '';
   const date = new Date(value);
@@ -494,7 +578,10 @@ function applyOwnedInventory(
   const steps = plan.steps.map(step => {
     if (step.kind === '룬') return step;
 
-    const recipe = getRecipe(step.slot, step.kind, state.job, state.armorKind);
+    const chosenArmorKind = step.acquisition?.itemName && ['hat', 'top', 'bottom', 'gloves', 'shoes'].includes(step.slot)
+      ? ARMOR_KINDS.find(kind => getEquipmentName(step.slot, step.kind as Grade, state.job, kind) === step.acquisition?.itemName) ?? state.armorKind
+      : state.armorKind;
+    const recipe = getRecipe(step.slot, step.kind, state.job, chosenArmorKind);
     const purchaseCost = step.acquisition?.purchaseCost ?? null;
 
     let craftCost: number | null = null;
