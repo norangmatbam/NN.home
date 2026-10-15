@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './game.module.css';
+import { getRecipe, JOB_GROUPS, type SlotId } from './simulator/marketData';
 import {
   emptySharedOwned,
   useSharedOwnedMaterials,
@@ -12,8 +13,9 @@ type Grade = '해연' | '잔영';
 type Slot = '무기' | '모자' | '상의' | '장갑' | '하의' | '신발' | '목걸이' | '반지';
 type ArmorSlot = '모자' | '상의' | '장갑' | '하의' | '신발';
 type ArmorKind = '중갑' | '경갑' | '천옷';
-type MaterialId = '허상' | '포식' | '심해' | '야생' | '삼림' | '공명' | '파동' | '망령' | '원념';
-type Role = '마력석' | 'A' | 'B' | 'C';
+type MaterialId =
+  | '허상' | '포식' | '심해' | '야생' | '삼림' | '공명' | '파동' | '망령' | '원념'
+  | '백금강괴' | '특급 목재' | '특급 가죽' | '특급 옷감' | '특급 실크';
 
 type MaterialMap = Record<MaterialId, number>;
 type MarketItem = { name: string; min_price: number; total_count: number };
@@ -30,6 +32,11 @@ type Profile = {
 type CalcState = { activeId: string; characters: Profile[] };
 
 const MATERIALS: { id: MaterialId; name: SharedMaterialName; group: string; owned: number }[] = [
+  { id: '백금강괴', name: '백금강괴', group: '제작', owned: 0 },
+  { id: '특급 목재', name: '특급 목재', group: '제작', owned: 0 },
+  { id: '특급 가죽', name: '특급 가죽', group: '제작', owned: 0 },
+  { id: '특급 옷감', name: '특급 옷감', group: '제작', owned: 0 },
+  { id: '특급 실크', name: '특급 실크', group: '제작', owned: 0 },
   { id: '허상', name: '허상의 마력석', group: '어비스', owned: 1 },
   { id: '포식', name: '포식의 마력석', group: '어비스', owned: 2 },
   { id: '심해', name: '심해의 마력석', group: '어비스', owned: 3 },
@@ -49,77 +56,20 @@ const GRADES: Grade[] = ['해연', '잔영'];
 const MAX_COUNT = 99;
 const STORAGE_KEY = 'nn-game-material-calc-v1';
 
-function roleOf(id: MaterialId): Role {
-  if (id === '허상' || id === '포식' || id === '심해') return '마력석';
-  if (id === '망령' || id === '원념') return 'A';
-  if (id === '야생' || id === '삼림') return 'B';
-  return 'C';
-}
-
-const QTY: Record<'무기' | '방어구', Record<Grade, Record<Role, number>>> = {
-  무기: {
-    해연: { 마력석: 15, A: 80, B: 75, C: 90 },
-    잔영: { 마력석: 0, A: 9, B: 15, C: 16 },
-  },
-  방어구: {
-    해연: { 마력석: 8, A: 40, B: 35, C: 55 },
-    잔영: { 마력석: 0, A: 5, B: 7, C: 12 },
-  },
+// Keep crafting counts in sync with the simulator's single recipe source.
+const SLOT_IDS: Record<Slot, SlotId> = {
+  무기: 'weapon',
+  모자: 'hat',
+  상의: 'top',
+  장갑: 'gloves',
+  하의: 'bottom',
+  신발: 'shoes',
+  목걸이: 'necklace',
+  반지: 'ring1',
 };
-
-const JOB_GROUPS = [
-  { label: '전사 계열', jobs: ['전사', '대검전사', '검술사', '기사'], 해연: ['포식', '망령', '야생', '파동'], 잔영: ['망령', '야생', '공명'] },
-  { label: '궁수 계열', jobs: ['궁수', '석궁사수', '장궁병'], 해연: ['포식', '망령', '삼림', '공명'], 잔영: ['망령', '삼림', '파동'] },
-  { label: '마법사 계열', jobs: ['마법사', '화염술사', '빙결술사', '전격술사'], 해연: ['심해', '망령', '야생', '파동'], 잔영: ['망령', '야생', '공명'] },
-  { label: '힐러 계열', jobs: ['힐러', '사제', '수도사', '암흑술사'], 해연: ['심해', '망령', '삼림', '공명'], 잔영: ['망령', '삼림', '파동'] },
-  { label: '음유시인 계열', jobs: ['음유시인', '댄서', '악사'], 해연: ['허상', '망령', '야생', '파동'], 잔영: ['망령', '야생', '공명'] },
-  { label: '도적 계열', jobs: ['도적', '격투가', '듀얼블레이드'], 해연: ['허상', '망령', '삼림', '파동'], 잔영: ['망령', '삼림', '파동'] },
-] as const;
-
-const WEAPON: Record<string, Record<Grade, MaterialId[]>> = {};
-for (const group of JOB_GROUPS) {
-  for (const job of group.jobs) {
-    WEAPON[job] = {
-      해연: [...group.해연] as MaterialId[],
-      잔영: [...group.잔영] as MaterialId[],
-    };
-  }
-}
-
-const ARMOR: Record<ArmorKind, Record<ArmorSlot, Record<Grade, MaterialId[]>>> = {
-  중갑: {
-    모자: { 해연: ['허상', '망령', '삼림', '파동'], 잔영: ['망령', '삼림', '파동'] },
-    상의: { 해연: ['포식', '원념', '삼림', '파동'], 잔영: ['원념', '삼림', '파동'] },
-    장갑: { 해연: ['허상', '망령', '야생', '삼림'], 잔영: ['망령', '야생', '삼림'] },
-    하의: { 해연: ['심해', '원념', '삼림', '공명'], 잔영: ['원념', '삼림', '공명'] },
-    신발: { 해연: ['허상', '망령', '야생', '삼림'], 잔영: ['망령', '야생', '삼림'] },
-  },
-  경갑: {
-    모자: { 해연: ['허상', '망령', '삼림', '공명'], 잔영: ['망령', '삼림', '공명'] },
-    상의: { 해연: ['포식', '원념', '삼림', '파동'], 잔영: ['원념', '삼림', '파동'] },
-    장갑: { 해연: ['포식', '망령', '야생', '삼림'], 잔영: ['망령', '야생', '삼림'] },
-    하의: { 해연: ['심해', '원념', '야생', '파동'], 잔영: ['원념', '야생', '파동'] },
-    신발: { 해연: ['포식', '망령', '야생', '삼림'], 잔영: ['망령', '야생', '삼림'] },
-  },
-  천옷: {
-    모자: { 해연: ['허상', '망령', '야생', '공명'], 잔영: ['망령', '야생', '공명'] },
-    상의: { 해연: ['포식', '원념', '야생', '공명'], 잔영: ['원념', '야생', '공명'] },
-    장갑: { 해연: ['심해', '망령', '야생', '삼림'], 잔영: ['망령', '야생', '삼림'] },
-    하의: { 해연: ['심해', '원념', '삼림', '파동'], 잔영: ['원념', '삼림', '파동'] },
-    신발: { 해연: ['심해', '망령', '야생', '삼림'], 잔영: ['망령', '야생', '삼림'] },
-  },
-};
-
-const FIXED: Partial<Record<Slot, Record<Grade, Partial<MaterialMap>>>> = {
-  목걸이: {
-    해연: { 포식: 5, 심해: 5, 망령: 30, 원념: 30, 삼림: 50, 파동: 75 },
-    잔영: { 망령: 4, 원념: 4, 삼림: 10, 파동: 14 },
-  },
-  반지: {
-    해연: { 허상: 8, 원념: 55, 야생: 40, 공명: 60 },
-    잔영: { 원념: 6, 야생: 8, 공명: 12 },
-  },
-};
+const MATERIAL_IDS_BY_NAME = Object.fromEntries(
+  MATERIALS.map(material => [material.name, material.id])
+) as Record<SharedMaterialName, MaterialId>;
 
 function blankMaterialMap(): MaterialMap {
   return Object.fromEntries(MATERIAL_IDS.map(id => [id, 0])) as MaterialMap;
@@ -168,17 +118,17 @@ function normalized(value: string) {
 }
 
 function recipe(slot: Slot, grade: Grade, profile: Profile): Partial<MaterialMap> {
-  const fixed = FIXED[slot];
-  if (fixed) return fixed[grade];
+  const armorKind = ARMOR_SLOTS.includes(slot as ArmorSlot)
+    ? profile.armor[slot as ArmorSlot]
+    : '천옷';
+  const result = getRecipe(SLOT_IDS[slot], grade, profile.job, armorKind);
+  if (!result) return {};
 
-  const kind: '무기' | '방어구' = slot === '무기' ? '무기' : '방어구';
-  const ids = slot === '무기'
-    ? (WEAPON[profile.job] || WEAPON['마법사'])[grade]
-    : ARMOR[profile.armor[slot as ArmorSlot]][slot as ArmorSlot][grade];
-
-  const result: Partial<MaterialMap> = {};
-  for (const id of ids) result[id] = QTY[kind][grade][roleOf(id)];
-  return result;
+  const materials: Partial<MaterialMap> = {};
+  for (const [name, count] of Object.entries(result.materials) as [SharedMaterialName, number][]) {
+    materials[MATERIAL_IDS_BY_NAME[name]] = count;
+  }
+  return materials;
 }
 
 function slotMaterials(slot: Slot, profile: Profile) {
