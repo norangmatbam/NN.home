@@ -6,6 +6,7 @@ const ITEMS = [
   { label: '계산기', href: '/game' },
   { label: '시뮬레이터', href: '/game/simulator' },
   { label: '드래케인', href: '/game/drakein' },
+  { label: '데카', href: '/game/deca' },
 ];
 
 export default function GameSectionNav() {
