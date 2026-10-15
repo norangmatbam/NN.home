@@ -43,7 +43,17 @@ export function TopBar() {
   // 저장 설정 로드 전에는 메뉴·로고를 그리지 않음 — 새로고침 시 기본 구성이 깜빡이는 것 방지 (v1.9)
   const ready = menuLoaded && boardsLoaded;
   const menu = ready
-    ? buildMenu(menuSet, [...boardEntries(boards), ...sectionMenuEntries(secMap), ...linkEntries(links)], { loggedIn: !!user, isAdmin, id: user?.id })
+    ? (() => {
+        const built = buildMenu(
+          menuSet,
+          [...boardEntries(boards), ...sectionMenuEntries(secMap), ...linkEntries(links)],
+          { loggedIn: !!user, isAdmin, id: user?.id },
+        );
+        // GAME은 거래소/게임 기능 전용 고정 진입점 — 저장된 커스텀 메뉴가 있어도 항상 마지막에 둔다.
+        return built.some(item => item.href === '/game')
+          ? built
+          : [...built, { label: 'game', href: '/game' }];
+      })()
     : [];
   const [site, , siteLoaded] = useSiteSettings();    // 로고 텍스트/서브/정렬 (5.2)
   const avatarSrc = useBlobUrl(user?.avatarUrl);     // 프로필 이미지 (마이페이지, v1.9)
