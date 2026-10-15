@@ -8,10 +8,11 @@ import { sectionMenuEntries, useSections } from '@/lib/sectionStore';
 import { linkEntries, useCustomLinks } from '@/lib/linkStore';
 import { useAuth } from '@/lib/auth';
 
-const MOBILE_GROUPS = new Set(['background', 'foreground']);
+const MOBILE_GROUPS = new Set(['background', 'foreground', 'game']);
 
 type MobileGroup = {
   label: string;
+  href?: string;
   children: { label: string; href: string }[];
 };
 
@@ -30,16 +31,19 @@ export function MobileQuickNav() {
 
   const groups = useMemo(() => {
     if (!menuLoaded || !boardsLoaded) return [] as MobileGroup[];
-    const menu = buildMenu(
+    const built = buildMenu(
       menuSet,
       [...boardEntries(boards), ...sectionMenuEntries(secMap), ...linkEntries(links)],
       { loggedIn: !!user, isAdmin, id: user?.id },
     );
+    const menu = built.some(item => item.href === '/game')
+      ? built
+      : [...built, { label: 'game', href: '/game' }];
 
     return menu.flatMap(item => {
       if (!MOBILE_GROUPS.has(item.label.trim().toLowerCase())) return [];
-      const children = item.children?.map(c => ({ label: c.label, href: c.href }))
-        ?? (item.href ? [{ label: item.label, href: item.href }] : []);
+      if (item.href) return [{ label: item.label, href: item.href, children: [] }];
+      const children = item.children?.map(c => ({ label: c.label, href: c.href })) ?? [];
       return children.length ? [{ label: item.label, children }] : [];
     });
   }, [menuLoaded, boardsLoaded, menuSet, boards, secMap, links, user, isAdmin]);
@@ -69,6 +73,13 @@ export function MobileQuickNav() {
       <nav className="mobile-quick-nav" aria-label="모바일 상위 카테고리">
         {groups.map(item => {
           const opened = openLabel === item.label;
+          if (item.href) {
+            return (
+              <button key={item.label} onClick={() => nav(item.href!)}>
+                {item.label}
+              </button>
+            );
+          }
           return (
             <button
               key={item.label}
