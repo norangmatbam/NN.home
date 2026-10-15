@@ -282,11 +282,12 @@ export function getEquipmentName(
   armorKind: ArmorKind,
 ) {
   const prefix = grade + '의 ';
+  const suffix = ' ZZ';
 
-  if (slot === 'weapon') return prefix + (WEAPON_MARKET_NAME[job] ?? WEAPON_MARKET_NAME['화염술사']);
-  if (slot === 'necklace') return prefix + '페리도트 네크리스';
-  if (slot === 'ring1' || slot === 'ring2') return prefix + '페리도트 링';
+  if (slot === 'weapon') return prefix + (WEAPON_MARKET_NAME[job] ?? WEAPON_MARKET_NAME['화염술사']) + suffix;
+  if (slot === 'necklace') return prefix + '페리도트 네크리스' + suffix;
+  if (slot === 'ring1' || slot === 'ring2') return prefix + '페리도트 링' + suffix;
   if (slot === 'emblem') return '';
 
-  return prefix + ARMOR_MARKET_NAME[armorKind] + ' ' + ARMOR_PART[slot];
+  return prefix + ARMOR_MARKET_NAME[armorKind] + ' ' + ARMOR_PART[slot] + suffix;
 }
