@@ -414,14 +414,6 @@ export default function MagicResistanceSimulator() {
                   </div>
                 )}
 
-                <div className={styles.totalLine}>
-                  <span>총 마도저항</span>
-                  <b>
-                    {slotState.runeOn ? '300' : '0'}
-                    {slotState.bonus > 0 ? ' + ' + fmt(slotState.bonus) : ''}
-                    {' = '}{fmt(total)}
-                  </b>
-                </div>
               </div>
             </article>
           );
