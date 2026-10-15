@@ -134,7 +134,11 @@ function stageFromBonus(slot: SlotId, bonus: number): Stage {
   const threshold = 420 * x;
   const hStep = 14 * x;
   const max = 700 * x;
-  const v = clampBonus(slot, bonus);
+  const v = Math.floor(Number(bonus));
+
+  if (!Number.isFinite(v) || v < 0 || v > max) {
+    return { grade: v >= threshold ? '해연' : '잔영', stack: 0, maxStack: v >= threshold ? 20 : 10, valid: false };
+  }
 
   if (v === 0) return { grade: '없음', stack: 0, maxStack: 0, valid: true };
 
@@ -479,6 +483,7 @@ export default function MagicResistanceSimulator() {
   const [marketUpdatedAt, setMarketUpdatedAt] = useState<string | null>(null);
   const [marketLoading, setMarketLoading] = useState(true);
   const [marketError, setMarketError] = useState('');
+  const [editingSlot, setEditingSlot] = useState<SlotId | null>(null);
 
   useEffect(() => {
     try {
@@ -595,26 +600,31 @@ export default function MagicResistanceSimulator() {
 
   const commitBonusDraft = (slot: SlotId) => {
     const raw = bonusDrafts[slot].trim();
+    setEditingSlot(null);
+
     if (raw === '') {
       setBonusDrafts(drafts => ({ ...drafts, [slot]: String(state.slots[slot].bonus) }));
       return;
     }
 
     const parsed = Number(raw);
-    if (!Number.isFinite(parsed)) {
-      setBonusDrafts(drafts => ({ ...drafts, [slot]: String(state.slots[slot].bonus) }));
+    const parsedStage = stageFromBonus(slot, parsed);
+
+    if (!Number.isFinite(parsed) || !parsedStage.valid) {
+      // 잘못된 값을 0이나 최대치로 강제 보정하지 않는다.
+      // 입력값을 그대로 남겨 사용자가 이어서 수정할 수 있게 한다.
       return;
     }
 
-    const committed = clampBonus(slot, parsed);
-    patchSlot(slot, { bonus: committed });
-    setBonusDrafts(drafts => ({ ...drafts, [slot]: String(committed) }));
+    patchSlot(slot, { bonus: parsed });
+    setBonusDrafts(drafts => ({ ...drafts, [slot]: String(parsed) }));
   };
 
   const resetSimulator = () => {
     const next = defaultState();
     setState(next);
     setBonusDrafts(bonusDraftsFromState(next));
+    setEditingSlot(null);
   };
 
   const jumpPage = (where: 'top' | 'bottom') => {
@@ -724,6 +734,13 @@ export default function MagicResistanceSimulator() {
         {SLOTS.map(slot => {
           const slotState = state.slots[slot.id];
           const stage = stageFromBonus(slot.id, slotState.bonus);
+          const draft = bonusDrafts[slot.id];
+          const draftNumber = draft === '' ? null : Number(draft);
+          const draftStage = draftNumber != null && Number.isFinite(draftNumber)
+            ? stageFromBonus(slot.id, draftNumber)
+            : null;
+          const draftInvalid = draft !== '' && !draftStage?.valid;
+          const visibleStage = draftStage?.valid ? draftStage : stage;
           const total = (slotState.runeOn ? BASE_PER_SLOT : 0) + slotState.bonus;
           const excluded = !!slot.weapon && state.excludeWeapon;
 
@@ -762,7 +779,10 @@ export default function MagicResistanceSimulator() {
                           inputMode="numeric"
                           pattern="[0-9]*"
                           value={bonusDrafts[slot.id]}
-                          onFocus={e => e.currentTarget.select()}
+                          onFocus={e => {
+                            setEditingSlot(slot.id);
+                            e.currentTarget.select();
+                          }}
                           onChange={e => {
                             const next = e.target.value.replace(/[^0-9]/g, '');
                             setBonusDrafts(drafts => ({ ...drafts, [slot.id]: next }));
@@ -776,19 +796,19 @@ export default function MagicResistanceSimulator() {
                       </div>
                     </label>
 
-                    <div className={styles.stageBox + (!stage.valid ? ' ' + styles.invalid : '')}>
+                    <div className={styles.stageBox + (draftInvalid && editingSlot !== slot.id ? ' ' + styles.invalid : '')}>
                       <span>자동 계산</span>
-                      {stage.valid ? (
-                        stage.grade === '없음' ? (
-                          <b>주입 없음</b>
-                        ) : (
-                          <b>
-                            <em className={stage.grade === '해연' ? styles.haeyeon : styles.janyeong}>{stage.grade}</em>
-                            {' · 중첩 '}{stage.stack} / {stage.maxStack}
-                          </b>
-                        )
+                      {draftInvalid && editingSlot === slot.id ? (
+                        <b>입력 중…</b>
+                      ) : draftInvalid ? (
+                        <b>유효한 주입 수치를 확인해 주세요</b>
+                      ) : visibleStage.grade === '없음' ? (
+                        <b>주입 없음</b>
                       ) : (
-                        <b>유효한 주입 수치가 아닙니다</b>
+                        <b>
+                          <em className={visibleStage.grade === '해연' ? styles.haeyeon : styles.janyeong}>{visibleStage.grade}</em>
+                          {' · 중첩 '}{visibleStage.stack} / {visibleStage.maxStack}
+                        </b>
                       )}
                     </div>
                   </>
