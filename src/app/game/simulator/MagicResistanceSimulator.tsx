@@ -532,12 +532,11 @@ function buildBudgetPlan(
     for (const prior of frontier) {
       for (const option of options) {
         const steps = [...prior.steps, ...option.steps];
-        // Real affordability (including already-owned materials) is checked,
-        // not the pre-inventory estimate.
-        const candidate: PlanResult = { steps, cost: 0, gain: prior.gain + option.gain };
-        const actual = applyOwnedInventory(candidate, state, items, owned);
+        const estimatedCost = prior.cost + option.cost;
+        // Apply shared inventory savings across the complete chosen path.
+        const actual = applyOwnedInventory({ steps, cost: estimatedCost, gain: prior.gain + option.gain }, state, items, owned);
         if (!actual || actual.cost > maxBudget) continue;
-        next.push({ cost: actual.cost, gain: candidate.gain, steps });
+        next.push({ cost: actual.cost, gain: actual.gain, steps });
       }
     }
     // Keep the cheapest feasible plan for each achievable resistance gain.
