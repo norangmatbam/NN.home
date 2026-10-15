@@ -82,6 +82,8 @@ type PlanResult = {
 const BASE_PER_SLOT = 300;
 const STORAGE_KEY = 'nn-game-resistance-sim-v1';
 const FOLD_STORAGE_KEY = 'nn-game-simulator-folds-v1';
+const DECA_BUDGET_KEY = 'nn-game-simulator-deca-budget-v1';
+const SIM_EVENT = 'nn-game-simulator-state-change';
 
 const SLOTS: { id: SlotId; label: string; infusable: boolean; weapon?: boolean }[] = [
   { id: 'weapon', label: '무기', infusable: true, weapon: true },
@@ -562,8 +564,9 @@ function applyOwnedInventory(
   };
 }
 
-export default function MagicResistanceSimulator() {
+export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 'D' }) {
   const [state, setState] = useState<SimState>(() => defaultState());
+  const [decaBudget, setDecaBudget] = useState(0);
   const [bonusDrafts, setBonusDrafts] = useState<Record<SlotId, string>>(
     () => bonusDraftsFromState(defaultState())
   );
@@ -606,13 +609,44 @@ export default function MagicResistanceSimulator() {
         }
       }
     } catch {}
+    try { setDecaBudget(Math.max(0, Math.floor(Number(localStorage.getItem(DECA_BUDGET_KEY)) || 0))); } catch {}
     setLoaded(true);
   }, []);
 
   useEffect(() => {
     if (!loaded) return;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+    try {
+      const value = JSON.stringify(state);
+      if (localStorage.getItem(STORAGE_KEY) !== value) {
+        localStorage.setItem(STORAGE_KEY, value);
+        window.dispatchEvent(new CustomEvent(SIM_EVENT, { detail: value }));
+      }
+    } catch {}
   }, [state, loaded]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    try { localStorage.setItem(DECA_BUDGET_KEY, String(decaBudget)); } catch {}
+  }, [decaBudget, loaded]);
+
+  useEffect(() => {
+    const sync = (event: Event) => {
+      if (event instanceof StorageEvent && event.key !== STORAGE_KEY) return;
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const next = hydrate(JSON.parse(raw));
+        setState(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
+        setBonusDrafts(bonusDraftsFromState(next));
+      } catch {}
+    };
+    window.addEventListener('storage', sync);
+    window.addEventListener(SIM_EVENT, sync);
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener(SIM_EVENT, sync);
+    };
+  }, []);
 
   // Persist only after the first localStorage read to avoid overwriting
   // a previously collapsed section with the initial defaults.
@@ -653,11 +687,18 @@ export default function MagicResistanceSimulator() {
     () => applyOwnedInventory(basePricePlan, state, marketItems, sharedOwned),
     [basePricePlan, state, marketItems, sharedOwned],
   );
-  const projected = pricePlan ? current + pricePlan.gain : current;
+  const decaPlan = useMemo(
+    () => mode === 'D' && marketItems.length
+      ? buildBudgetPlan(state, marketItems, decaBudget, sharedOwned)
+      : null,
+    [mode, state, marketItems, decaBudget, sharedOwned],
+  );
+  const activePlan = mode === 'D' ? decaPlan : pricePlan;
+  const projected = activePlan ? current + activePlan.gain : current;
   const progress = state.target > 0 ? Math.min(100, Math.round((current / state.target) * 100)) : 100;
 
   const planGroups = useMemo(() => {
-    if (!pricePlan) return [];
+    if (!activePlan) return [];
 
     const groups = new Map<string, {
       slot: SlotId;
@@ -674,7 +715,7 @@ export default function MagicResistanceSimulator() {
       craftComplete: boolean;
     }>();
 
-    for (const step of pricePlan.steps) {
+    for (const step of activePlan.steps) {
       const method = step.kind === '룬' ? '장착' : (step.acquisition?.method ?? '확인 필요');
       const itemName = step.acquisition?.itemName ?? '10성 룬';
       const key = [step.slot, step.kind, method, step.cost].join('|');
@@ -699,13 +740,13 @@ export default function MagicResistanceSimulator() {
     }
 
     return Array.from(groups.values());
-  }, [pricePlan]);
+  }, [activePlan]);
 
   const planGradeTotals = useMemo(() => {
     const out = { 해연: 0, 잔영: 0, 룬: 0 };
-    for (const step of pricePlan?.steps ?? []) out[step.kind] += 1;
+    for (const step of activePlan?.steps ?? []) out[step.kind] += 1;
     return out;
-  }, [pricePlan]);
+  }, [activePlan]);
 
   const patchSlot = (slot: SlotId, patch: Partial<SlotState>) => {
     setState(currentState => ({
@@ -766,7 +807,7 @@ export default function MagicResistanceSimulator() {
   return (
     <div className={styles.wrap}>
       <header className={styles.header}>
-        <h1>마도저항 시뮬레이터</h1>
+        <h1>{mode === 'D' ? '데카 시뮬레이터 D' : '마도저항 시뮬레이터 M'}</h1>
         <p>현재 상태와 목표를 입력하면 거래소 시세 기준으로 제작·구매 비용을 비교해 가장 저렴한 경로를 계산합니다.</p>
       </header>
 
@@ -776,6 +817,13 @@ export default function MagicResistanceSimulator() {
             <span>현재 마도저항</span>
             <strong>{fmt(current)}</strong>
           </div>
+          {mode === 'D' ? (
+            <label className={styles.targetBox}>
+              <span>사용 가능한 데카</span>
+              <input type="number" min={0} value={decaBudget}
+                onChange={e => setDecaBudget(Math.max(0, Math.floor(Number(e.target.value) || 0)))} />
+            </label>
+          ) : (
           <label className={styles.targetBox}>
             <span>목표 마도저항</span>
             <input
@@ -785,13 +833,14 @@ export default function MagicResistanceSimulator() {
               onChange={e => setState(s => ({ ...s, target: Math.max(0, Number(e.target.value) || 0) }))}
             />
           </label>
+          )}
           <div className={styles.stat}>
-            <span>{lack > 0 ? '부족' : '목표 달성'}</span>
-            <strong className={lack > 0 ? styles.danger : styles.ok}>{lack > 0 ? fmt(lack) : '완료'}</strong>
+            <span>{mode === 'D' ? '예상 상승' : lack > 0 ? '부족' : '목표 달성'}</span>
+            <strong className={mode === 'D' ? styles.ok : lack > 0 ? styles.danger : styles.ok}>{mode === 'D' ? '+' + fmt(decaPlan?.gain ?? 0) : lack > 0 ? fmt(lack) : '완료'}</strong>
           </div>
         </div>
-        <div className={styles.progressTrack}><i style={{ width: progress + '%' }} /></div>
-        <div className={styles.progressText}>{progress}%</div>
+        {mode === 'M' && <div className={styles.progressTrack}><i style={{ width: progress + '%' }} /></div>}
+        {mode === 'M' && <div className={styles.progressText}>{progress}%</div>}
       </section>
 
       <section className={styles.options}>
@@ -988,12 +1037,12 @@ export default function MagicResistanceSimulator() {
       </details>
 
       <div className={styles.sectionHead}>
-        <h2>목표까지 추천</h2>
-        <span>제작비와 완제품 최저가 중 더 싼 방법 기준</span>
+        <h2>{mode === 'D' ? '예산 내 최대 마도저항 추천' : '목표까지 추천'}</h2>
+        <span>방어구 중간 단계는 재질 자유 · 마지막만 최종 재질</span>
       </div>
 
       <section className={styles.recommend}>
-        {lack === 0 ? (
+        {mode === 'M' && lack === 0 ? (
           <div className={styles.complete}>
             <b>목표 마도저항을 이미 달성했어요.</b>
             <span>현재 {fmt(current)} / 목표 {fmt(state.target)}</span>
@@ -1008,7 +1057,7 @@ export default function MagicResistanceSimulator() {
             <b>거래소 시세를 사용할 수 없어요.</b>
             <span>{marketError}</span>
           </div>
-        ) : !pricePlan ? (
+        ) : !activePlan ? (
           <div className={styles.complete}>
             <b>현재 시세로 목표까지 계산할 수 있는 경로가 없습니다.</b>
             <span>매물이 없는 장비가 있거나 유효하지 않은 주입 수치가 있는지 확인해 주세요.</span>
@@ -1016,8 +1065,8 @@ export default function MagicResistanceSimulator() {
         ) : (
           <>
             <div className={styles.costHero}>
-              <span>목표 달성 예상 비용</span>
-              <strong>{fmt(pricePlan.cost)}<small>데카</small></strong>
+              <span>{mode === 'D' ? '예산 내 추천 사용 비용' : '목표 달성 예상 비용'}</span>
+              <strong>{fmt(activePlan.cost)}<small>데카</small></strong>
               <div>
                 <span>현재 {fmt(current)}</span>
                 <i>→</i>
@@ -1027,7 +1076,7 @@ export default function MagicResistanceSimulator() {
             </div>
 
             <div className={styles.planSummary}>
-              <div><span>필요 상승량</span><b>{fmt(lack)}</b></div>
+              <div><span>{mode === 'D' ? '예상 상승량' : '필요 상승량'}</span><b>{fmt(mode === 'D' ? activePlan.gain : lack)}</b></div>
               <div><span>해연</span><b>{planGradeTotals.해연}개</b></div>
               <div><span>잔영</span><b>{planGradeTotals.잔영}개</b></div>
             </div>
