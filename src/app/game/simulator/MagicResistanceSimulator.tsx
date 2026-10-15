@@ -270,6 +270,37 @@ export default function MagicResistanceSimulator() {
   const lack = Math.max(0, state.target - current);
   const plan = useMemo(() => buildEfficiencyPlan(state), [state]);
   const projected = current + plan.reduce((sum, step) => sum + step.delta, 0);
+  const planGroups = useMemo(() => {
+    const groups = new Map<string, {
+      kind: Step['kind'];
+      delta: number;
+      count: number;
+      totalDelta: number;
+      labels: Map<string, number>;
+    }>();
+
+    for (const step of plan) {
+      const key = step.kind + '|' + step.delta;
+      const group = groups.get(key) ?? {
+        kind: step.kind,
+        delta: step.delta,
+        count: 0,
+        totalDelta: 0,
+        labels: new Map<string, number>(),
+      };
+      group.count += 1;
+      group.totalDelta += step.delta;
+      group.labels.set(step.label, (group.labels.get(step.label) ?? 0) + 1);
+      groups.set(key, group);
+    }
+
+    return Array.from(groups.values()).map(group => ({
+      ...group,
+      targets: Array.from(group.labels.entries())
+        .map(([label, count]) => count > 1 ? label + ' ×' + count : label)
+        .join(' · '),
+    }));
+  }, [plan]);
   const progress = state.target > 0 ? Math.min(100, Math.round((current / state.target) * 100)) : 100;
 
   const patchSlot = (slot: SlotId, patch: Partial<SlotState>) => {
@@ -444,16 +475,22 @@ export default function MagicResistanceSimulator() {
               <div><span>예상 도달</span><b>{fmt(projected)}</b></div>
             </div>
             <div className={styles.planList}>
-              {plan.map((step, index) => (
-                <div className={styles.planRow} key={step.slot + '-' + index}>
+              {planGroups.map((group, index) => (
+                <div className={styles.planRow} key={group.kind + '-' + group.delta}>
                   <span className={styles.planNo}>{index + 1}</span>
-                  <b>{step.label}</b>
+                  <div className={styles.planMain}>
+                    <b>
+                      {group.kind === '룬' ? '10성 룬' : group.kind}
+                      {group.count > 1 ? ' × ' + group.count : ''}
+                    </b>
+                    <small>{group.targets}</small>
+                  </div>
                   <span className={
-                    step.kind === '해연' ? styles.haeyeon
-                    : step.kind === '잔영' ? styles.janyeong
+                    group.kind === '해연' ? styles.haeyeon
+                    : group.kind === '잔영' ? styles.janyeong
                     : styles.runeKind
-                  }>{step.kind === '룬' ? '10성 룬' : step.kind}</span>
-                  <strong>+{fmt(step.delta)}</strong>
+                  }>+{fmt(group.delta)}씩</span>
+                  <strong>+{fmt(group.totalDelta)}</strong>
                 </div>
               ))}
             </div>
