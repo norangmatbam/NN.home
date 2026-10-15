@@ -138,15 +138,17 @@ function slotMaterials(
   prices: Partial<MaterialMap> = {},
 ) {
   const total = blankMaterialMap();
-  for (const grade of GRADES) {
+  const isArmor = ARMOR_SLOTS.includes(slot as ArmorSlot);
+  // With both grades selected, apply Janyeong overlays first and Haeyeon last.
+  const finalGrade: Grade = profile.plan[slot].해연 > 0 ? '해연' : '잔영';
+  for (const grade of ['잔영', '해연'] as const) {
     const count = clampCount(profile.plan[slot][grade]);
     if (count === 0) continue;
     const selected = recipe(slot, grade, profile);
-    const isArmor = ARMOR_SLOTS.includes(slot as ArmorSlot);
-    // Only the last armor overlay needs the selected final material.
-    // For intermediate overlays choose the cheapest known crafting recipe.
+    // Intermediate armor overlays may be any kind. Only the final overlay
+    // across *both* grades needs to match the selected final armor material.
     let intermediate = selected;
-    if (isArmor && count > 1) {
+    if (isArmor) {
       const choices = ARMOR_KINDS.map(kind => {
         const candidate = recipe(slot, grade, {
           ...profile,
@@ -161,8 +163,10 @@ function slotMaterials(
       }).filter(choice => Number.isFinite(choice.cost)).sort((a, b) => a.cost - b.cost);
       if (choices[0]) intermediate = choices[0].candidate;
     }
+    const finalCount = isArmor && grade === finalGrade ? 1 : isArmor ? 0 : count;
+    const cheapCount = isArmor ? count - finalCount : 0;
     for (const id of MATERIAL_IDS) {
-      total[id] += (selected[id] || 0) + (intermediate[id] || 0) * (count - 1);
+      total[id] += (selected[id] || 0) * finalCount + (intermediate[id] || 0) * cheapCount;
     }
   }
   return MATERIAL_IDS.filter(id => total[id] > 0).map(id => [id, total[id]] as const);
