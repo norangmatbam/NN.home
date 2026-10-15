@@ -1,16 +1,24 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './simulator.module.css';
-
-type SlotId =
-  | 'weapon' | 'necklace' | 'ring1' | 'ring2' | 'emblem'
-  | 'hat' | 'top' | 'bottom' | 'gloves' | 'shoes';
+import {
+  ARMOR_KINDS,
+  JOB_GROUPS,
+  getEquipmentName,
+  getRecipe,
+  type ArmorKind,
+  type Grade,
+  type MaterialName,
+  type SlotId,
+} from './marketData';
 
 type SlotState = { runeOn: boolean; bonus: number };
 type SimState = {
   target: number;
   excludeWeapon: boolean;
+  job: string;
+  armorKind: ArmorKind;
   slots: Record<SlotId, SlotState>;
 };
 
@@ -21,13 +29,49 @@ type Stage = {
   valid: boolean;
 };
 
-type Step = {
+type MarketItem = {
+  kind_id: number;
+  name: string;
+  parent_category: string;
+  icon_url?: string | null;
+  min_price: number;
+  total_count: number;
+};
+
+type MarketPayload = {
+  ok: boolean;
+  last_updated_at?: string | null;
+  items?: MarketItem[];
+  error?: string;
+};
+
+type Acquisition = {
+  slot: SlotId;
+  grade: Grade;
+  itemName: string;
+  purchaseCost: number | null;
+  craftCost: number | null;
+  craftComplete: boolean;
+  missingMaterials: MaterialName[];
+  bestCost: number | null;
+  method: '제작' | '구매' | null;
+};
+
+type PlanStep = {
   slot: SlotId;
   label: string;
-  kind: '룬' | '잔영' | '해연';
+  kind: '룬' | Grade;
   delta: number;
+  cost: number;
   next: SlotState;
+  acquisition?: Acquisition;
 };
+
+type PlanResult = {
+  steps: PlanStep[];
+  cost: number;
+  gain: number;
+} | null;
 
 const BASE_PER_SLOT = 300;
 const STORAGE_KEY = 'nn-game-resistance-sim-v1';
@@ -52,7 +96,13 @@ function blankSlots(): Record<SlotId, SlotState> {
 }
 
 function defaultState(): SimState {
-  return { target: 8222, excludeWeapon: false, slots: blankSlots() };
+  return {
+    target: 8222,
+    excludeWeapon: true,
+    job: '화염술사',
+    armorKind: '천옷',
+    slots: blankSlots(),
+  };
 }
 
 function fmt(value: number) {
@@ -130,88 +180,13 @@ function hydrate(saved: Partial<SimState> & { slots?: Record<string, unknown> })
 
   return {
     target: Math.max(0, Number(saved.target) || base.target),
-    excludeWeapon: !!saved.excludeWeapon,
+    excludeWeapon: typeof saved.excludeWeapon === 'boolean' ? saved.excludeWeapon : base.excludeWeapon,
+    job: typeof saved.job === 'string' && saved.job ? saved.job : base.job,
+    armorKind: ARMOR_KINDS.includes(saved.armorKind as ArmorKind)
+      ? saved.armorKind as ArmorKind
+      : base.armorKind,
     slots,
   };
-}
-
-function nextSteps(slot: SlotId, state: SlotState): Step[] {
-  const meta = SLOTS.find(item => item.id === slot)!;
-  const result: Step[] = [];
-
-  if (!state.runeOn) {
-    result.push({
-      slot,
-      label: meta.label,
-      kind: '룬',
-      delta: BASE_PER_SLOT,
-      next: { ...state, runeOn: true },
-    });
-  }
-
-  if (!meta.infusable) return result;
-
-  const x = scaleOf(slot);
-  const firstJ = 140 * x;
-  const jStep = 28 * x;
-  const threshold = 420 * x;
-  const hStep = 14 * x;
-  const max = 700 * x;
-  const bonus = clampBonus(slot, state.bonus);
-  const stage = stageFromBonus(slot, bonus);
-
-  if (!stage.valid) return result;
-
-  if (bonus === 0) {
-    result.push({
-      slot,
-      label: meta.label,
-      kind: '잔영',
-      delta: firstJ,
-      next: { ...state, bonus: firstJ },
-    });
-    result.push({
-      slot,
-      label: meta.label,
-      kind: '해연',
-      delta: threshold,
-      next: { ...state, bonus: threshold },
-    });
-    return result;
-  }
-
-  if (bonus < threshold) {
-    const nextJ = bonus + jStep;
-    if (nextJ <= threshold) {
-      result.push({
-        slot,
-        label: meta.label,
-        kind: '잔영',
-        delta: nextJ - bonus,
-        next: { ...state, bonus: nextJ },
-      });
-    }
-    result.push({
-      slot,
-      label: meta.label,
-      kind: '해연',
-      delta: threshold - bonus,
-      next: { ...state, bonus: threshold },
-    });
-    return result;
-  }
-
-  if (bonus < max) {
-    result.push({
-      slot,
-      label: meta.label,
-      kind: '해연',
-      delta: Math.min(hStep, max - bonus),
-      next: { ...state, bonus: Math.min(max, bonus + hStep) },
-    });
-  }
-
-  return result;
 }
 
 function totalResistance(state: SimState) {
@@ -221,37 +196,280 @@ function totalResistance(state: SimState) {
   }, 0);
 }
 
-function buildEfficiencyPlan(state: SimState) {
-  const work: SimState = {
-    ...state,
-    slots: Object.fromEntries(
-      Object.entries(state.slots).map(([key, value]) => [key, { ...value }])
-    ) as Record<SlotId, SlotState>,
+function normalized(value: string) {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function marketPrice(items: MarketItem[], name: string) {
+  const target = normalized(name);
+  const exact = items.find(item => normalized(item.name) === target);
+  return exact?.min_price ?? null;
+}
+
+function recipeCost(
+  slot: SlotId,
+  grade: Grade,
+  state: SimState,
+  items: MarketItem[],
+) {
+  const recipe = getRecipe(slot, grade, state.job, state.armorKind);
+  if (!recipe) return {
+    cost: null as number | null,
+    complete: false,
+    missing: [] as MaterialName[],
   };
 
-  const chosen: Step[] = [];
-  let resistance = totalResistance(work);
+  const missing: MaterialName[] = [];
+  let cost = 0;
 
-  for (let guard = 0; guard < 300 && resistance < work.target; guard++) {
-    const candidates = SLOTS
-      .filter(slot => !(work.excludeWeapon && slot.weapon))
-      .flatMap(slot => nextSteps(slot.id, work.slots[slot.id]))
-      .sort((a, b) => b.delta - a.delta);
-
-    const best = candidates[0];
-    if (!best) break;
-
-    work.slots[best.slot] = best.next;
-    chosen.push(best);
-    resistance += best.delta;
+  for (const [name, qty] of Object.entries(recipe.materials) as [MaterialName, number][]) {
+    const price = marketPrice(items, name);
+    if (price == null) missing.push(name);
+    else cost += price * qty;
   }
 
-  return chosen;
+  return {
+    cost: recipe.complete && missing.length === 0 ? cost : null,
+    complete: recipe.complete,
+    missing,
+  };
+}
+
+function acquisitionFor(
+  slot: SlotId,
+  grade: Grade,
+  state: SimState,
+  items: MarketItem[],
+): Acquisition {
+  const itemName = getEquipmentName(slot, grade, state.job, state.armorKind);
+  const purchaseCost = itemName ? marketPrice(items, itemName) : null;
+  const craft = recipeCost(slot, grade, state, items);
+
+  let bestCost: number | null = null;
+  let method: '제작' | '구매' | null = null;
+
+  if (craft.cost != null && purchaseCost != null) {
+    if (craft.cost <= purchaseCost) {
+      bestCost = craft.cost;
+      method = '제작';
+    } else {
+      bestCost = purchaseCost;
+      method = '구매';
+    }
+  } else if (craft.cost != null) {
+    bestCost = craft.cost;
+    method = '제작';
+  } else if (purchaseCost != null) {
+    bestCost = purchaseCost;
+    method = '구매';
+  }
+
+  return {
+    slot,
+    grade,
+    itemName,
+    purchaseCost,
+    craftCost: craft.cost,
+    craftComplete: craft.complete,
+    missingMaterials: craft.missing,
+    bestCost,
+    method,
+  };
+}
+
+function infusionTransitions(
+  slot: SlotId,
+  current: SlotState,
+  acquisition: Record<Grade, Acquisition>,
+) {
+  const label = SLOTS.find(item => item.id === slot)!.label;
+  const x = scaleOf(slot);
+  const firstJ = 140 * x;
+  const jStep = 28 * x;
+  const threshold = 420 * x;
+  const hStep = 14 * x;
+  const max = 700 * x;
+  const bonus = clampBonus(slot, current.bonus);
+  const stage = stageFromBonus(slot, bonus);
+  const steps: PlanStep[] = [];
+
+  if (!stage.valid) return steps;
+
+  const add = (kind: Grade, nextBonus: number) => {
+    const price = acquisition[kind];
+    if (price.bestCost == null || nextBonus <= bonus) return;
+    steps.push({
+      slot,
+      label,
+      kind,
+      delta: nextBonus - bonus,
+      cost: price.bestCost,
+      next: { ...current, bonus: nextBonus },
+      acquisition: price,
+    });
+  };
+
+  if (bonus === 0) {
+    add('잔영', firstJ);
+    add('해연', threshold);
+    return steps;
+  }
+
+  if (bonus < threshold) {
+    if (bonus + jStep <= threshold) add('잔영', bonus + jStep);
+    add('해연', threshold);
+    return steps;
+  }
+
+  if (bonus < max) add('해연', Math.min(max, bonus + hStep));
+  return steps;
+}
+
+function slotOptions(
+  slot: SlotId,
+  current: SlotState,
+  acquisition: Record<Grade, Acquisition>,
+  excluded: boolean,
+) {
+  type Option = { gain: number; cost: number; steps: PlanStep[] };
+  const results = new Map<number, Option>();
+  results.set(0, { gain: 0, cost: 0, steps: [] });
+
+  if (excluded) return Array.from(results.values());
+
+  const runeVariants: { state: SlotState; gain: number; cost: number; steps: PlanStep[] }[] = [
+    { state: current, gain: 0, cost: 0, steps: [] },
+  ];
+
+  if (!current.runeOn) {
+    runeVariants.push({
+      state: { ...current, runeOn: true },
+      gain: BASE_PER_SLOT,
+      cost: 0,
+      steps: [{
+        slot,
+        label: SLOTS.find(item => item.id === slot)!.label,
+        kind: '룬',
+        delta: BASE_PER_SLOT,
+        cost: 0,
+        next: { ...current, runeOn: true },
+      }],
+    });
+  }
+
+  for (const runeVariant of runeVariants) {
+    const best = new Map<number, { cost: number; steps: PlanStep[] }>();
+    best.set(runeVariant.state.bonus, { cost: 0, steps: [] });
+    const queue = [runeVariant.state.bonus];
+
+    while (queue.length) {
+      queue.sort((a, b) => (best.get(a)?.cost ?? Infinity) - (best.get(b)?.cost ?? Infinity));
+      const bonus = queue.shift()!;
+      const found = best.get(bonus)!;
+      const stateAtBonus = { ...runeVariant.state, bonus };
+
+      for (const step of infusionTransitions(slot, stateAtBonus, acquisition)) {
+        const nextBonus = step.next.bonus;
+        const nextCost = found.cost + step.cost;
+        const previous = best.get(nextBonus);
+
+        if (!previous || nextCost < previous.cost) {
+          best.set(nextBonus, { cost: nextCost, steps: [...found.steps, step] });
+          if (!queue.includes(nextBonus)) queue.push(nextBonus);
+        }
+      }
+    }
+
+    for (const [bonus, found] of best) {
+      const gain = runeVariant.gain + (bonus - current.bonus);
+      const cost = runeVariant.cost + found.cost;
+      const option: Option = {
+        gain,
+        cost,
+        steps: [...runeVariant.steps, ...found.steps],
+      };
+      const previous = results.get(gain);
+      if (!previous || cost < previous.cost) results.set(gain, option);
+    }
+  }
+
+  return Array.from(results.values());
+}
+
+function buildCostPlan(
+  state: SimState,
+  items: MarketItem[],
+  current: number,
+): PlanResult {
+  const needed = Math.max(0, state.target - current);
+  if (needed <= 0) return { steps: [], cost: 0, gain: 0 };
+
+  type Node = { cost: number; steps: PlanStep[] };
+  let dp = new Map<number, Node>([[0, { cost: 0, steps: [] }]]);
+
+  for (const slot of SLOTS) {
+    if (!slot.infusable && state.slots[slot.id].runeOn) continue;
+
+    const acquisition = {
+      잔영: acquisitionFor(slot.id, '잔영', state, items),
+      해연: acquisitionFor(slot.id, '해연', state, items),
+    };
+
+    const options = slotOptions(
+      slot.id,
+      state.slots[slot.id],
+      acquisition,
+      !!slot.weapon && state.excludeWeapon,
+    );
+
+    const next = new Map<number, Node>();
+
+    for (const [gain, node] of dp) {
+      for (const option of options) {
+        const totalGain = gain + option.gain;
+        const totalCost = node.cost + option.cost;
+        const previous = next.get(totalGain);
+        if (!previous || totalCost < previous.cost) {
+          next.set(totalGain, {
+            cost: totalCost,
+            steps: [...node.steps, ...option.steps],
+          });
+        }
+      }
+    }
+
+    dp = next;
+  }
+
+  const candidates = Array.from(dp.entries())
+    .filter(([gain]) => gain >= needed)
+    .sort((a, b) => {
+      const costDiff = a[1].cost - b[1].cost;
+      if (costDiff !== 0) return costDiff;
+      return a[0] - b[0];
+    });
+
+  const best = candidates[0];
+  if (!best) return null;
+  return { gain: best[0], cost: best[1].cost, steps: best[1].steps };
+}
+
+function timeLabel(value?: string | null) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('ko-KR', {
+    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+  }).format(date);
 }
 
 export default function MagicResistanceSimulator() {
   const [state, setState] = useState<SimState>(() => defaultState());
   const [loaded, setLoaded] = useState(false);
+  const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
+  const [marketUpdatedAt, setMarketUpdatedAt] = useState<string | null>(null);
+  const [marketLoading, setMarketLoading] = useState(true);
+  const [marketError, setMarketError] = useState('');
 
   useEffect(() => {
     try {
@@ -266,42 +484,87 @@ export default function MagicResistanceSimulator() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
   }, [state, loaded]);
 
+  const loadMarket = useCallback(async (fresh = false) => {
+    setMarketLoading(true);
+    setMarketError('');
+    try {
+      const response = await fetch('/api/game/market' + (fresh ? '?fresh=1' : ''), {
+        cache: 'no-store',
+      });
+      const payload = await response.json() as MarketPayload;
+      if (!response.ok || !payload.ok) throw new Error(payload.error || '시세 조회 실패');
+      setMarketItems(payload.items ?? []);
+      setMarketUpdatedAt(payload.last_updated_at ?? null);
+    } catch (error) {
+      setMarketError(error instanceof Error ? error.message : '거래소 시세를 불러오지 못했습니다.');
+    } finally {
+      setMarketLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadMarket(false);
+  }, [loadMarket]);
+
   const current = useMemo(() => totalResistance(state), [state]);
   const lack = Math.max(0, state.target - current);
-  const plan = useMemo(() => buildEfficiencyPlan(state), [state]);
-  const projected = current + plan.reduce((sum, step) => sum + step.delta, 0);
+  const pricePlan = useMemo(
+    () => marketItems.length ? buildCostPlan(state, marketItems, current) : null,
+    [state, marketItems, current],
+  );
+  const projected = pricePlan ? current + pricePlan.gain : current;
+  const progress = state.target > 0 ? Math.min(100, Math.round((current / state.target) * 100)) : 100;
+
   const planGroups = useMemo(() => {
+    if (!pricePlan) return [];
+
     const groups = new Map<string, {
-      kind: Step['kind'];
-      delta: number;
+      slot: SlotId;
+      label: string;
+      kind: PlanStep['kind'];
+      method: string;
+      itemName: string;
       count: number;
       totalDelta: number;
-      labels: Map<string, number>;
+      totalCost: number;
+      unitCost: number;
+      purchaseCost: number | null;
+      craftCost: number | null;
+      craftComplete: boolean;
     }>();
 
-    for (const step of plan) {
-      const key = step.kind + '|' + step.delta;
+    for (const step of pricePlan.steps) {
+      const method = step.kind === '룬' ? '장착' : (step.acquisition?.method ?? '확인 필요');
+      const itemName = step.acquisition?.itemName ?? '10성 룬';
+      const key = [step.slot, step.kind, method, step.cost].join('|');
       const group = groups.get(key) ?? {
+        slot: step.slot,
+        label: step.label,
         kind: step.kind,
-        delta: step.delta,
+        method,
+        itemName,
         count: 0,
         totalDelta: 0,
-        labels: new Map<string, number>(),
+        totalCost: 0,
+        unitCost: step.cost,
+        purchaseCost: step.acquisition?.purchaseCost ?? null,
+        craftCost: step.acquisition?.craftCost ?? null,
+        craftComplete: step.acquisition?.craftComplete ?? true,
       };
       group.count += 1;
       group.totalDelta += step.delta;
-      group.labels.set(step.label, (group.labels.get(step.label) ?? 0) + 1);
+      group.totalCost += step.cost;
       groups.set(key, group);
     }
 
-    return Array.from(groups.values()).map(group => ({
-      ...group,
-      targets: Array.from(group.labels.entries())
-        .map(([label, count]) => count > 1 ? label + ' ×' + count : label)
-        .join(' · '),
-    }));
-  }, [plan]);
-  const progress = state.target > 0 ? Math.min(100, Math.round((current / state.target) * 100)) : 100;
+    return Array.from(groups.values());
+  }, [pricePlan]);
+
+  const planGradeTotals = useMemo(() => {
+    const out = { 해연: 0, 잔영: 0, 룬: 0 };
+    for (const step of pricePlan?.steps ?? []) out[step.kind] += 1;
+    return out;
+  }, [pricePlan]);
 
   const patchSlot = (slot: SlotId, patch: Partial<SlotState>) => {
     setState(currentState => ({
@@ -330,7 +593,7 @@ export default function MagicResistanceSimulator() {
     <div className={styles.wrap}>
       <header className={styles.header}>
         <h1>마도저항 시뮬레이터</h1>
-        <p>주입으로 오른 마도저항을 입력하면 잔영·해연 단계와 중첩을 자동으로 계산합니다.</p>
+        <p>현재 상태와 목표를 입력하면 거래소 시세 기준으로 제작·구매 비용을 비교해 가장 저렴한 경로를 계산합니다.</p>
       </header>
 
       <section className={styles.summary}>
@@ -357,17 +620,62 @@ export default function MagicResistanceSimulator() {
         <div className={styles.progressText}>{progress}%</div>
       </section>
 
-      <section className={styles.toolbar}>
-        <label className={styles.checkRow}>
-          <input
-            type="checkbox"
-            checked={state.excludeWeapon}
-            onChange={e => setState(s => ({ ...s, excludeWeapon: e.target.checked }))}
-          />
-          <span>무기 강화 제외</span>
-          <small>현재 수치는 포함하고, 목표까지 추천할 때만 무기를 제외합니다.</small>
+      <section className={styles.options}>
+        <label className={styles.jobPick}>
+          <span>직업</span>
+          <select
+            value={state.job}
+            onChange={e => setState(s => ({ ...s, job: e.target.value }))}
+          >
+            {JOB_GROUPS.map(group => (
+              <optgroup label={group.label} key={group.label}>
+                {group.jobs.map(job => <option value={job} key={job}>{job}</option>)}
+              </optgroup>
+            ))}
+          </select>
         </label>
-        <button type="button" className={styles.reset} onClick={() => setState(defaultState())}>초기화</button>
+
+        <div className={styles.armorPick}>
+          <span>방어구 재질</span>
+          <div>
+            {ARMOR_KINDS.map(kind => (
+              <button
+                type="button"
+                key={kind}
+                className={state.armorKind === kind ? styles.armorOn : ''}
+                onClick={() => setState(s => ({ ...s, armorKind: kind }))}
+              >{kind}</button>
+            ))}
+          </div>
+        </div>
+
+        <div className={styles.optionBottom}>
+          <label className={styles.checkRow}>
+            <input
+              type="checkbox"
+              checked={state.excludeWeapon}
+              onChange={e => setState(s => ({ ...s, excludeWeapon: e.target.checked }))}
+            />
+            <span>무기 강화 제외</span>
+            <small>현재 수치는 포함하고 추천 경로에서만 제외</small>
+          </label>
+          <button type="button" className={styles.reset} onClick={() => setState(defaultState())}>초기화</button>
+        </div>
+
+        <div className={styles.marketBar}>
+          <div>
+            <b>모비라이프 거래소</b>
+            {marketLoading
+              ? <span>시세 불러오는 중…</span>
+              : marketError
+                ? <span className={styles.marketError}>{marketError}</span>
+                : <span>최저가 기준{marketUpdatedAt ? ' · ' + timeLabel(marketUpdatedAt) : ''}</span>
+            }
+          </div>
+          <button type="button" disabled={marketLoading} onClick={() => void loadMarket(true)}>
+            {marketLoading ? '조회 중' : '시세 새로고침'}
+          </button>
+        </div>
       </section>
 
       <div className={styles.sectionHead}>
@@ -444,7 +752,6 @@ export default function MagicResistanceSimulator() {
                     엠블럼은 잔영·해연 주입이 없고 10성 룬의 +300만 적용됩니다.
                   </div>
                 )}
-
               </div>
             </article>
           );
@@ -453,7 +760,7 @@ export default function MagicResistanceSimulator() {
 
       <div className={styles.sectionHead}>
         <h2>목표까지 추천</h2>
-        <span>현재는 가격 연결 전 — 마도저항 상승 효율 기준</span>
+        <span>제작비와 완제품 최저가 중 더 싼 방법 기준</span>
       </div>
 
       <section className={styles.recommend}>
@@ -462,40 +769,76 @@ export default function MagicResistanceSimulator() {
             <b>목표 마도저항을 이미 달성했어요.</b>
             <span>현재 {fmt(current)} / 목표 {fmt(state.target)}</span>
           </div>
-        ) : plan.length === 0 ? (
+        ) : marketLoading ? (
           <div className={styles.complete}>
-            <b>현재 입력값에서 추천 가능한 다음 단계가 없습니다.</b>
-            <span>유효하지 않은 주입 수치가 있는지 확인해 주세요.</span>
+            <b>거래소 시세를 불러오는 중이에요.</b>
+            <span>시세 조회가 끝나면 최소 비용 경로를 계산합니다.</span>
+          </div>
+        ) : marketError ? (
+          <div className={styles.complete}>
+            <b>거래소 시세를 사용할 수 없어요.</b>
+            <span>{marketError}</span>
+          </div>
+        ) : !pricePlan ? (
+          <div className={styles.complete}>
+            <b>현재 시세로 목표까지 계산할 수 있는 경로가 없습니다.</b>
+            <span>매물이 없는 장비가 있거나 유효하지 않은 주입 수치가 있는지 확인해 주세요.</span>
           </div>
         ) : (
           <>
+            <div className={styles.costHero}>
+              <span>목표 달성 예상 비용</span>
+              <strong>{fmt(pricePlan.cost)}<small>데카</small></strong>
+              <div>
+                <span>현재 {fmt(current)}</span>
+                <i>→</i>
+                <span>주입 후 {fmt(projected)}</span>
+                <b>+{fmt(pricePlan.gain)}</b>
+              </div>
+            </div>
+
             <div className={styles.planSummary}>
               <div><span>필요 상승량</span><b>{fmt(lack)}</b></div>
-              <div><span>추천 단계</span><b>{plan.length}회</b></div>
-              <div><span>예상 도달</span><b>{fmt(projected)}</b></div>
+              <div><span>해연</span><b>{planGradeTotals.해연}개</b></div>
+              <div><span>잔영</span><b>{planGradeTotals.잔영}개</b></div>
             </div>
-            <div className={styles.planList}>
+
+            <div className={styles.planCards}>
               {planGroups.map((group, index) => (
-                <div className={styles.planRow} key={group.kind + '-' + group.delta}>
-                  <span className={styles.planNo}>{index + 1}</span>
-                  <div className={styles.planMain}>
-                    <b>
-                      {group.kind === '룬' ? '10성 룬' : group.kind}
-                      {group.count > 1 ? ' × ' + group.count : ''}
-                    </b>
-                    <small>{group.targets}</small>
+                <article className={styles.planCard} key={[group.slot, group.kind, group.method, index].join('-')}>
+                  <div className={styles.planCardTop}>
+                    <div>
+                      <b>{group.label} {group.kind === '룬' ? '10성 룬' : group.kind}</b>
+                      <small>{group.itemName}</small>
+                    </div>
+                    <strong>{fmt(group.totalCost)}<small> 데카</small></strong>
                   </div>
-                  <span className={
-                    group.kind === '해연' ? styles.haeyeon
-                    : group.kind === '잔영' ? styles.janyeong
-                    : styles.runeKind
-                  }>+{fmt(group.delta)}씩</span>
-                  <strong>+{fmt(group.totalDelta)}</strong>
-                </div>
+
+                  <div className={styles.planMeta}>
+                    <span className={group.method === '제작' ? styles.makeBadge : group.method === '구매' ? styles.buyBadge : styles.runeBadge}>
+                      {group.method}
+                    </span>
+                    <b>{group.count}개</b>
+                    <span>마도저항 +{fmt(group.totalDelta)}</span>
+                  </div>
+
+                  {group.kind !== '룬' && (
+                    <div className={styles.compareRow}>
+                      <span className={group.method === '제작' ? styles.chosenMethod : ''}>
+                        제작 {group.craftCost != null ? fmt(group.craftCost) + ' /개' : group.craftComplete ? '시세 부족' : '잔영 재료 미완성'}
+                      </span>
+                      <span className={group.method === '구매' ? styles.chosenMethod : ''}>
+                        구매 {group.purchaseCost != null ? fmt(group.purchaseCost) + ' /개' : '매물 없음'}
+                      </span>
+                    </div>
+                  )}
+                </article>
               ))}
             </div>
+
             <p className={styles.note}>
-              제작비·완제품 구매가가 연결되면 이 추천을 <b>최소 데카 기준</b>으로 바꿉니다.
+              해연 제작비는 네 레시피의 가공 재료와 마력석·영혼석을 모두 포함합니다.
+              잔영은 추가 재료가 아직 비어 있어 제작비를 추천 판단에 사용하지 않고 완제품 거래소가를 사용합니다.
             </p>
           </>
         )}
