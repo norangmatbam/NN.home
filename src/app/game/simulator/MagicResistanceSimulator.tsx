@@ -1203,12 +1203,14 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
                   {group.kind !== '룬' && (
                     <div className={styles.compareRow}>
                       {group.count > 1 && <span>단가 {fmt(Math.min(...group.unitCosts))}~{fmt(Math.max(...group.unitCosts))} 데카</span>}
-                      <span className={group.method === '제작' ? styles.chosenMethod : ''}>
-                        제작 {group.craftCost != null ? fmt(group.craftCost) + ' /개' : group.craftComplete ? '시세 부족' : '잔영 재료 미완성'}
-                      </span>
-                      <span className={group.method === '구매' ? styles.chosenMethod : ''}>
-                        구매 {group.purchaseCost != null ? fmt(group.purchaseCost) + ' /개' : '매물 없음'}
-                      </span>
+                      {group.count === 1 && <>
+                        <span className={group.method === '제작' ? styles.chosenMethod : ''}>
+                          제작 {group.craftCost != null ? fmt(group.craftCost) + ' /개' : group.craftComplete ? '시세 부족' : '잔영 재료 미완성'}
+                        </span>
+                        <span className={group.method === '구매' ? styles.chosenMethod : ''}>
+                          구매 {group.purchaseCost != null ? fmt(group.purchaseCost) + ' /개' : '매물 없음'}
+                        </span>
+                      </>}
                     </div>
                   )}
                 </article>
