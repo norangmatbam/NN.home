@@ -1215,7 +1215,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
                 <article className={styles.planCard} key={[group.slot, group.kind, group.method, index].join('-')}>
                   <div className={styles.planCardTop}>
                     <div>
-                      <b>{mode === 'D' && <span className={styles.priorityBadge}>{index + 1}순위</span>}{group.label} {group.kind === '룬' ? '10성 룬' : group.kind}</b>
+                      <b className={styles.planTitle}>{mode === 'D' && <span className={`${styles.priorityBadge} ${index === 0 ? styles.priorityFirst : index === 1 ? styles.prioritySecond : styles.priorityOther}`}>{index + 1}순위</span>}<span>{group.label} {group.kind === '룬' ? '10성 룬' : group.kind}</span></b>
                       <small>{group.itemName}</small>
                     </div>
                     <strong>{fmt(group.totalCost)}<small> 데카</small></strong>
