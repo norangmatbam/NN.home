@@ -799,12 +799,15 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
       purchaseCost: number | null;
       craftCost: number | null;
       craftComplete: boolean;
+      methods: Set<string>;
+      items: Set<string>;
+      unitCosts: number[];
     }>();
 
     for (const step of activePlan.steps) {
       const method = step.kind === '룬' ? '장착' : (step.acquisition?.method ?? '확인 필요');
       const itemName = step.acquisition?.itemName ?? '10성 룬';
-      const key = [step.slot, step.kind, method, step.cost].join('|');
+      const key = [step.slot, step.kind].join('|');
       const group = groups.get(key) ?? {
         slot: step.slot,
         label: step.label,
@@ -818,14 +821,24 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
         purchaseCost: step.acquisition?.purchaseCost ?? null,
         craftCost: step.acquisition?.craftCost ?? null,
         craftComplete: step.acquisition?.craftComplete ?? true,
+        methods: new Set<string>(),
+        items: new Set<string>(),
+        unitCosts: [],
       };
+      group.methods.add(method);
+      group.items.add(itemName);
+      group.unitCosts.push(step.cost);
       group.count += 1;
       group.totalDelta += step.delta;
       group.totalCost += step.cost;
       groups.set(key, group);
     }
 
-    return Array.from(groups.values());
+    return Array.from(groups.values()).map(group => ({
+      ...group,
+      method: group.methods.size === 1 ? group.method : '혼합',
+      itemName: group.items.size === 1 ? group.itemName : '재질별 최저가 혼합',
+    }));
   }, [activePlan]);
 
   const planGradeTotals = useMemo(() => {
@@ -1189,6 +1202,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
 
                   {group.kind !== '룬' && (
                     <div className={styles.compareRow}>
+                      {group.count > 1 && <span>단가 {fmt(Math.min(...group.unitCosts))}~{fmt(Math.max(...group.unitCosts))} 데카</span>}
                       <span className={group.method === '제작' ? styles.chosenMethod : ''}>
                         제작 {group.craftCost != null ? fmt(group.craftCost) + ' /개' : group.craftComplete ? '시세 부족' : '잔영 재료 미완성'}
                       </span>
