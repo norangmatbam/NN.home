@@ -42,3 +42,6 @@
 .floatNav button{pointer-events:auto;min-width:88px;padding:10px 12px;border:1px solid #b9c7df;border-radius:24px;background:rgba(255,255,255,.94);box-shadow:0 3px 12px rgba(18,28,52,.16);color:#263958;font-size:12px;font-weight:700;cursor:pointer}
 .floatNav button:focus-visible{outline:2px solid #587cbd;outline-offset:2px}
 @media(max-width:720px){.floatNav{right:10px;bottom:max(14px,env(safe-area-inset-bottom))}.floatNav button{min-width:78px;padding:9px 10px}}
+
+/* Game tools: consistent 8px button corners. */
+.wrap button{border-radius:8px!important}
