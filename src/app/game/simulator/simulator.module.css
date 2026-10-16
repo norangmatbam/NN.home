@@ -72,3 +72,16 @@
 .priceStep strong,.priceTotal strong{font-size:12px;color:#9b7227;white-space:nowrap}
 .priceStep small{font-size:11px;color:#7a879a;line-height:1.5}
 .priceTotal{padding-top:12px;margin-top:3px;border-top:1px solid #dfe5ef}
+
+
+.recipeDetails{margin:0 12px 10px;border:1px solid #dce4ee;border-radius:9px;overflow:hidden;color:#263953;background:#f8fafd}
+.recipeDetails>summary{list-style:none;cursor:pointer;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;font-weight:750;color:#3e5e8a}
+.recipeDetails>summary::-webkit-details-marker{display:none}
+.recipeDetails[open]>summary{border-bottom:1px solid #dce4ee}
+.recipeDetails[open]>summary span{transform:rotate(180deg)}
+.recipeContents{padding:0 11px 10px;background:#fff}
+.recipeGrade{padding:12px 0 4px}.recipeGrade+.recipeGrade{border-top:1px solid #e6ebf3}
+.recipeGrade>b{display:block;font-size:12px;margin-bottom:9px;color:#2b3e60}
+.recipeRows{display:grid;gap:0}.recipeRows>div{display:grid;grid-template-columns:minmax(0,1fr) 55px 96px;gap:5px;align-items:center;border-bottom:1px solid #f0f3f8;padding:7px 0;font-size:11px}
+.recipeRows>div span:nth-child(2){text-align:right;font-weight:700}.recipeRows>div span:last-child{text-align:right;color:#9a772d}
+.recipeGrade>small{display:block;font-size:10px;line-height:1.6;color:#9b6b3b;margin-top:8px}
