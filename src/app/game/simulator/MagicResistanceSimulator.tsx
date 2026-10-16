@@ -1240,9 +1240,12 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
                         <p>같은 부위라도 중간 단계 재질·보유 재료 사용량·제작/구매 방식에 따라 가격이 달라질 수 있어요.</p>
                         {group.steps.map((step,i)=>(
                           <div className={styles.priceStep} key={i}>
-                            <div>
-                              <details className={styles.stepRecipe}>
-                                <summary>{i+1}회차 · {step.acquisition?.itemName ?? group.itemName} <span className={styles.expandPill}>재료 보기 <span className={styles.arrowDown} aria-hidden="true">▼</span><span className={styles.arrowUp} aria-hidden="true">▲</span></span></summary>
+                            <div className={styles.stepHeadline}>
+                              <b>{i+1}회차 · {step.acquisition?.itemName ?? group.itemName}</b>
+                              <strong>{fmt(step.cost)} 데카</strong>
+                            </div>
+                            <details className={styles.stepRecipe}>
+                              <summary><span className={styles.expandPill}>재료 보기 <span className={styles.arrowDown} aria-hidden="true">▼</span><span className={styles.arrowUp} aria-hidden="true">▲</span></span></summary>
                                 {(()=>{
                                   const kind = (['hat','top','bottom','gloves','shoes'] as SlotId[]).includes(step.slot)
                                     ? ARMOR_KINDS.find(armor => getEquipmentName(step.slot,step.kind as Grade,state.job,armor) === step.acquisition?.itemName) ?? state.armorKind
@@ -1253,9 +1256,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
                                     {!recipe.complete && <small>일부 제작 재료가 미확정된 레시피입니다.</small>}
                                   </div> : <small>제작 레시피가 없습니다.</small>;
                                 })()}
-                              </details>
-                              <strong>{fmt(step.cost)} 데카</strong>
-                            </div>
+                            </details>
                             <small>{step.acquisition?.method ?? '확인 필요'} · 마도저항 +{fmt(step.delta)}
                               {i===group.steps.length-1 ? ' · 마지막 단계' : ' · 중간 단계'}</small>
                             <small>제작 {step.acquisition?.craftCost == null ? '조회 불가' : fmt(step.acquisition.craftCost)+' 데카'}
