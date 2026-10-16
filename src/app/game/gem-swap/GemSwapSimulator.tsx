@@ -6,7 +6,9 @@ import styles from './gemSwap.module.css';
 
 type Profile = { id: string; name: string; targets: string[]; gems: Gem[] };
 const KEY = 'nn-game-gem-swap-v1';
-const blank = (): Gem => ({ id: Math.random().toString(36).slice(2), name: '', grade: '7성', tags: ['', '', ''] });
+const GEM_NAME = '온전한 스타프리즘';
+const safeCount = (value: unknown) => Math.max(1, Math.min(999, Math.floor(Number(value) || 1)));
+const blank = (): Gem => ({ id: Math.random().toString(36).slice(2), name: GEM_NAME, grade: '7성', count: 1, tags: ['', '', ''] });
 const newProfile = (): Profile => ({ id: Math.random().toString(36).slice(2), name: '캐릭터 1', targets: ['', '', '', '', ''], gems: Array.from({ length: 22 }, blank) });
 const same = (a: string[], b: string[]) => a.every((v,i)=>v===b[i]);
 const defaults = () => [newProfile()];
@@ -28,7 +30,7 @@ export default function GemSwapSimulator() {
             id: String(p.id), name: String(p.name || '캐릭터'),
             targets: Array.from({length:5},(_,i)=>String(p.targets?.[i] || '')),
             gems: Array.isArray(p.gems) ? p.gems.slice(0,120).map(g => ({
-              id: String(g.id), name: String(g.name || ''), grade: String(g.grade || '7성'),
+              id: String(g.id), name: GEM_NAME, grade: String(g.grade || '7성'), count: safeCount(g.count),
               tags: Array.from({length:3},(_,i)=>String(g.tags?.[i] || '')),
             })) : [],
           }));
@@ -50,6 +52,7 @@ export default function GemSwapSimulator() {
   };
   const updateGem = (id:string, patch:Partial<Gem>) => update(p=>({...p,gems:p.gems.map(g=>g.id===id?{...g,...patch}:g)}));
   const filled = active.gems.filter(g=>g.tags.some(Boolean));
+  const totalGems = active.gems.reduce((sum,g)=>sum+safeCount(g.count),0);
   const valid = active.targets[0] && active.targets[1] && active.targets[2] &&
     new Set(active.targets.slice(0,3)).size===3 &&
     filled.length>=2 && filled.every(g=>g.tags.length===3 && g.tags.every(t=>TAGS.some(tag=>tag===t)));
@@ -65,7 +68,7 @@ export default function GemSwapSimulator() {
         id: Math.random().toString(36).slice(2), name: String(parsed.name || '가져온 캐릭터').slice(0,30),
         targets: Array.from({length:5},(_,i)=>TAGS.includes(parsed.targets?.[i] as typeof TAGS[number]) ? String(parsed.targets?.[i]) : ''),
         gems: parsed.gems.slice(0,120).map(g=>({
-          id: Math.random().toString(36).slice(2), name: String(g.name||'').slice(0,60),
+          id: Math.random().toString(36).slice(2), name: GEM_NAME, count: safeCount(g.count),
           grade: String(g.grade||'7성'),
           tags: Array.from({length:3},(_,i)=>TAGS.includes(g.tags?.[i] as typeof TAGS[number]) ? String(g.tags?.[i]) : ''),
         })),
@@ -112,15 +115,17 @@ export default function GemSwapSimulator() {
           {tagSelect(tag,value=>update(p=>({...p,targets:p.targets.map((t,j)=>i===j?value:t)})),'목표 '+(i+1)+'순위')}
         </label>)}
       </div>
+      <p className={styles.help}>같은 태그 조합의 온전한 스타프리즘은 한 줄에 입력하고 수량을 늘리면 됩니다. 줄작 개수와 추천 계산에도 해당 수량이 반영됩니다.</p>
       <p className={styles.help}>1줄작 = 1순위 포함, 2줄작 = 1·2순위 포함, 3줄작 = 1·2·3순위 포함. 현재 균형 점수는 1·2·3순위를 기준으로 합니다.</p>
     </section>
     <section className={styles.panel}>
-      <div className={styles.sectionTitle}><h2>보유 보석 <small>{active.gems.length}개</small></h2>
+      <div className={styles.sectionTitle}><h2>보유 보석 <small>{totalGems}개 · {active.gems.length}줄</small></h2>
         <button onClick={()=>update(p=>({...p,gems:[...p.gems,...Array.from({length:4},blank)].slice(0,120)}))}>+ 4개 추가</button></div>
       <div className={styles.gemList}>
         {(showAll?active.gems:active.gems.slice(0,22)).map((gem,i)=><div className={styles.gemRow} key={gem.id}>
           <span className={styles.number}>{i+1}</span>
-          <input className={styles.gemName} aria-label={'보석 '+(i+1)+' 이름'} placeholder="보석 이름 (선택)" value={gem.name} onChange={e=>updateGem(gem.id,{name:e.target.value})}/>
+          <span className={styles.fixedName}>{GEM_NAME}</span>
+          <label className={styles.quantity}><span>수량</span><input type="number" min={1} max={999} inputMode="numeric" aria-label={'보석 '+(i+1)+' 수량'} value={gem.count} onChange={e=>updateGem(gem.id,{count:safeCount(e.target.value)})}/></label>
           <select className={styles.grade} aria-label={'보석 '+(i+1)+' 등급'} value={gem.grade} onChange={e=>updateGem(gem.id,{grade:e.target.value})}>
             {['5성','6성','7성','8성','9성'].map(g=><option key={g}>{g}</option>)}
           </select>
@@ -152,7 +157,7 @@ export default function GemSwapSimulator() {
                 {' ↔ '}<em>{move.to}</em> 태그를 일괄 교환
               </li>)}</ol>}
             <details><summary>추천 결과 보석별 태그 확인</summary>
-              <div className={styles.finalList}>{result.gems.map((g,i)=><div key={g.id}><b>{g.name||'보석 '+(i+1)}</b> <span>{g.tags.join(' · ')}</span></div>)}</div>
+              <div className={styles.finalList}>{result.gems.map((g,i)=><div key={g.id}><b>{GEM_NAME} ×{g.count}</b> <span>{g.tags.join(' · ')}</span></div>)}</div>
             </details>
             <button className={styles.secondary} onClick={()=>{if(window.confirm('추천 결과를 현재 보석 태그에 적용할까요?'))update(p=>({...p,gems:p.gems.map(g=>result.gems.find(r=>r.id===g.id)??g)}));}}>추천 배치 적용</button>
           </div>}
