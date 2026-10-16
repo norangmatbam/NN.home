@@ -14,6 +14,15 @@ const normalizeTag = (value: unknown): string => {
   if (legacy) return `${legacy[1]} ${legacy[2] === '댐' ? '댐증' : '쿨감'}`;
   return '';
 };
+const uniqueTags = (values: unknown[], size: number) => {
+  const seen = new Set<string>();
+  return Array.from({length:size},(_,i)=>{
+    const tag = normalizeTag(values[i]);
+    if (!tag || seen.has(tag)) return '';
+    seen.add(tag);
+    return tag;
+  });
+};
 const safeCount = (value: unknown) => Math.max(1, Math.min(999, Math.floor(Number(value) || 1)));
 const blank = (): Gem => ({ id: Math.random().toString(36).slice(2), name: GEM_NAME, count: 1, tags: ['', '', ''] });
 const newProfile = (): Profile => ({ id: Math.random().toString(36).slice(2), name: '캐릭터 1', targets: ['', '', '', '', ''], gems: Array.from({ length: 22 }, blank) });
@@ -35,10 +44,10 @@ export default function GemSwapSimulator() {
         if (Array.isArray(saved.profiles) && saved.profiles.length) {
           const valid = saved.profiles.slice(0, 16).map(p => ({
             id: String(p.id), name: String(p.name || '캐릭터'),
-            targets: Array.from({length:5},(_,i)=>normalizeTag(p.targets?.[i])),
+            targets: uniqueTags(p.targets ?? [], 5),
             gems: Array.isArray(p.gems) ? p.gems.slice(0,120).map(g => ({
               id: String(g.id), name: GEM_NAME, count: safeCount(g.count),
-              tags: Array.from({length:3},(_,i)=>normalizeTag(g.tags?.[i])),
+              tags: uniqueTags(g.tags ?? [], 3),
             })) : [],
           }));
           setProfiles(valid);
@@ -73,10 +82,10 @@ export default function GemSwapSimulator() {
       if (!Array.isArray(parsed.gems) || !Array.isArray(parsed.targets)) throw new Error();
       const profile: Profile = {
         id: Math.random().toString(36).slice(2), name: String(parsed.name || '가져온 캐릭터').slice(0,30),
-        targets: Array.from({length:5},(_,i)=>normalizeTag(parsed.targets?.[i])),
+        targets: uniqueTags(parsed.targets ?? [], 5),
         gems: parsed.gems.slice(0,120).map(g=>({
           id: Math.random().toString(36).slice(2), name: GEM_NAME, count: safeCount(g.count),
-          tags: Array.from({length:3},(_,i)=>normalizeTag(g.tags?.[i])),
+          tags: uniqueTags(g.tags ?? [], 3),
         })),
       };
       setProfiles(p=>[...p,profile].slice(-16)); setActiveId(profile.id); setShareText('');
