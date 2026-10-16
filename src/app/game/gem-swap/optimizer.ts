@@ -1,5 +1,5 @@
-export const TAGS = ['강타댐','강타쿨','연타댐','연타쿨','원소댐','원소쿨','방해댐','방해쿨','보조댐','보조쿨','기교댐','기교쿨','생존댐','생존쿨','약화댐','약화쿨'] as const;
-export type Gem = { id: string; name: string; grade: string; count: number; tags: string[] };
+export const TAGS = ['강타','연타','이동','방해','보조','생존','원소','소환'].flatMap(kind => [`${kind} 댐증`, `${kind} 쿨감`]);
+export type Gem = { id: string; name: string; count: number; tags: string[] };
 export type Swap = { from: string; to: string };
 export type Stats = { one: number; two: number; three: number; score: number };
 export type Result = { gems: Gem[]; moves: Swap[]; stats: Stats };
@@ -39,7 +39,7 @@ export function optimize(gems:Gem[],targets:string[],maxMoves=16):Result {
       for(let i=0;i<present.length;i++)for(let j=i+1;j<present.length;j++){
         const a=present[i],b=present[j];
         // Damage and cooldown tag categories cannot be interchanged.
-        if(a.endsWith('댐')!==b.endsWith('댐'))continue;
+        if(a.endsWith('댐증')!==b.endsWith('댐증'))continue;
         transpose(working,a,b);
         const after=stats(working,targets).score;
         const delta=after-before;
