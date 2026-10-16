@@ -169,7 +169,7 @@ export default function GemSwapSimulator() {
         </div>)}
       </div>
       <button type="button" className={styles.extraToggle} onClick={()=>setShowExtraTargets(v=>!v)}>
-        {showExtraTargets?'3~5순위 접기 ▲':'＋ 3~5순위 목표 설정'}
+        {showExtraTargets?'3~5순위 접기 ▲':'＋ 3~5순위 목표 설정 ▼'}
       </button>
       <p className={styles.help}>1순위 조합 개수를 최대화하고, 같으면 2순위를 비교합니다. 나머지 순위도 같은 방식이에요.</p>
     </section>
