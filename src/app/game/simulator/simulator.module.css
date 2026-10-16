@@ -75,3 +75,7 @@
 
 
 .stepRecipe{flex:1;min-width:0}.stepRecipe summary{cursor:pointer;color:#2e3c55;font-size:12px;font-weight:700;list-style:none;overflow-wrap:anywhere}.stepRecipe summary::-webkit-details-marker{display:none}.stepRecipe summary span{font-size:10px;color:#456c9c;white-space:nowrap;font-weight:600}.stepRecipe[open] summary span{color:#2f7b78}.stepRecipeRows{display:grid;gap:5px;margin-top:8px;padding:9px;border:1px solid #e4eaf2;border-radius:7px;background:#f7faff}.stepRecipeRows>div{display:grid;grid-template-columns:minmax(0,1fr) 38px 83px;align-items:center;gap:5px;font-size:11px}.stepRecipeRows>div b{text-align:right}.stepRecipeRows>div span:last-child{text-align:right;color:#9b7227}.stepRecipeRows>small{font-size:10px;color:#996b39;line-height:1.5}
+
+
+.priorityBadge{display:inline-block;vertical-align:middle;margin-right:8px;padding:3px 7px;border-radius:7px;background:#e6edf9;color:#34558a;font-size:11px;font-weight:800;white-space:nowrap}
+.efficiencyLabel{font-size:12px;font-weight:750;color:#2f6981;white-space:nowrap}
