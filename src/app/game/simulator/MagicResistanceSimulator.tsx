@@ -225,6 +225,23 @@ function marketPrice(items: MarketItem[], name: string) {
   return exact?.min_price ?? null;
 }
 
+function recipeMaterials(
+  slot: SlotId,
+  grade: Grade,
+  job: string,
+  armorKind: ArmorKind,
+  marketItems: MarketItem[],
+) {
+  const recipe = getRecipe(slot, grade, job, armorKind);
+  if (!recipe) return null;
+  return {
+    complete: recipe.complete,
+    rows: (Object.entries(recipe.materials) as [MaterialName, number][])
+      .filter(([,qty])=>qty>0)
+      .map(([name,qty])=>({name,qty,price:marketPrice(marketItems,name)})),
+  };
+}
+
 function recipeCost(
   slot: SlotId,
   grade: Grade,
@@ -1072,6 +1089,24 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
                   <b>{fmt(total)}</b>
                 </div>
               </div>
+
+              {slot.infusable && <details className={styles.recipeDetails}>
+                <summary>제작 재료 보기 <span aria-hidden="true">⌄</span></summary>
+                <div className={styles.recipeContents}>
+                  {(['해연','잔영'] as Grade[]).map(grade=>{
+                    const data = recipeMaterials(slot.id,grade,state.job,state.armorKind,marketItems);
+                    return <div className={styles.recipeGrade} key={grade}>
+                      <b>{grade} · {getEquipmentName(slot.id,grade,state.job,state.armorKind)}</b>
+                      {data ? <>
+                        <div className={styles.recipeRows}>{data.rows.map(({name,qty,price})=>
+                          <div key={name}><span>{name}</span><span>×{fmt(qty)}</span>
+                            <span>{price == null ? '조회 실패' : fmt(price*qty)+' 데카'}</span></div>)}</div>
+                        {!data.complete && <small>잔영 제작 레시피 일부는 미확정이므로 참고용으로만 표시합니다.</small>}
+                      </> : <small>제작 레시피 없음</small>}
+                    </div>;
+                  })}
+                </div>
+              </details>}
 
               <div className={styles.cardBody}>
                 <button
