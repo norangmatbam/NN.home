@@ -26,6 +26,7 @@ export default function GemSwapSimulator() {
   const [resultOpen, setResultOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [shareText, setShareText] = useState('');
+  const [picker, setPicker] = useState<{ kind: 'gem' | 'target'; id?: string; index: number } | null>(null);
   useEffect(() => {
     try {
       const raw = localStorage.getItem(KEY);
@@ -81,11 +82,26 @@ export default function GemSwapSimulator() {
       setProfiles(p=>[...p,profile].slice(-16)); setActiveId(profile.id); setShareText('');
     } catch { window.alert('유효한 보석 데이터 JSON을 입력해 주세요.'); }
   };
-  const tagSelect = (value:string,onChange:(v:string)=>void,placeholder='선택') =>
-    <select value={value} onChange={e=>onChange(e.target.value)} aria-label={placeholder}>
-      <option value="">태그 선택</option>
-      {TAGS.map(t=><option key={t} value={t}>{t}</option>)}
-    </select>;
+  const chooseTag = (tag: string) => {
+    if (!picker) return;
+    if (picker.kind === 'target') {
+      if (tag && active.targets.some((t,i)=>i!==picker.index && t===tag)) return;
+      update(p=>({...p,targets:p.targets.map((t,i)=>i===picker.index?tag:t)}));
+    } else {
+      const gem = active.gems.find(g=>g.id===picker.id);
+      if (!gem || (tag && gem.tags.some((t,i)=>i!==picker.index && t===tag))) return;
+      updateGem(gem.id,{tags:gem.tags.map((t,i)=>i===picker.index?tag:t)});
+    }
+    setPicker(null);
+  };
+  const tagButton = (value:string,onClick:()=>void,label:string) =>
+    <button type="button" className={styles.tagButton + (value ? ' '+styles.selectedTag : '')}
+      onClick={onClick} aria-label={label} aria-haspopup="dialog">
+      {value || '＋ 태그'}
+    </button>;
+  const picked = picker?.kind === 'target' ? active.targets :
+    picker?.kind === 'gem' ? active.gems.find(g=>g.id===picker.id)?.tags ?? [] : [];
+  const pickerValue = picker ? picked[picker.index] : '';
   const statCards = (s:ReturnType<typeof stats>) =>
     <div className={styles.stats}>
       <div><small>1줄작</small><b>{s.one}</b></div><div><small>2줄작</small><b>{s.two}</b></div><div><small>3줄작</small><b>{s.three}</b></div>
@@ -117,7 +133,7 @@ export default function GemSwapSimulator() {
       <div className={styles.sectionTitle}><h2>목표 태그 우선순위</h2><span>1~3순위 필수 · 4~5순위 선택</span></div>
       <div className={styles.targetGrid}>
         {active.targets.map((tag,i)=><label key={i}><span>{i+1}순위</span>
-          {tagSelect(tag,value=>update(p=>({...p,targets:p.targets.map((t,j)=>i===j?value:t)})),'목표 '+(i+1)+'순위')}
+          {tagButton(tag,()=>setPicker({kind:'target',index:i}),'목표 '+(i+1)+'순위 태그 선택')}
         </label>)}
       </div>
       <p className={styles.help}>같은 태그 조합의 온전한 스타프리즘은 한 줄에 입력하고 수량을 늘리면 됩니다. 줄작 개수와 추천 계산에도 해당 수량이 반영됩니다.</p>
@@ -132,7 +148,7 @@ export default function GemSwapSimulator() {
           <span className={styles.fixedName}>{GEM_NAME}</span>
           <label className={styles.quantity}><span>수량</span><input type="number" min={1} max={999} inputMode="numeric" aria-label={'보석 '+(i+1)+' 수량'} value={gem.count} onChange={e=>updateGem(gem.id,{count:safeCount(e.target.value)})}/></label>
           <div className={styles.tagSet}>{gem.tags.map((tag,j)=><div key={j}>
-            {tagSelect(tag,v=>updateGem(gem.id,{tags:gem.tags.map((t,k)=>k===j?v:t)}),'보석 '+(i+1)+' 태그 '+(j+1))}
+            {tagButton(tag,()=>setPicker({kind:'gem',id:gem.id,index:j}),'보석 '+(i+1)+' 태그 '+(j+1)+' 선택')}
           </div>)}</div>
           <button className={styles.remove} aria-label={'보석 '+(i+1)+' 삭제'} onClick={()=>update(p=>({...p,gems:p.gems.filter(g=>g.id!==gem.id)}))}>×</button>
         </div>)}
@@ -173,5 +189,32 @@ export default function GemSwapSimulator() {
       <button className={styles.secondary} disabled={!shareText.trim()} onClick={saveImport}>붙여넣은 캐릭터 가져오기</button>
       <p className={styles.help}>데이터는 이 브라우저에 자동 저장됩니다. 다른 기기에서는 JSON으로 옮길 수 있어요.</p>
     </section>
+    {picker && <div className={styles.pickerBackdrop} onClick={()=>setPicker(null)}>
+      <div className={styles.pickerPanel} role="dialog" aria-modal="true" aria-label="스킬 태그 선택"
+        onClick={e=>e.stopPropagation()}>
+        <div className={styles.pickerTop}>
+          <b>{picker.kind==='target' ? '목표 '+(picker.index+1)+'순위' : '보석 태그 '+(picker.index+1)} 선택</b>
+          <div>
+            <button type="button" onClick={()=>chooseTag('')}>비우기</button>
+            <button type="button" onClick={()=>setPicker(null)}>닫기 ×</button>
+          </div>
+        </div>
+        {(['댐증','쿨감'] as const).map(type=><section key={type} className={styles.pickerGroup}>
+          <h3>{type==='댐증'?'⚔️ 대미지 증가':'◷ 쿨타임 감소'}</h3>
+          <div className={styles.pickerChoices}>
+            {TAGS.filter(t=>t.endsWith(type)).map(tag=>{
+              const duplicate = tag!==pickerValue && picked.some((t,i)=>i!==picker.index&&t===tag);
+              return <button type="button" key={tag} disabled={duplicate}
+                className={styles.choice + (tag===pickerValue?' '+styles.choiceSelected:'')}
+                onClick={()=>chooseTag(tag)}>
+                {tag.replace(' '+type,'')}
+                {duplicate&&<small>선택됨</small>}
+              </button>;
+            })}
+          </div>
+        </section>)}
+        <p className={styles.pickerHint}>현재 보석 또는 목표에 이미 선택된 태그는 중복 선택할 수 없어요.</p>
+      </div>
+    </div>}
   </main>;
 }
