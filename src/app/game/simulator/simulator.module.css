@@ -99,3 +99,6 @@
 
 /* Price details use a softer rectangle; recipe details retain pill corners. */
 .priceSummary > .expandPill{border-radius:8px}
+
+/* Game tools: consistent 8px button corners and disclosure controls. */
+.wrap button,.wrap summary .expandPill,.wrap .foldToggle{border-radius:8px!important}
