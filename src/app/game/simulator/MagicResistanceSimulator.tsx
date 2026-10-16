@@ -1234,7 +1234,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
                     <details className={styles.priceDetails}>
                       <summary className={styles.priceSummary}>
                         <span>단가 {fmt(Math.min(...group.unitCosts))}{group.count > 1 ? ' ~ ' + fmt(Math.max(...group.unitCosts)) : ''} 데카</span>
-                        <b>상세보기 <span aria-hidden="true">⌄</span></b>
+                        <b className={styles.expandPill}>상세보기 <span className={styles.arrowDown} aria-hidden="true">🔻</span><span className={styles.arrowUp} aria-hidden="true">🔺</span></b>
                       </summary>
                       <div className={styles.priceBreakdown}>
                         <p>같은 부위라도 중간 단계 재질·보유 재료 사용량·제작/구매 방식에 따라 가격이 달라질 수 있어요.</p>
@@ -1242,7 +1242,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
                           <div className={styles.priceStep} key={i}>
                             <div>
                               <details className={styles.stepRecipe}>
-                                <summary>{i+1}회차 · {step.acquisition?.itemName ?? group.itemName} <span>재료 보기 ▾</span></summary>
+                                <summary>{i+1}회차 · {step.acquisition?.itemName ?? group.itemName} <span className={styles.expandPill}>재료 보기 <span className={styles.arrowDown} aria-hidden="true">🔻</span><span className={styles.arrowUp} aria-hidden="true">🔺</span></span></summary>
                                 {(()=>{
                                   const kind = (['hat','top','bottom','gloves','shoes'] as SlotId[]).includes(step.slot)
                                     ? ARMOR_KINDS.find(armor => getEquipmentName(step.slot,step.kind as Grade,state.job,armor) === step.acquisition?.itemName) ?? state.armorKind
