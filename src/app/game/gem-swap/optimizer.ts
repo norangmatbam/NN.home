@@ -1,5 +1,5 @@
 export const TAGS = ['강타댐','강타쿨','연타댐','연타쿨','원소댐','원소쿨','방해댐','방해쿨','보조댐','보조쿨','기교댐','기교쿨','생존댐','생존쿨','약화댐','약화쿨'] as const;
-export type Gem = { id: string; name: string; grade: string; tags: string[] };
+export type Gem = { id: string; name: string; grade: string; count: number; tags: string[] };
 export type Swap = { from: string; to: string };
 export type Stats = { one: number; two: number; three: number; score: number };
 export type Result = { gems: Gem[]; moves: Swap[]; stats: Stats };
@@ -7,9 +7,9 @@ export function stats(gems: Gem[], targets: string[]): Stats {
   let one=0,two=0,three=0;
   for(const gem of gems){
     const set=new Set(gem.tags);
-    if(targets[0]&&set.has(targets[0]))one++;
-    if(targets[0]&&targets[1]&&set.has(targets[0])&&set.has(targets[1]))two++;
-    if(targets.slice(0,3).every(t=>t&&set.has(t)))three++;
+    if(targets[0]&&set.has(targets[0]))one+=gem.count;
+    if(targets[0]&&targets[1]&&set.has(targets[0])&&set.has(targets[1]))two+=gem.count;
+    if(targets.slice(0,3).every(t=>t&&set.has(t)))three+=gem.count;
   }
   return {one,two,three,score:one*100+two*190+three*340};
 }
