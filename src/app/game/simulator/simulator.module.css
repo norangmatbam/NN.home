@@ -86,3 +86,13 @@
 .priorityFirst{background:#e9effd;color:#3d5b9c}
 .prioritySecond{background:#f0eafa;color:#7955a3}
 .priorityOther{background:#eaf5f1;color:#3e8069}
+
+/* Shared pill-style disclosure controls. Native details keeps open state. */
+.expandPill{display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:none;padding:5px 10px;border:1px solid #cbd9ee;border-radius:999px;background:#eaf1fb;color:#42618f!important;font-size:11px!important;font-weight:750;line-height:1.25;white-space:nowrap}
+.expandPill .arrowUp{display:none}
+.priceDetails[open]>.priceSummary .arrowDown,.stepRecipe[open]>summary .arrowDown{display:none}
+.priceDetails[open]>.priceSummary .arrowUp,.stepRecipe[open]>summary .arrowUp{display:inline}
+.priceSummary>b.expandPill{margin-left:auto}
+.stepRecipe>summary{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.stepRecipe>summary .expandPill{margin-left:auto}
+.priceDetails[open] .priceSummary>b.expandPill span{transform:none}
