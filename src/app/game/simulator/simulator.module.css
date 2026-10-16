@@ -79,3 +79,10 @@
 
 .priorityBadge{display:inline-block;vertical-align:middle;margin-right:8px;padding:3px 7px;border-radius:7px;background:#e6edf9;color:#34558a;font-size:11px;font-weight:800;white-space:nowrap}
 .efficiencyLabel{font-size:12px;font-weight:750;color:#2f6981;white-space:nowrap}
+
+/* Compact numbered pills, positioned before the equipment name. */
+.planTitle{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.priorityBadge{display:inline-flex;align-items:center;justify-content:center;flex:none;margin-right:0;padding:4px 8px;border-radius:999px;font-size:10px;font-weight:800;line-height:1.25;white-space:nowrap}
+.priorityFirst{background:#e9effd;color:#3d5b9c}
+.prioritySecond{background:#f0eafa;color:#7955a3}
+.priorityOther{background:#eaf5f1;color:#3e8069}
