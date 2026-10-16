@@ -23,6 +23,7 @@ export default function GameSectionNav() {
             key={item.href}
             type="button"
             className={pathname === item.href ? 'on' : ''}
+            style={{ borderRadius: 8 }}
             onClick={() => router.push(item.href)}
           >
             {item.label}
