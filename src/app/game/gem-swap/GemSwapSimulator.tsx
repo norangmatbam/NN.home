@@ -7,10 +7,16 @@ import styles from './gemSwap.module.css';
 type Profile = { id: string; name: string; targets: string[]; gems: Gem[] };
 const KEY = 'nn-game-gem-swap-v1';
 const GEM_NAME = '온전한 스타프리즘';
+const normalizeTag = (value: unknown): string => {
+  const text = String(value ?? '').trim();
+  if (TAGS.includes(text)) return text;
+  const legacy = text.match(/^(강타|연타|이동|방해|보조|생존|원소|소환)(댐|쿨)$/);
+  if (legacy) return `${legacy[1]} ${legacy[2] === '댐' ? '댐증' : '쿨감'}`;
+  return '';
+};
 const safeCount = (value: unknown) => Math.max(1, Math.min(999, Math.floor(Number(value) || 1)));
-const blank = (): Gem => ({ id: Math.random().toString(36).slice(2), name: GEM_NAME, grade: '7성', count: 1, tags: ['', '', ''] });
+const blank = (): Gem => ({ id: Math.random().toString(36).slice(2), name: GEM_NAME, count: 1, tags: ['', '', ''] });
 const newProfile = (): Profile => ({ id: Math.random().toString(36).slice(2), name: '캐릭터 1', targets: ['', '', '', '', ''], gems: Array.from({ length: 22 }, blank) });
-const same = (a: string[], b: string[]) => a.every((v,i)=>v===b[i]);
 const defaults = () => [newProfile()];
 
 export default function GemSwapSimulator() {
@@ -28,10 +34,10 @@ export default function GemSwapSimulator() {
         if (Array.isArray(saved.profiles) && saved.profiles.length) {
           const valid = saved.profiles.slice(0, 16).map(p => ({
             id: String(p.id), name: String(p.name || '캐릭터'),
-            targets: Array.from({length:5},(_,i)=>String(p.targets?.[i] || '')),
+            targets: Array.from({length:5},(_,i)=>normalizeTag(p.targets?.[i])),
             gems: Array.isArray(p.gems) ? p.gems.slice(0,120).map(g => ({
-              id: String(g.id), name: GEM_NAME, grade: String(g.grade || '7성'), count: safeCount(g.count),
-              tags: Array.from({length:3},(_,i)=>String(g.tags?.[i] || '')),
+              id: String(g.id), name: GEM_NAME, count: safeCount(g.count),
+              tags: Array.from({length:3},(_,i)=>normalizeTag(g.tags?.[i])),
             })) : [],
           }));
           setProfiles(valid);
@@ -66,11 +72,10 @@ export default function GemSwapSimulator() {
       if (!Array.isArray(parsed.gems) || !Array.isArray(parsed.targets)) throw new Error();
       const profile: Profile = {
         id: Math.random().toString(36).slice(2), name: String(parsed.name || '가져온 캐릭터').slice(0,30),
-        targets: Array.from({length:5},(_,i)=>TAGS.includes(parsed.targets?.[i] as typeof TAGS[number]) ? String(parsed.targets?.[i]) : ''),
+        targets: Array.from({length:5},(_,i)=>normalizeTag(parsed.targets?.[i])),
         gems: parsed.gems.slice(0,120).map(g=>({
           id: Math.random().toString(36).slice(2), name: GEM_NAME, count: safeCount(g.count),
-          grade: String(g.grade||'7성'),
-          tags: Array.from({length:3},(_,i)=>TAGS.includes(g.tags?.[i] as typeof TAGS[number]) ? String(g.tags?.[i]) : ''),
+          tags: Array.from({length:3},(_,i)=>normalizeTag(g.tags?.[i])),
         })),
       };
       setProfiles(p=>[...p,profile].slice(-16)); setActiveId(profile.id); setShareText('');
@@ -126,9 +131,6 @@ export default function GemSwapSimulator() {
           <span className={styles.number}>{i+1}</span>
           <span className={styles.fixedName}>{GEM_NAME}</span>
           <label className={styles.quantity}><span>수량</span><input type="number" min={1} max={999} inputMode="numeric" aria-label={'보석 '+(i+1)+' 수량'} value={gem.count} onChange={e=>updateGem(gem.id,{count:safeCount(e.target.value)})}/></label>
-          <select className={styles.grade} aria-label={'보석 '+(i+1)+' 등급'} value={gem.grade} onChange={e=>updateGem(gem.id,{grade:e.target.value})}>
-            {['5성','6성','7성','8성','9성'].map(g=><option key={g}>{g}</option>)}
-          </select>
           <div className={styles.tagSet}>{gem.tags.map((tag,j)=><div key={j}>
             {tagSelect(tag,v=>updateGem(gem.id,{tags:gem.tags.map((t,k)=>k===j?v:t)}),'보석 '+(i+1)+' 태그 '+(j+1))}
           </div>)}</div>
