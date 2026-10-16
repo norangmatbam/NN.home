@@ -8,6 +8,7 @@ const ITEMS = [
   { label: '시뮬레이터 D', href: '/game/simulator-d' },
   { label: '드래케인', href: '/game/drakein' },
   { label: '데카', href: '/game/deca' },
+  { label: '보석 스왑', href: '/game/gem-swap' },
 ];
 
 export default function GameSectionNav() {
