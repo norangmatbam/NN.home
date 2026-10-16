@@ -17,7 +17,9 @@ export function stats(gems: Gem[], targets: string[][]): Stats {
   return {counts,two,one};
 }
 export function compareStats(a:Stats,b:Stats) {
-  const av=[...a.counts,a.two,a.one],bv=[...b.counts,b.two,b.one];
+  // Only completed ranked 3-tag combinations determine whether a swap is useful.
+  // Partial 1/2-tag matches must never trigger an otherwise pointless exchange.
+  const av=a.counts,bv=b.counts;
   for(let i=0;i<av.length;i++) if(av[i]!==bv[i])return av[i]>bv[i]?1:-1;
   return 0;
 }
