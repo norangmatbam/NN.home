@@ -33,3 +33,6 @@
 .comboTags .tagButton{min-height:36px;font-size:10px!important;letter-spacing:-.4px;padding:4px 1px!important;white-space:nowrap}
 .comboClear{order:initial;min-width:0;padding:6px 3px!important;font-size:10px!important}
 }
+
+.extraToggle{margin-top:9px;width:100%;min-height:34px;border-style:dashed!important;color:#64748b!important;background:#fff!important}
+.comboRow:first-child .tagButton{background:#e8f0ff!important;border-color:#a7c2e9!important}
