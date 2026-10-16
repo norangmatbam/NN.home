@@ -190,7 +190,7 @@ export default function GemSwapSimulator() {
             <div className={styles.sectionTitle}><h3>추천 결과</h3><span>{result.moves.length}회 교환</span></div>
             {statCards(result.stats)}
             <p className={styles.help}>우선순위별 완성 개수: {before.counts.map((n,i)=>`${i+1}순위 ${n}→${result.stats.counts[i]}`).join(' · ')}</p>
-            {result.moves.length===0?<p className={styles.help}>점수를 개선하는 단일 맞교환을 찾지 못했어요. 현재 배치가 이미 좋은 상태이거나 여러 단계를 거치는 교환이 필요할 수 있어요.</p>:
+            {result.moves.length===0?<p className={styles.help}>우선순위 조합의 완성 개수를 늘리는 교환을 찾지 못했어요. 현재 조합은 유지하는 편이 좋습니다. 단, 여러 단계를 거치는 더 나은 조합이 있을 가능성은 있어요.</p>:
               <ol className={styles.steps}>{result.moves.map((move:Swap,i)=><li key={i}>
                 <b>{i+1}단계</b> · 모든 보유 보석에서 <em>{move.from}</em>
                 {' ↔ '}<em>{move.to}</em> 태그를 일괄 교환
