@@ -1,11 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Gem, Swap, TAGS, optimize, stats } from './optimizer';
+import { Gem, Swap, TAGS, DEFAULT_TARGETS, optimize, stats } from './optimizer';
 import styles from './gemSwap.module.css';
 
-type Profile = { id: string; name: string; targets: string[]; gems: Gem[] };
+type Profile = { id: string; name: string; targets: string[][]; gems: Gem[] };
 const KEY = 'nn-game-gem-swap-v1';
+const normalizeTargets = (raw: unknown): string[][] => {
+  if (!Array.isArray(raw)) return DEFAULT_TARGETS.map(t=>[...t]);
+  if (!Array.isArray(raw[0])) return DEFAULT_TARGETS.map(t=>[...t]);
+  return Array.from({length:5},(_,i)=>uniqueTags(Array.isArray(raw[i])?raw[i]:[],3));
+};
 const GEM_NAME = '온전한 스타프리즘';
 const normalizeTag = (value: unknown): string => {
   const text = String(value ?? '').trim();
@@ -25,7 +30,7 @@ const uniqueTags = (values: unknown[], size: number) => {
 };
 const safeCount = (value: unknown) => Math.max(1, Math.min(999, Math.floor(Number(value) || 1)));
 const blank = (): Gem => ({ id: Math.random().toString(36).slice(2), name: GEM_NAME, count: 1, tags: ['', '', ''] });
-const newProfile = (): Profile => ({ id: Math.random().toString(36).slice(2), name: '캐릭터 1', targets: ['', '', '', '', ''], gems: Array.from({ length: 22 }, blank) });
+const newProfile = (): Profile => ({ id: Math.random().toString(36).slice(2), name: '캐릭터 1', targets: DEFAULT_TARGETS.map(t=>[...t]), gems: Array.from({ length: 22 }, blank) });
 const defaults = () => [newProfile()];
 
 export default function GemSwapSimulator() {
@@ -35,7 +40,7 @@ export default function GemSwapSimulator() {
   const [resultOpen, setResultOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [shareText, setShareText] = useState('');
-  const [picker, setPicker] = useState<{ kind: 'gem' | 'target'; id?: string; index: number } | null>(null);
+  const [picker, setPicker] = useState<{ kind: 'gem' | 'target'; id?: string; index: number; rank?: number } | null>(null);
   useEffect(() => {
     try {
       const raw = localStorage.getItem(KEY);
@@ -44,7 +49,7 @@ export default function GemSwapSimulator() {
         if (Array.isArray(saved.profiles) && saved.profiles.length) {
           const valid = saved.profiles.slice(0, 16).map(p => ({
             id: String(p.id), name: String(p.name || '캐릭터'),
-            targets: uniqueTags(p.targets ?? [], 5),
+            targets: normalizeTargets(p.targets),
             gems: Array.isArray(p.gems) ? p.gems.slice(0,120).map(g => ({
               id: String(g.id), name: GEM_NAME, count: safeCount(g.count),
               tags: uniqueTags(g.tags ?? [], 3),
@@ -69,9 +74,8 @@ export default function GemSwapSimulator() {
   const updateGem = (id:string, patch:Partial<Gem>) => update(p=>({...p,gems:p.gems.map(g=>g.id===id?{...g,...patch}:g)}));
   const filled = active.gems.filter(g=>g.tags.some(Boolean));
   const totalGems = active.gems.reduce((sum,g)=>sum+safeCount(g.count),0);
-  const valid = active.targets[0] && active.targets[1] && active.targets[2] &&
-    new Set(active.targets.slice(0,3)).size===3 &&
-    filled.length>=2 && filled.every(g=>g.tags.length===3 && g.tags.every(t=>TAGS.some(tag=>tag===t)));
+  const valid = active.targets.some(t=>t.every(Boolean)) && filled.length>=1 &&
+    filled.every(g=>g.tags.length===3 && g.tags.every(t=>TAGS.includes(t)));
   const result = useMemo(() => valid ? optimize(filled,active.targets) : null,
     // Profiles are immutable updates. Recompute only on actual changes.
     [active.gems,active.targets,valid]);
@@ -82,7 +86,7 @@ export default function GemSwapSimulator() {
       if (!Array.isArray(parsed.gems) || !Array.isArray(parsed.targets)) throw new Error();
       const profile: Profile = {
         id: Math.random().toString(36).slice(2), name: String(parsed.name || '가져온 캐릭터').slice(0,30),
-        targets: uniqueTags(parsed.targets ?? [], 5),
+        targets: normalizeTargets(parsed.targets),
         gems: parsed.gems.slice(0,120).map(g=>({
           id: Math.random().toString(36).slice(2), name: GEM_NAME, count: safeCount(g.count),
           tags: uniqueTags(g.tags ?? [], 3),
@@ -94,8 +98,9 @@ export default function GemSwapSimulator() {
   const chooseTag = (tag: string) => {
     if (!picker) return;
     if (picker.kind === 'target') {
-      if (tag && active.targets.some((t,i)=>i!==picker.index && t===tag)) return;
-      update(p=>({...p,targets:p.targets.map((t,i)=>i===picker.index?tag:t)}));
+      const rank = picker.rank ?? 0;
+      if (tag && active.targets[rank].some((t,i)=>i!==picker.index && t===tag)) return;
+      update(p=>({...p,targets:p.targets.map((row,i)=>i===rank?row.map((t,j)=>j===picker.index?tag:t):row)}));
     } else {
       const gem = active.gems.find(g=>g.id===picker.id);
       if (!gem || (tag && gem.tags.some((t,i)=>i!==picker.index && t===tag))) return;
@@ -108,18 +113,18 @@ export default function GemSwapSimulator() {
       onClick={onClick} aria-label={label} aria-haspopup="dialog">
       {value || '＋ 태그'}
     </button>;
-  const picked = picker?.kind === 'target' ? active.targets :
+  const picked = picker?.kind === 'target' ? active.targets[picker.rank ?? 0] :
     picker?.kind === 'gem' ? active.gems.find(g=>g.id===picker.id)?.tags ?? [] : [];
   const pickerValue = picker ? picked[picker.index] : '';
   const statCards = (s:ReturnType<typeof stats>) =>
     <div className={styles.stats}>
-      <div><small>1줄작</small><b>{s.one}</b></div><div><small>2줄작</small><b>{s.two}</b></div><div><small>3줄작</small><b>{s.three}</b></div>
+      {s.counts.map((n,i)=><div key={i}><small>{i+1}순위 조합</small><b>{n}개</b></div>)}
     </div>;
 
   return <main className={styles.wrap}>
     <header className={styles.header}>
       <h1>보석 태그 스왑 시뮬레이터</h1>
-      <p>전체 보석에 적용되는 태그 종류 맞교환으로 1·2·3줄작을 균형 있게 개선하는 경로를 추천합니다.</p>
+      <p>전체 보석의 태그를 교환해 1순위 조합부터 우선하여 완성 개수를 최대화합니다.</p>
     </header>
     <section className={styles.panel}>
       <div className={styles.sectionTitle}><h2>캐릭터</h2><button onClick={()=>{
@@ -139,14 +144,17 @@ export default function GemSwapSimulator() {
       </div>
     </section>
     <section className={styles.panel}>
-      <div className={styles.sectionTitle}><h2>목표 태그 우선순위</h2><span>1~3순위 필수 · 4~5순위 선택</span></div>
-      <div className={styles.targetGrid}>
-        {active.targets.map((tag,i)=><label key={i}><span>{i+1}순위</span>
-          {tagButton(tag,()=>setPicker({kind:'target',index:i}),'목표 '+(i+1)+'순위 태그 선택')}
-        </label>)}
+      <div className={styles.sectionTitle}><h2>목표 태그 조합 우선순위</h2><span>각 순위마다 3태그 · 아래 순위는 선택</span></div>
+      <div className={styles.comboList}>
+        {active.targets.map((tags,rank)=><div className={styles.comboRow} key={rank}>
+          <b>{rank+1}순위 {rank===0?'· 최우선':''}</b>
+          <div className={styles.comboTags}>{tags.map((tag,index)=>
+            tagButton(tag,()=>setPicker({kind:'target',rank,index}),rank+1+'순위 조합 '+(index+1)+'번째 태그 선택')
+          )}</div>
+          {rank>1&&<button type="button" className={styles.comboClear} onClick={()=>update(p=>({...p,targets:p.targets.map((t,i)=>i===rank?['','','']:t)}))}>비우기</button>}
+        </div>)}
       </div>
-      <p className={styles.help}>같은 태그 조합의 온전한 스타프리즘은 한 줄에 입력하고 수량을 늘리면 됩니다. 줄작 개수와 추천 계산에도 해당 수량이 반영됩니다.</p>
-      <p className={styles.help}>1줄작 = 1순위 포함, 2줄작 = 1·2순위 포함, 3줄작 = 1·2·3순위 포함. 현재 균형 점수는 1·2·3순위를 기준으로 합니다.</p>
+      <p className={styles.help}>1순위: 원소·강타·방해 올댐증 / 2순위: 원소·강타·연타 올댐증. 1순위 완성 개수를 최대로 올리고, 동률이면 2순위 개수를 비교해요. 3~5순위도 같은 방식이에요.</p>
     </section>
     <section className={styles.panel}>
       <div className={styles.sectionTitle}><h2>보유 보석 <small>{totalGems}개 · {active.gems.length}줄</small></h2>
@@ -171,13 +179,13 @@ export default function GemSwapSimulator() {
     <section className={styles.panel}>
       <div className={styles.sectionTitle}><h2>균형 최적화</h2><span>모든 보석에 동일하게 적용되는 태그 교환</span></div>
       <div className={styles.before}><span>현재 줄작</span>{statCards(before)}</div>
-      {!valid ? <p className={styles.help}>서로 다른 1~3순위 태그를 선택하고, 태그 3개가 모두 입력된 보석을 2개 이상 등록하면 추천이 계산됩니다. 일부 태그만 입력한 보석이 있으면 먼저 완성해 주세요.</p> :
+      {!valid ? <p className={styles.help}>3개 태그로 완성된 목표 조합과 보석을 한 개 이상 입력하면 추천이 계산됩니다. 일부 태그만 입력한 보석이 있으면 먼저 완성해 주세요.</p> :
         <>
           <button className={styles.primary} onClick={()=>setResultOpen(true)}>스왑 추천 결과 보기</button>
           {resultOpen&&result&&<div className={styles.result}>
             <div className={styles.sectionTitle}><h3>추천 결과</h3><span>{result.moves.length}회 교환</span></div>
             {statCards(result.stats)}
-            <p className={styles.help}>현재 → 추천: 1줄작 {before.one} → {result.stats.one}, 2줄작 {before.two} → {result.stats.two}, 3줄작 {before.three} → {result.stats.three}</p>
+            <p className={styles.help}>우선순위별 완성 개수: {before.counts.map((n,i)=>`${i+1}순위 ${n}→${result.stats.counts[i]}`).join(' · ')}</p>
             {result.moves.length===0?<p className={styles.help}>점수를 개선하는 단일 맞교환을 찾지 못했어요. 현재 배치가 이미 좋은 상태이거나 여러 단계를 거치는 교환이 필요할 수 있어요.</p>:
               <ol className={styles.steps}>{result.moves.map((move:Swap,i)=><li key={i}>
                 <b>{i+1}단계</b> · 모든 보유 보석에서 <em>{move.from}</em>
@@ -202,7 +210,7 @@ export default function GemSwapSimulator() {
       <div className={styles.pickerPanel} role="dialog" aria-modal="true" aria-label="스킬 태그 선택"
         onClick={e=>e.stopPropagation()}>
         <div className={styles.pickerTop}>
-          <b>{picker.kind==='target' ? '목표 '+(picker.index+1)+'순위' : '보석 태그 '+(picker.index+1)} 선택</b>
+          <b>{picker.kind==='target' ? '목표 '+((picker.rank??0)+1)+'순위 · '+(picker.index+1)+'번째 태그' : '보석 태그 '+(picker.index+1)} 선택</b>
           <div>
             <button type="button" onClick={()=>chooseTag('')}>비우기</button>
             <button type="button" onClick={()=>setPicker(null)}>닫기 ×</button>
