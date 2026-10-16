@@ -86,7 +86,7 @@ export default function GemSwapSimulator() {
   return <main className={styles.wrap}>
     <header className={styles.header}>
       <h1>보석 태그 스왑 시뮬레이터</h1>
-      <p>보유 보석의 태그를 서로 맞교환하여 1·2·3줄작을 균형 있게 개선하는 경로를 추천합니다.</p>
+      <p>전체 보석에 적용되는 태그 종류 맞교환으로 1·2·3줄작을 균형 있게 개선하는 경로를 추천합니다.</p>
     </header>
     <section className={styles.panel}>
       <div className={styles.sectionTitle}><h2>캐릭터</h2><button onClick={()=>{
@@ -137,7 +137,7 @@ export default function GemSwapSimulator() {
       </div>
     </section>
     <section className={styles.panel}>
-      <div className={styles.sectionTitle}><h2>균형 최적화</h2><span>입력한 태그만 교환 · 태그 총량 유지</span></div>
+      <div className={styles.sectionTitle}><h2>균형 최적화</h2><span>모든 보석에 동일하게 적용되는 태그 교환</span></div>
       <div className={styles.before}><span>현재 줄작</span>{statCards(before)}</div>
       {!valid ? <p className={styles.help}>서로 다른 1~3순위 태그를 선택하고, 태그 3개가 모두 입력된 보석을 2개 이상 등록하면 추천이 계산됩니다. 일부 태그만 입력한 보석이 있으면 먼저 완성해 주세요.</p> :
         <>
@@ -148,8 +148,8 @@ export default function GemSwapSimulator() {
             <p className={styles.help}>현재 → 추천: 1줄작 {before.one} → {result.stats.one}, 2줄작 {before.two} → {result.stats.two}, 3줄작 {before.three} → {result.stats.three}</p>
             {result.moves.length===0?<p className={styles.help}>점수를 개선하는 단일 맞교환을 찾지 못했어요. 현재 배치가 이미 좋은 상태이거나 여러 단계를 거치는 교환이 필요할 수 있어요.</p>:
               <ol className={styles.steps}>{result.moves.map((move:Swap,i)=><li key={i}>
-                <b>{i+1}단계</b> · <strong>{filled[move.a].name||'보석 '+(move.a+1)}</strong> {move.ai+1}번 태그 <em>{move.from}</em>
-                {' ↔ '}<strong>{filled[move.b].name||'보석 '+(move.b+1)}</strong> {move.bi+1}번 태그 <em>{move.to}</em>
+                <b>{i+1}단계</b> · 모든 보유 보석에서 <em>{move.from}</em>
+                {' ↔ '}<em>{move.to}</em> 태그를 일괄 교환
               </li>)}</ol>}
             <details><summary>추천 결과 보석별 태그 확인</summary>
               <div className={styles.finalList}>{result.gems.map((g,i)=><div key={g.id}><b>{g.name||'보석 '+(i+1)}</b> <span>{g.tags.join(' · ')}</span></div>)}</div>
@@ -157,7 +157,7 @@ export default function GemSwapSimulator() {
             <button className={styles.secondary} onClick={()=>{if(window.confirm('추천 결과를 현재 보석 태그에 적용할까요?'))update(p=>({...p,gems:p.gems.map(g=>result.gems.find(r=>r.id===g.id)??g)}));}}>추천 배치 적용</button>
           </div>}
         </>}
-      <p className={styles.help}>현재 버전은 여러 경로를 탐색하는 탐욕적 개선 방식입니다. 전역 최적 조합을 보장하지 않으며, 게임에서 실제 교환하기 전에 단계별 태그를 확인해 주세요.</p>
+      <p className={styles.help}>게임의 태그 종류 일괄 교환 규칙을 기준으로 합니다. 현재 버전은 여러 경로를 탐색하는 탐욕적 개선 방식입니다. 전역 최적 조합을 보장하지 않으며, 게임에서 실제 교환하기 전에 단계별 태그를 확인해 주세요.</p>
     </section>
     <section className={styles.panel}>
       <h2>캐릭터 데이터 내보내기 · 가져오기</h2>
