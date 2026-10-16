@@ -102,3 +102,27 @@
 
 /* Game tools: consistent 8px button corners and disclosure controls. */
 .wrap button,.wrap summary .expandPill,.wrap .foldToggle{border-radius:8px!important}
+
+
+/* Compact current-equipment editor: rune and infusion input share a row. */
+.cardBody{grid-template-columns:minmax(0,1fr) minmax(0,1.45fr);align-items:end;column-gap:10px}
+.cardBody>.runeButton{grid-column:1;min-width:0;height:40px;padding:6px 9px;font-size:12px}
+.cardBody>.bonusInput{grid-column:2;min-width:0}
+.cardBody>.bonusInput>div{min-width:0}
+.cardBody>.bonusInput input{min-width:0}
+.cardBody>.stageBox,.cardBody>.emblemInfo{grid-column:1/-1}
+.cardBody:has(>.emblemInfo)>.runeButton{grid-column:1/-1}
+/* Place each step's recipe below its title/price row, using full width. */
+.priceStep>.stepHeadline{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;width:100%}
+.priceStep>.stepHeadline>b{min-width:0;overflow-wrap:anywhere}
+.priceStep>.stepHeadline>strong{flex:none}
+.priceStep>.stepRecipe{width:100%;min-width:0}
+.priceStep>.stepRecipe>summary{justify-content:flex-start}
+.priceStep>.stepRecipe>summary>.expandPill{margin-left:0}
+.priceStep>.stepRecipe .stepRecipeRows{width:100%;box-sizing:border-box}
+@media(max-width:420px){
+.cardBody{grid-template-columns:minmax(0,0.95fr) minmax(0,1.45fr);column-gap:8px}
+.cardBody>.runeButton{font-size:11px;padding:6px}
+.cardBody>.bonusInput>span{font-size:11px}
+.cardBody>.bonusInput input{padding:0 5px}
+}
