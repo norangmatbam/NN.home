@@ -39,6 +39,7 @@ export default function GemSwapSimulator() {
   const [loaded, setLoaded] = useState(false);
   const [resultOpen, setResultOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [showExtraTargets, setShowExtraTargets] = useState(false);
   const [shareText, setShareText] = useState('');
   const [picker, setPicker] = useState<{ kind: 'gem' | 'target'; id?: string; index: number; rank?: number } | null>(null);
   useEffect(() => {
@@ -144,9 +145,9 @@ export default function GemSwapSimulator() {
       </div>
     </section>
     <section className={styles.panel}>
-      <div className={styles.sectionTitle}><h2>목표 태그 조합 우선순위</h2><span>각 순위마다 3태그 · 아래 순위는 선택</span></div>
+      <div className={styles.sectionTitle}><h2>목표 조합</h2><span>1순위부터 우선 적용</span></div>
       <div className={styles.comboList}>
-        {active.targets.map((tags,rank)=><div className={styles.comboRow} key={rank}>
+        {active.targets.map((tags,rank)=>rank>1&&!showExtraTargets?null:<div className={styles.comboRow} key={rank}>
           <b>{rank+1}순위 {rank===0?'· 최우선':''}</b>
           <div className={styles.comboTags}>{tags.map((tag,index)=>
             tagButton(tag,()=>setPicker({kind:'target',rank,index}),rank+1+'순위 조합 '+(index+1)+'번째 태그 선택')
@@ -154,7 +155,10 @@ export default function GemSwapSimulator() {
           {rank>1&&<button type="button" className={styles.comboClear} onClick={()=>update(p=>({...p,targets:p.targets.map((t,i)=>i===rank?['','','']:t)}))}>비우기</button>}
         </div>)}
       </div>
-      <p className={styles.help}>1순위: 원소·강타·방해 올댐증 / 2순위: 원소·강타·연타 올댐증. 1순위 완성 개수를 최대로 올리고, 동률이면 2순위 개수를 비교해요. 3~5순위도 같은 방식이에요.</p>
+      <button type="button" className={styles.extraToggle} onClick={()=>setShowExtraTargets(v=>!v)}>
+        {showExtraTargets?'3~5순위 접기 ▲':'＋ 3~5순위 목표 설정'}
+      </button>
+      <p className={styles.help}>1순위 조합 개수를 최대화하고, 같으면 2순위를 비교합니다. 나머지 순위도 같은 방식이에요.</p>
     </section>
     <section className={styles.panel}>
       <div className={styles.sectionTitle}><h2>보유 보석 <small>{totalGems}개 · {active.gems.length}줄</small></h2>
