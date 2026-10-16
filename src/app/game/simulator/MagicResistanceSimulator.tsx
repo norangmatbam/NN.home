@@ -854,12 +854,21 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
       groups.set(key, group);
     }
 
-    return Array.from(groups.values()).map(group => ({
+    const grouped = Array.from(groups.values()).map(group => ({
       ...group,
       method: group.methods.size === 1 ? group.method : '혼합',
       itemName: group.items.size === 1 ? group.itemName : '재질별 최저가 혼합',
     }));
-  }, [activePlan]);
+    if (mode === 'D') {
+      // Compare the cost to gain exactly +14 resistance; zero-cost options rank first.
+      grouped.sort((a, b) => {
+        const aEfficiency = a.totalDelta > 0 ? a.totalCost / a.totalDelta : Infinity;
+        const bEfficiency = b.totalDelta > 0 ? b.totalCost / b.totalDelta : Infinity;
+        return aEfficiency - bEfficiency || a.totalCost - b.totalCost || a.label.localeCompare(b.label, 'ko');
+      });
+    }
+    return grouped;
+  }, [activePlan, mode]);
 
   const planGradeTotals = useMemo(() => {
     const out = { 해연: 0, 잔영: 0, 룬: 0 };
@@ -1206,7 +1215,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
                 <article className={styles.planCard} key={[group.slot, group.kind, group.method, index].join('-')}>
                   <div className={styles.planCardTop}>
                     <div>
-                      <b>{group.label} {group.kind === '룬' ? '10성 룬' : group.kind}</b>
+                      <b>{mode === 'D' && <span className={styles.priorityBadge}>{index + 1}순위</span>}{group.label} {group.kind === '룬' ? '10성 룬' : group.kind}</b>
                       <small>{group.itemName}</small>
                     </div>
                     <strong>{fmt(group.totalCost)}<small> 데카</small></strong>
@@ -1218,6 +1227,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
                     </span>
                     <b>{group.count}개</b>
                     <span>마도저항 +{fmt(group.totalDelta)}</span>
+                    {mode === 'D' && group.totalDelta > 0 && <span className={styles.efficiencyLabel}>+14당 {fmt(Math.ceil(group.totalCost * 14 / group.totalDelta))} 데카</span>}
                   </div>
 
                   {group.kind !== '룬' && (
