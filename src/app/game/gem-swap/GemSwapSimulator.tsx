@@ -6,6 +6,7 @@ import styles from './gemSwap.module.css';
 
 type Profile = { id: string; name: string; targets: string[][]; gems: Gem[] };
 const KEY = 'nn-game-gem-swap-v1';
+const FOLD_KEY = 'nn-game-gem-swap-inventory-open-v1';
 const normalizeTargets = (raw: unknown): string[][] => {
   if (!Array.isArray(raw)) return DEFAULT_TARGETS.map(t=>[...t]);
   if (!Array.isArray(raw[0])) return DEFAULT_TARGETS.map(t=>[...t]);
@@ -39,6 +40,7 @@ export default function GemSwapSimulator() {
   const [loaded, setLoaded] = useState(false);
   const [resultOpen, setResultOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(true);
   const [showExtraTargets, setShowExtraTargets] = useState(false);
   const [shareText, setShareText] = useState('');
   const [picker, setPicker] = useState<{ kind: 'gem' | 'target'; id?: string; index: number; rank?: number } | null>(null);
@@ -61,12 +63,23 @@ export default function GemSwapSimulator() {
         }
       }
     } catch {}
+    try { const saved = localStorage.getItem(FOLD_KEY); if(saved !== null) setInventoryOpen(saved === 'true'); } catch {}
     setLoaded(true);
   }, []);
   useEffect(() => {
     if (!loaded) return;
     try { localStorage.setItem(KEY, JSON.stringify({profiles,activeId})); } catch {}
   }, [profiles, activeId, loaded]);
+  const toggleInventory = () => setInventoryOpen(prev => {
+    const next = !prev;
+    try { localStorage.setItem(FOLD_KEY, String(next)); } catch {}
+    return next;
+  });
+  const jumpPage = (where: 'top' | 'bottom') => {
+    const scroller = document.getElementById('appMain');
+    if (scroller) scroller.scrollTo({ top: where === 'top' ? 0 : scroller.scrollHeight, behavior: 'smooth' });
+    else window.scrollTo({ top: where === 'top' ? 0 : document.documentElement.scrollHeight, behavior: 'smooth' });
+  };
   const active = profiles.find(p=>p.id===activeId) || profiles[0];
   const update = (change: (p:Profile)=>Profile) => {
     setProfiles(current=>current.map(p=>p.id===active.id ? change(p) : p));
@@ -162,7 +175,9 @@ export default function GemSwapSimulator() {
     </section>
     <section className={styles.panel}>
       <div className={styles.sectionTitle}><h2>보유 보석 <small>{totalGems}개 · {active.gems.length}줄</small></h2>
-        <button onClick={()=>update(p=>({...p,gems:[...p.gems,...Array.from({length:4},blank)].slice(0,120)}))}>+ 4개 추가</button></div>
+        <button type="button" aria-expanded={inventoryOpen} aria-controls="gem-swap-inventory" onClick={toggleInventory}>{inventoryOpen ? '접기 ▲' : '펼치기 ▼'}</button></div>
+      {inventoryOpen && <div id="gem-swap-inventory">
+      <div className={styles.inventoryAdd}><button type="button" onClick={()=>update(p=>({...p,gems:[...p.gems,...Array.from({length:4},blank)].slice(0,120)}))}>+ 4개 추가</button></div>
       <div className={styles.gemList}>
         {(showAll?active.gems:active.gems.slice(0,22)).map((gem,i)=><div className={styles.gemRow} key={gem.id}>
           <span className={styles.number}>{i+1}</span>
@@ -179,6 +194,7 @@ export default function GemSwapSimulator() {
         <button className={styles.secondary} onClick={()=>update(p=>({...p,gems:[...p.gems,blank()]}))}>+ 보석 1개</button>
         <button className={styles.secondary} onClick={()=>{if(window.confirm('현재 캐릭터의 보석을 비울까요?'))update(p=>({...p,gems:Array.from({length:22},blank)}));}}>보석 초기화</button>
       </div>
+      </div>}
     </section>
     <section className={styles.panel}>
       <div className={styles.sectionTitle}><h2>균형 최적화</h2><span>모든 보석에 동일하게 적용되는 태그 교환</span></div>
@@ -210,6 +226,10 @@ export default function GemSwapSimulator() {
       <button className={styles.secondary} disabled={!shareText.trim()} onClick={saveImport}>붙여넣은 캐릭터 가져오기</button>
       <p className={styles.help}>데이터는 이 브라우저에 자동 저장됩니다. 다른 기기에서는 JSON으로 옮길 수 있어요.</p>
     </section>
+    <nav className={styles.floatNav} aria-label="페이지 위치 이동">
+      <button type="button" onClick={()=>jumpPage('top')}>↑ 맨 위</button>
+      <button type="button" onClick={()=>jumpPage('bottom')}>↓ 맨 아래</button>
+    </nav>
     {picker && <div className={styles.pickerBackdrop} onClick={()=>setPicker(null)}>
       <div className={styles.pickerPanel} role="dialog" aria-modal="true" aria-label="스킬 태그 선택"
         onClick={e=>e.stopPropagation()}>
