@@ -802,6 +802,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
       methods: Set<string>;
       items: Set<string>;
       unitCosts: number[];
+      steps: PlanStep[];
     }>();
 
     for (const step of activePlan.steps) {
@@ -824,10 +825,12 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
         methods: new Set<string>(),
         items: new Set<string>(),
         unitCosts: [],
+        steps: [],
       };
       group.methods.add(method);
       group.items.add(itemName);
       group.unitCosts.push(step.cost);
+      group.steps.push(step);
       group.count += 1;
       group.totalDelta += step.delta;
       group.totalCost += step.cost;
@@ -1201,17 +1204,26 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
                   </div>
 
                   {group.kind !== '룬' && (
-                    <div className={styles.compareRow}>
-                      {group.count > 1 && <span>단가 {fmt(Math.min(...group.unitCosts))}~{fmt(Math.max(...group.unitCosts))} 데카</span>}
-                      {group.count === 1 && <>
-                        <span className={group.method === '제작' ? styles.chosenMethod : ''}>
-                          제작 {group.craftCost != null ? fmt(group.craftCost) + ' /개' : group.craftComplete ? '시세 부족' : '잔영 재료 미완성'}
-                        </span>
-                        <span className={group.method === '구매' ? styles.chosenMethod : ''}>
-                          구매 {group.purchaseCost != null ? fmt(group.purchaseCost) + ' /개' : '매물 없음'}
-                        </span>
-                      </>}
-                    </div>
+                    <details className={styles.priceDetails}>
+                      <summary className={styles.priceSummary}>
+                        <span>단가 {fmt(Math.min(...group.unitCosts))}{group.count > 1 ? ' ~ ' + fmt(Math.max(...group.unitCosts)) : ''} 데카</span>
+                        <b>상세보기 <span aria-hidden="true">⌄</span></b>
+                      </summary>
+                      <div className={styles.priceBreakdown}>
+                        <p>같은 부위라도 중간 단계 재질·보유 재료 사용량·제작/구매 방식에 따라 가격이 달라질 수 있어요.</p>
+                        {group.steps.map((step,i)=>(
+                          <div className={styles.priceStep} key={i}>
+                            <div><b>{i+1}회차 · {step.acquisition?.itemName ?? group.itemName}</b>
+                              <strong>{fmt(step.cost)} 데카</strong></div>
+                            <small>{step.acquisition?.method ?? '확인 필요'} · 마도저항 +{fmt(step.delta)}
+                              {i===group.steps.length-1 ? ' · 마지막 단계' : ' · 중간 단계'}</small>
+                            <small>제작 {step.acquisition?.craftCost == null ? '조회 불가' : fmt(step.acquisition.craftCost)+' 데카'}
+                              {' / '}구매 {step.acquisition?.purchaseCost == null ? '매물 없음' : fmt(step.acquisition.purchaseCost)+' 데카'}</small>
+                          </div>
+                        ))}
+                        <div className={styles.priceTotal}><b>합계 · {group.count}개</b><strong>{fmt(group.totalCost)} 데카</strong></div>
+                      </div>
+                    </details>
                   )}
                 </article>
               ))}
