@@ -96,3 +96,6 @@
 .stepRecipe>summary{display:flex;align-items:center;gap:8px;justify-content:space-between}
 .stepRecipe>summary .expandPill{margin-left:auto}
 .priceDetails[open] .priceSummary>b.expandPill span{transform:none}
+
+/* Price details use a softer rectangle; recipe details retain pill corners. */
+.priceSummary > .expandPill{border-radius:8px}
