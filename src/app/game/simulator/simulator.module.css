@@ -56,3 +56,19 @@
   .sectionHead{flex-wrap:wrap}.planSummary{grid-template-columns:1fr 1fr}.planSummary>div:last-child{grid-column:1/-1;border-left:0;border-top:1px solid var(--s-line2)}.costHero>strong{font-size:27px}.planCards{padding:10px}.compareRow{grid-template-columns:1fr}.planCardTop small{white-space:normal}
   .floatNav{right:14px;bottom:calc(74px + env(safe-area-inset-bottom))}.floatNav button{height:34px;padding:0 11px}
 }
+
+
+.priceDetails{margin-top:9px;border:1px solid #dfe5ef;border-radius:9px;overflow:hidden;background:#f8fafd}
+.priceSummary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:43px;padding:10px 12px;cursor:pointer;color:#69788e;font-size:12px}
+.priceSummary::-webkit-details-marker{display:none}
+.priceSummary>b{color:#43618f;font-size:11px;white-space:nowrap}
+.priceDetails[open] .priceSummary{border-bottom:1px solid #e2e9f2}
+.priceDetails[open] .priceSummary>b span{display:inline-block;transform:rotate(180deg)}
+.priceBreakdown{padding:10px 12px;background:#fff}
+.priceBreakdown>p{margin:0 0 10px;color:#7a879a;font-size:11px;line-height:1.6}
+.priceStep{padding:9px 0;border-top:1px solid #edf0f5;display:grid;gap:4px}
+.priceStep>div,.priceTotal{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.priceStep b,.priceTotal b{font-size:12px;color:#2e3c55}
+.priceStep strong,.priceTotal strong{font-size:12px;color:#9b7227;white-space:nowrap}
+.priceStep small{font-size:11px;color:#7a879a;line-height:1.5}
+.priceTotal{padding-top:12px;margin-top:3px;border-top:1px solid #dfe5ef}
