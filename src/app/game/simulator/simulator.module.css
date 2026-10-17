@@ -167,3 +167,12 @@
 .overrideRow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-top:1px solid #edf0f6}
 .overrideRow span{min-width:0;overflow-wrap:anywhere;font-size:12px;color:#445570}
 .overrideRow button{flex:none}
+
+/* The manual correction belongs to the recommendation, not between sections. */
+.recommend>.priceOverridePanel{margin:14px 14px 12px;padding:0;border:0;background:transparent;border-radius:8px}
+.recommend>.priceOverridePanel .overrideToggle{border-radius:8px}
+.recommend>.priceOverridePanel .priceOverrideBody{padding:12px;margin-top:8px;border:1px solid #e0e6f0;border-radius:8px;background:#fff}
+.recommend>.priceOverridePanel+.costHero{margin-top:0}
+@media(max-width:640px){
+.recommend>.priceOverridePanel{margin:12px 12px 14px}
+}
