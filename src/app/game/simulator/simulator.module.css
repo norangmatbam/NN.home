@@ -126,3 +126,9 @@
 .cardBody>.bonusInput>span{font-size:11px}
 .cardBody>.bonusInput input{padding:0 5px}
 }
+
+/* Give soul-stone names and their farming badges more room. */
+.stepRecipeRows>div{grid-template-columns:minmax(0,1fr) 33px 76px;gap:3px}
+.stepRecipeRows>div>span:first-child{min-width:0}
+.stepRecipeRows>div>b{white-space:nowrap}
+.stepRecipeRows>div>span:last-child{white-space:nowrap}
