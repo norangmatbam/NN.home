@@ -61,3 +61,16 @@
 .checkWrap span{font-size:12px}
 .sharedNote{font-size:9px;margin-top:1px}
 }
+
+/* Narrower spreadsheet columns, including the frozen task column. */
+.table{table-layout:fixed}
+.table th,.table td{min-width:52px;padding-left:2px;padding-right:2px}
+.table .taskHead,.table .taskName,.table tfoot th:first-child{width:100px;min-width:100px;max-width:100px}
+.table .charHead{width:61px;min-width:61px;max-width:61px;padding-left:2px;padding-right:2px}
+.table .taskName{padding-left:6px;font-size:11px}
+@media(max-width:640px){
+.table th,.table td{min-width:48px;padding-left:1px;padding-right:1px}
+.table .taskHead,.table .taskName,.table tfoot th:first-child{width:87px;min-width:87px;max-width:87px}
+.table .charHead{width:54px;min-width:54px;max-width:54px;font-size:10px}
+.table .taskName{padding-left:5px;font-size:11px}
+}
