@@ -103,6 +103,29 @@ export default function ChoreTracker(){
       +data.characters.filter(c=>!c.soulGroup&&checked(t.id,c.id)).length
     : data.characters.filter(c=>checked(t.id,c.id)).length),0);
   const progress=total?Math.round(done/total*100):0;
+  // Place grouped characters together where their earliest registered member appears.
+  // Ungrouped characters retain their own registration positions.
+  const orderedCharacters: Character[] = [];
+  const seenGroups=new Set<string>();
+  for(const c of data.characters){
+    if(!c.soulGroup){orderedCharacters.push(c);continue;}
+    if(seenGroups.has(c.soulGroup))continue;
+    seenGroups.add(c.soulGroup);
+    orderedCharacters.push(...data.characters.filter(other=>other.soulGroup===c.soulGroup));
+  }
+  const soulCell=(task: Task, c: Character, index: number)=>{
+    const group=c.soulGroup;
+    if(group && index>0 && orderedCharacters[index-1].soulGroup===group)return null;
+    const members=group?orderedCharacters.filter(other=>other.soulGroup===group):[c];
+    return <td key={c.id} colSpan={members.length} className={styles.sharedCell}>
+      <label className={styles.checkWrap}>
+        <input type="checkbox" aria-label={group?'소울 구매 그룹 '+group+' ('+members.map(m=>m.name).join(', ')+')':c.name+' '+task.name}
+          checked={checked(task.id,c.id)} onChange={()=>toggle(task.id,c.id)}/>
+        <span aria-hidden="true">✓</span>
+      </label>
+      {group && <span className={styles.sharedGroupCaption}>그룹 {group} 공용</span>}
+    </td>;
+  };
   const addTask=()=>{const name=taskName.trim();if(!name)return;update(d=>({...d,tasks:[...d.tasks,{id:uid(),name,category}]}));setTaskName('');};
   const addChar=()=>{const name=charName.trim();if(!name)return;update(d=>({...d,characters:[...d.characters,{id:uid(),name,job:'',power:'',role:'',soulGroup:''}]}));setCharName('');};
   const rename=(id:string,name:string)=>update(d=>({...d,characters:d.characters.map(c=>c.id===id?{...c,name}:c)}));
@@ -137,16 +160,20 @@ export default function ChoreTracker(){
         <button type="button" onClick={()=>changeZoom(40)}>전체 보기</button>
       </div>
       <div className={styles.tableScroll}><table className={styles.table} style={{zoom: zoom / 100}}>
-        <thead><tr><th className={styles.taskHead}>구분 · 숙제</th>{data.characters.map(c=><th key={c.id} className={styles.charHead}><span>{c.name}</span></th>)}</tr></thead>
+        <thead><tr><th className={styles.taskHead}>구분 · 숙제</th>{orderedCharacters.map(c=><th key={c.id} className={styles.charHead}><span>{c.name}</span></th>)}</tr></thead>
         <tbody>{(['주간','주말'] as Category[]).map(cat=><>
-          <tr className={styles.groupRow} key={cat+'title'}><th>{cat}</th>{data.characters.map(c=><td key={c.id} />)}</tr>
-          {data.tasks.filter(t=>t.category===cat).map(t=><tr key={t.id}><th className={styles.taskName}>{t.name}{isSharedSoul(t)&&<small className={styles.sharedNote}>그룹별 1회 · 개별 별도</small>}</th>{data.characters.map(c=><td key={c.id} className={isSharedSoul(t)?styles.sharedCell:undefined}>
-            {isSharedSoul(t)&&c.soulGroup&&data.characters.find(x=>x.soulGroup===c.soulGroup)?.id!==c.id
-              ? <span className={styles.sharedDash} aria-label={'그룹 '+c.soulGroup+' 공용 체크에 포함'}>그룹 {c.soulGroup}</span>
-              : <label className={styles.checkWrap}><input type="checkbox" aria-label={c.name+' '+t.name+(c.soulGroup?' 그룹 '+c.soulGroup:'')} checked={checked(t.id,c.id)} onChange={()=>toggle(t.id,c.id)}/><span aria-hidden="true">✓</span></label>}
-          </td>)}</tr>)}
+          <tr className={styles.groupRow} key={cat+'title'}><th>{cat}</th>{orderedCharacters.map(c=><td key={c.id} />)}</tr>
+          {data.tasks.filter(t=>t.category===cat).map(t=><tr key={t.id}>
+            <th className={styles.taskName}>{t.name}{isSharedSoul(t)&&<small className={styles.sharedNote}>그룹별 1회 · 개별 별도</small>}</th>
+            {isSharedSoul(t)
+              ? orderedCharacters.map((c,index)=>soulCell(t,c,index))
+              : orderedCharacters.map(c=><td key={c.id}>
+                  <label className={styles.checkWrap}><input type="checkbox" aria-label={c.name+' '+t.name}
+                    checked={checked(t.id,c.id)} onChange={()=>toggle(t.id,c.id)}/><span aria-hidden="true">✓</span></label>
+                </td>)}
+          </tr>)}
         </>)}</tbody>
-        <tfoot><tr><th>완료</th>{data.characters.map(c=><td key={c.id}>{data.tasks.filter(t=>(!isSharedSoul(t)||!c.soulGroup||data.characters.find(x=>x.soulGroup===c.soulGroup)?.id===c.id)&&checked(t.id,c.id)).length}/{data.tasks.filter(t=>!isSharedSoul(t)||!c.soulGroup||data.characters.find(x=>x.soulGroup===c.soulGroup)?.id===c.id).length}</td>)}</tr></tfoot>
+        <tfoot><tr><th>완료</th>{orderedCharacters.map(c=><td key={c.id}>{data.tasks.filter(t=>(!isSharedSoul(t)||!c.soulGroup||data.characters.find(x=>x.soulGroup===c.soulGroup)?.id===c.id)&&checked(t.id,c.id)).length}/{data.tasks.filter(t=>!isSharedSoul(t)||!c.soulGroup||data.characters.find(x=>x.soulGroup===c.soulGroup)?.id===c.id).length}</td>)}</tr></tfoot>
       </table></div>
     </section>
     <section className={styles.panel}><div className={styles.footerRow}><b>이번 주 체크 초기화</b><button onClick={()=>{if(window.confirm('이번 주 모든 캐릭터의 체크를 초기화할까요?'))update(d=>({...d,checks:{}}));}}>전체 체크 해제</button></div></section>
