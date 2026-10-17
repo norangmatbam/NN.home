@@ -154,3 +154,16 @@
 .actualMaterialRow>span:nth-child(2){font-size:11px;color:#667993;white-space:normal;text-align:left!important}
 .actualMaterialRow>b{font-size:11px;color:#a4762f;white-space:nowrap;text-align:right}
 .costIncreaseNote{font-size:11px;color:#985b2a;background:#fff7e8;border-radius:8px;padding:8px;margin-top:6px;line-height:1.55}
+
+/* Simulator D market-price corrections */
+.priceOverridePanel{background:#fff;border:1px solid #e0e6f0;border-radius:12px;padding:12px;min-width:0}
+.overrideToggle{display:block;width:100%;text-align:left;border:1px solid #d5dfed;border-radius:8px;background:#edf3fc;color:#365782;padding:10px 12px;font-size:13px;font-weight:800;cursor:pointer}
+.priceOverrideBody{display:grid;gap:10px;padding:10px 2px 2px}
+.priceOverrideBody p{margin:0;color:#667892;font-size:12px;line-height:1.5}
+.priceOverrideBody label{display:grid;gap:4px;font-size:12px;font-weight:700;color:#405572}
+.priceOverrideBody input{width:100%;min-width:0;padding:9px 10px;border:1px solid #cdd8e8;border-radius:8px;background:#fff;color:#18203a;font-size:13px}
+.priceOverrideBody button,.overrideRow button{justify-self:start;border:1px solid #cdd8e8;border-radius:8px;padding:7px 11px;background:#f4f7fc;color:#365782;font-size:12px;font-weight:700}
+.priceOverrideBody button:disabled{opacity:.45}
+.overrideRow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-top:1px solid #edf0f6}
+.overrideRow span{min-width:0;overflow-wrap:anywhere;font-size:12px;color:#445570}
+.overrideRow button{flex:none}
