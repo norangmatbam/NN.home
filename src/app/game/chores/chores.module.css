@@ -45,3 +45,19 @@
 .table td.sharedCell{text-align:center;vertical-align:middle;background:#eef7e9}
 .sharedGroupCaption{display:block;font-size:10px;line-height:1.35;color:#62865c;font-weight:650;margin-top:2px}
 @media(max-width:640px){.sharedGroupCaption{font-size:9px}}
+
+/* Denser checklist with minimal vertical padding. */
+.table th,.table td{height:28px;padding:2px 4px}
+.table .groupRow th,.table .groupRow td{height:21px;padding:1px 6px}
+.checkWrap{width:19px;height:19px;border-radius:4px}
+.checkWrap span{font-size:13px}
+.table .taskName{line-height:1.15}
+.editorHeading{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:8px;border-bottom:1px solid #e6ebf2}
+.editorHeading>b{font-size:14px}
+@media(max-width:640px){
+.table th,.table td{height:25px;padding:2px 3px}
+.table .groupRow th,.table .groupRow td{height:19px;padding:1px 5px}
+.checkWrap{width:18px;height:18px}
+.checkWrap span{font-size:12px}
+.sharedNote{font-size:9px;margin-top:1px}
+}
