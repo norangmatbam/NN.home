@@ -9,6 +9,11 @@ type Character = { id: string; name: string; job: string; power: string; role: s
 type Data = { characters: Character[]; tasks: Task[]; checks: Record<string, boolean>; notes: Record<string,string>; week: string };
 
 const KEY = 'nn-game-chores-v1';
+const SHARED_SOUL_TASK = 'weekly8';
+const SOUL_GROUP = new Set(['char0','char1','char2','char3','char4']);
+const SHARED_SOUL_CHECK = SHARED_SOUL_TASK + ':shared';
+const isSharedSoul = (task: Task) => task.id === SHARED_SOUL_TASK;
+const isEligibleSoul = (character: Character) => SOUL_GROUP.has(character.id);
 const uid = () => Math.random().toString(36).slice(2, 11);
 const characters: Character[] = ['노랑맛밤','오천원','노랑맛군밤','노랑고구마','노랑꿀밤','던노맛','우제강'].map((name,i)=>({
   id: 'char'+i, name, job: '', power: '', role: '',
@@ -54,10 +59,23 @@ export default function ChoreTracker(){
     return ()=>document.removeEventListener('visibilitychange',check);
   },[]);
   const update=(change:(data:Data)=>Data)=>setData(prev=>change(prev));
-  const checked=(t:string,c:string)=>!!data.checks[t+':'+c];
-  const toggle=(t:string,c:string)=>update(d=>({...d,checks:{...d.checks,[t+':'+c]:!d.checks[t+':'+c]}}));
-  const total=data.characters.length*data.tasks.length;
-  const done=useMemo(()=>data.tasks.reduce((count,t)=>count+data.characters.filter(c=>checked(t.id,c.id)).length,0),[data]);
+  const checked=(t:string,c:string)=> t===SHARED_SOUL_TASK
+    ? !!data.checks[SHARED_SOUL_CHECK] || [...SOUL_GROUP].some(id=>!!data.checks[t+':'+id])
+    : !!data.checks[t+':'+c];
+  const toggle=(t:string,c:string)=>update(d=>{
+    if(t===SHARED_SOUL_TASK){
+      const current=!!d.checks[SHARED_SOUL_CHECK] || [...SOUL_GROUP].some(id=>!!d.checks[t+':'+id]);
+      const checks={...d.checks,[SHARED_SOUL_CHECK]:!current};
+      for(const id of SOUL_GROUP)delete checks[t+':'+id];
+      return {...d,checks};
+    }
+    return {...d,checks:{...d.checks,[t+':'+c]:!d.checks[t+':'+c]}};
+  });
+  const sharedActive=data.characters.some(c=>isEligibleSoul(c))&&data.tasks.some(isSharedSoul);
+  const total=data.tasks.reduce((count,t)=>count+(isSharedSoul(t)?(sharedActive?1:0):data.characters.length),0);
+  const done=data.tasks.reduce((count,t)=>count+(isSharedSoul(t)
+    ? (sharedActive&&checked(t.id,'shared')?1:0)
+    : data.characters.filter(c=>checked(t.id,c.id)).length),0);
   const progress=total?Math.round(done/total*100):0;
   const addTask=()=>{const name=taskName.trim();if(!name)return;update(d=>({...d,tasks:[...d.tasks,{id:uid(),name,category}]}));setTaskName('');};
   const addChar=()=>{const name=charName.trim();if(!name)return;update(d=>({...d,characters:[...d.characters,{id:uid(),name,job:'',power:'',role:''}]}));setCharName('');};
@@ -82,11 +100,15 @@ export default function ChoreTracker(){
         <thead><tr><th className={styles.taskHead}>구분 · 숙제</th>{data.characters.map(c=><th key={c.id} className={styles.charHead}><span>{c.name}</span></th>)}</tr></thead>
         <tbody>{(['주간','주말'] as Category[]).map(cat=><>
           <tr className={styles.groupRow} key={cat+'title'}><th>{cat}</th>{data.characters.map(c=><td key={c.id} />)}</tr>
-          {data.tasks.filter(t=>t.category===cat).map(t=><tr key={t.id}><th className={styles.taskName}>{t.name}</th>{data.characters.map(c=><td key={c.id}>
-            <label className={styles.checkWrap}><input type="checkbox" aria-label={c.name+' '+t.name} checked={checked(t.id,c.id)} onChange={()=>toggle(t.id,c.id)}/><span aria-hidden="true">✓</span></label>
+          {data.tasks.filter(t=>t.category===cat).map(t=><tr key={t.id}><th className={styles.taskName}>{t.name}{isSharedSoul(t)&&<small className={styles.sharedNote}>5캐릭터 공용 · 1회</small>}</th>{data.characters.map(c=><td key={c.id} className={isSharedSoul(t)?styles.sharedCell:undefined}>
+            {isSharedSoul(t)
+              ? isEligibleSoul(c) && data.characters.find(x=>isEligibleSoul(x))?.id===c.id
+                ? <label className={styles.checkWrap}><input type="checkbox" aria-label="골드로 소울 사기 5캐릭터 공용" checked={checked(t.id,c.id)} onChange={()=>toggle(t.id,c.id)}/><span aria-hidden="true">✓</span></label>
+                : <span className={styles.sharedDash} aria-label={isEligibleSoul(c)?'공용 체크에 포함':'해당 없음'}>{isEligibleSoul(c)?'공용':'—'}</span>
+              : <label className={styles.checkWrap}><input type="checkbox" aria-label={c.name+' '+t.name} checked={checked(t.id,c.id)} onChange={()=>toggle(t.id,c.id)}/><span aria-hidden="true">✓</span></label>}
           </td>)}</tr>)}
         </>)}</tbody>
-        <tfoot><tr><th>완료</th>{data.characters.map(c=><td key={c.id}>{data.tasks.filter(t=>checked(t.id,c.id)).length}/{data.tasks.length}</td>)}</tr></tfoot>
+        <tfoot><tr><th>완료</th>{data.characters.map(c=><td key={c.id}>{data.tasks.filter(t=>!isSharedSoul(t)&&checked(t.id,c.id)).length}/{data.tasks.filter(t=>!isSharedSoul(t)).length}</td>)}</tr></tfoot>
       </table></div>
     </section>
     <section className={styles.panel}><div className={styles.footerRow}><b>이번 주 체크 초기화</b><button onClick={()=>{if(window.confirm('이번 주 모든 캐릭터의 체크를 초기화할까요?'))update(d=>({...d,checks:{}}));}}>전체 체크 해제</button></div></section>
