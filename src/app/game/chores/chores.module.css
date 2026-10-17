@@ -101,3 +101,6 @@
 .table .taskHead,.table .taskName,.table tfoot th:first-child{width:60px;min-width:60px;max-width:60px}
 .table .taskHead,.table .taskName{font-size:10px}
 }
+
+/* Center weekly and weekend section labels in the frozen column. */
+.table .groupRow th{text-align:center;padding-left:1px;padding-right:1px}
