@@ -132,3 +132,14 @@
 .stepRecipeRows>div>span:first-child{min-width:0}
 .stepRecipeRows>div>b{white-space:nowrap}
 .stepRecipeRows>div>span:last-child{white-space:nowrap}
+
+/* On narrow screens, let the name + location use the entire first line.
+   Quantities and prices remain right aligned in the second row only when needed. */
+@media(max-width:640px){
+.stepRecipeRows>div{grid-template-columns:minmax(0,1fr) auto auto;gap:5px}
+.stepRecipeRows>div>span:first-child{min-width:0}
+.stepRecipeRows>div>span:first-child>span{flex-wrap:nowrap!important;white-space:nowrap;font-size:10px;gap:4px!important}
+.stepRecipeRows>div>span:first-child>span>span:last-child{font-size:9px!important;padding:1px 4px!important}
+.stepRecipeRows>div>b{min-width:28px}
+.stepRecipeRows>div>span:last-child{min-width:67px}
+}
