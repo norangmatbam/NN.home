@@ -36,3 +36,7 @@
 .zoomBar button:disabled{opacity:.4;cursor:default}
 .tableScroll .table{transform-origin:top left}
 @media(max-width:640px){.zoomBar{gap:5px}.zoomBar button{padding:5px 7px;font-size:11px}.zoomBar>span{font-size:11px}}
+
+/* Per-character soul-buying group editor. */
+.editList>div>select{flex:0 0 85px;width:85px;min-width:0;font-size:12px;padding:8px 4px}
+.sharedHelp{color:#71819a;font-size:11px;line-height:1.5;margin:4px 0 9px}
