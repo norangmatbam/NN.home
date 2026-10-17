@@ -42,8 +42,10 @@ function load(): Data {
       tasks:data.tasks.slice(0,80).filter(t=>t.category==='주간'||t.category==='주말').map(t=>({id:String(t.id),name:String(t.name||''),category:t.category})),
       checks:(()=>{
         const checks=data.week===weekKey() && data.checks && typeof data.checks==='object'?{...data.checks}:{};
-        if(checks[SHARED_SOUL_TASK+':shared'] || ['char0','char1','char2','char3','char4'].some(id=>checks[SHARED_SOUL_TASK+':'+id]))
+        if(!(groupKey('A') in checks) && (checks[SHARED_SOUL_TASK+':shared'] || ['char0','char1','char2','char3','char4'].some(id=>checks[SHARED_SOUL_TASK+':'+id])))
           checks[groupKey('A')]=true;
+        delete checks[SHARED_SOUL_TASK+':shared'];
+        for(const id of ['char0','char1','char2','char3','char4'])delete checks[SHARED_SOUL_TASK+':'+id];
         return checks;
       })(),
       notes:data.notes && typeof data.notes==='object'?data.notes:{},
