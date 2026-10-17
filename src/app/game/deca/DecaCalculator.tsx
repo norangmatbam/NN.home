@@ -131,14 +131,14 @@ export default function DecaCalculator() {
 
       <section className={styles.panel}>
         <div className={styles.soulHeader}>
-          <h2>영혼석 파밍 추천 TOP 3</h2>
+          <h2>영혼석 파밍 추천 TOP 4</h2>
           <small>거래소 최저가 기준 · 1개당 가격 순</small>
         </div>
         {loading ? <p className={styles.soulStatus}>영혼석 시세 조회 중…</p>
           : error ? <p className={styles.soulStatus}>시세 조회 실패: {error}</p>
           : <>
             <div className={styles.soulRanking}>
-              {soulQuotes.slice(0, 3).map((stone, index) => (
+              {soulQuotes.slice(0, 4).map((stone, index) => (
                 <div className={styles.soulCard} key={stone.name}>
                   <span className={styles.soulRank}>{index + 1}순위</span>
                   <div className={styles.soulInfo}>
