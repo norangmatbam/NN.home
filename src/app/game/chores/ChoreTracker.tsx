@@ -4,14 +4,16 @@ import { useEffect, useState } from 'react';
 import styles from './chores.module.css';
 
 type Category = '주간' | '주말';
-type Task = { id: string; name: string; category: Category };
+type Task = { id: string; name: string; category: Category; target?: number };
 type Character = { id: string; name: string; job: string; power: string; role: string; soulGroup: string };
-type Data = { characters: Character[]; tasks: Task[]; checks: Record<string, boolean>; notes: Record<string,string>; week: string };
+type Data = { characters: Character[]; tasks: Task[]; checks: Record<string, boolean>; counts: Record<string, number>; notes: Record<string,string>; week: string };
 
 const KEY = 'nn-game-chores-v1';
 const ZOOM_KEY = 'nn-game-chores-table-zoom-v1';
 const ZOOM_LEVELS = [40, 50, 60, 70, 80, 90, 100] as const;
 const SHARED_SOUL_TASK = 'weekly8';
+const VANGUARD_TASK = 'weekly4';
+const DEFAULT_VANGUARD_TARGET = 3;
 const SOUL_GROUPS = ['A','B','C'];
 const isSharedSoul = (task: Task) => task.id === SHARED_SOUL_TASK;
 const groupKey = (group: string) => SHARED_SOUL_TASK + ':group:' + group;
@@ -21,7 +23,7 @@ const characters: Character[] = ['노랑맛밤','오천원','노랑맛군밤','�
   id: 'char'+i, name, job: '', power: '', role: '', soulGroup: i<5?'A':'',
 }));
 const initialTasks: Task[] = [
-  ...['어비스','카브락','에이렐','서큐버스','뱅가드','필보','심층해어','혼돈탑','골드로 소울 사기'].map((name,i)=>({id:'weekly'+i,name,category:'주간' as const})),
+  ...['어비스','카브락','에이렐','서큐버스','뱅가드','필보','심층해어','혼돈탑','골드로 소울 사기'].map((name,i)=>({id:'weekly'+i,name,category:'주간' as const,target:i===4?DEFAULT_VANGUARD_TARGET:undefined})),
   ...['어비스 3회','레이드 1회','종말파괴기','콕데타'].map((name,i)=>({id:'weekend'+i,name,category:'주말' as const})),
 ];
 function weekKey(date = new Date()) {
@@ -30,7 +32,7 @@ function weekKey(date = new Date()) {
   const monday = new Date(date.getFullYear(),date.getMonth(),date.getDate()-day);
   return [monday.getFullYear(),String(monday.getMonth()+1).padStart(2,'0'),String(monday.getDate()).padStart(2,'0')].join('-');
 }
-function defaults(): Data { return { characters, tasks: initialTasks, checks: {}, notes: {}, week: weekKey() }; }
+function defaults(): Data { return { characters, tasks: initialTasks, checks: {}, counts: {}, notes: {}, week: weekKey() }; }
 function load(): Data {
   const base=defaults();
   try {
@@ -39,7 +41,7 @@ function load(): Data {
     if(!Array.isArray(data.characters)||!Array.isArray(data.tasks))return base;
     return {
       characters:data.characters.slice(0,30).map(c=>({id:String(c.id),name:String(c.name||''),job:String(c.job||''),power:String(c.power||''),role:String(c.role||''),soulGroup: SOUL_GROUPS.includes(String(c.soulGroup))?String(c.soulGroup):['char0','char1','char2','char3','char4'].includes(String(c.id))?'A':''})),
-      tasks:data.tasks.slice(0,80).filter(t=>t.category==='주간'||t.category==='주말').map(t=>({id:String(t.id),name:String(t.name||''),category:t.category})),
+      tasks:data.tasks.slice(0,80).filter(t=>t.category==='주간'||t.category==='주말').map(t=>({id:String(t.id),name:String(t.name||''),category:t.category,target:t.id===VANGUARD_TASK?Math.max(1,Math.min(99,Math.floor(Number(t.target)||DEFAULT_VANGUARD_TARGET))):undefined})),
       checks:(()=>{
         const checks=data.week===weekKey() && data.checks && typeof data.checks==='object'?{...data.checks}:{};
         if(!(groupKey('A') in checks) && (checks[SHARED_SOUL_TASK+':shared'] || ['char0','char1','char2','char3','char4'].some(id=>checks[SHARED_SOUL_TASK+':'+id])))
@@ -47,6 +49,16 @@ function load(): Data {
         delete checks[SHARED_SOUL_TASK+':shared'];
         for(const id of ['char0','char1','char2','char3','char4'])delete checks[SHARED_SOUL_TASK+':'+id];
         return checks;
+      })(),
+      counts:(()=>{
+        const result:Record<string,number>={};
+        if(data.week!==weekKey())return result;
+        for(const [key,value] of Object.entries(data.counts||{}))result[key]=Math.max(0,Math.floor(Number(value)||0));
+        for(const c of data.characters||[]){
+          const key=VANGUARD_TASK+':'+c.id;
+          if(!(key in result)&&data.checks?.[key])result[key]=Math.max(1,Math.floor(Number(data.tasks?.find(t=>t.id===VANGUARD_TASK)?.target)||DEFAULT_VANGUARD_TARGET));
+        }
+        return result;
       })(),
       notes:data.notes && typeof data.notes==='object'?data.notes:{},
       week:weekKey(),
@@ -76,12 +88,17 @@ export default function ChoreTracker(){
   };
   useEffect(()=>{if(!ready)return;try{localStorage.setItem(KEY,JSON.stringify(data));}catch{}},[data,ready]);
   useEffect(()=>{
-    const check=()=>setData(prev=>prev.week===weekKey()?prev:{...prev,week:weekKey(),checks:{}});
+    const check=()=>setData(prev=>prev.week===weekKey()?prev:{...prev,week:weekKey(),checks:{},counts:{}});
     document.addEventListener('visibilitychange',check);
     return ()=>document.removeEventListener('visibilitychange',check);
   },[]);
   const update=(change:(data:Data)=>Data)=>setData(prev=>change(prev));
+  const vanguardTask=data.tasks.find(t=>t.id===VANGUARD_TASK);
+  const vanguardTarget=vanguardTask?.target||DEFAULT_VANGUARD_TARGET;
+  const vanguardCount=(c:string)=>Math.max(0,data.counts[VANGUARD_TASK+':'+c]||0);
+  const setVanguardCount=(c:string,count:number)=>update(d=>({...d,counts:{...d.counts,[VANGUARD_TASK+':'+c]:Math.max(0,Math.min(99,Math.floor(count)||0))}}));
   const checked=(t:string,c:string)=>{
+    if(t===VANGUARD_TASK)return vanguardCount(c)>=vanguardTarget;
     const character=data.characters.find(v=>v.id===c);
     const group=character?.soulGroup || (c.startsWith('group:')?c.slice(6):'');
     return t===SHARED_SOUL_TASK && group
@@ -143,7 +160,9 @@ export default function ChoreTracker(){
         </select>
         <button onClick={()=>{if(window.confirm(c.name+' 캐릭터를 삭제할까요?'))update(d=>({...d,characters:d.characters.filter(v=>v.id!==c.id)}))}}>삭제</button></div>)}</div>
       <h2>숙제 추가</h2><div className={styles.controls}><select value={category} onChange={e=>setCategory(e.target.value as Category)}><option>주간</option><option>주말</option></select><input placeholder="숙제 이름" value={taskName} onChange={e=>setTaskName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addTask()}/><button onClick={addTask}>추가</button></div>
-      <div className={styles.editList}>{data.tasks.map(t=><div key={t.id}><select value={t.category} onChange={e=>update(d=>({...d,tasks:d.tasks.map(v=>v.id===t.id?{...v,category:e.target.value as Category}:v)}))}><option>주간</option><option>주말</option></select><input aria-label="숙제 이름" value={t.name} onChange={e=>update(d=>({...d,tasks:d.tasks.map(v=>v.id===t.id?{...v,name:e.target.value}:v)}))}/><button onClick={()=>{if(window.confirm(t.name+' 숙제를 삭제할까요?'))update(d=>({...d,tasks:d.tasks.filter(v=>v.id!==t.id)}))}}>삭제</button></div>)}</div>
+      <div className={styles.editList}>{data.tasks.map(t=><div key={t.id}><select value={t.category} onChange={e=>update(d=>({...d,tasks:d.tasks.map(v=>v.id===t.id?{...v,category:e.target.value as Category}:v)}))}><option>주간</option><option>주말</option></select><input aria-label="숙제 이름" value={t.name} onChange={e=>update(d=>({...d,tasks:d.tasks.map(v=>v.id===t.id?{...v,name:e.target.value}:v)}))}/>
+        {t.id===VANGUARD_TASK&&<label className={styles.targetSetting}>목표 <input type="number" min={1} max={99} inputMode="numeric" aria-label="뱅가드 목표 횟수" value={t.target||DEFAULT_VANGUARD_TARGET} onChange={e=>update(d=>({...d,tasks:d.tasks.map(v=>v.id===t.id?{...v,target:Math.max(1,Math.min(99,Number(e.target.value)||1))}:v)}))}/></label>}
+        <button onClick={()=>{if(window.confirm(t.name+' 숙제를 삭제할까요?'))update(d=>({...d,tasks:d.tasks.filter(v=>v.id!==t.id)}))}}>삭제</button></div>)}</div>
     </section>}
     <section className={styles.summary}>
       <div><b>{done} / {total}</b><span>이번 주 완료</span></div><div><b>{progress}%</b><span>진행률</span></div>
@@ -165,10 +184,16 @@ export default function ChoreTracker(){
         <tbody>{(['주간','주말'] as Category[]).map(cat=><>
           <tr className={styles.groupRow} key={cat+'title'}><th>{cat}</th>{orderedCharacters.map(c=><td key={c.id} />)}</tr>
           {data.tasks.filter(t=>t.category===cat).map(t=><tr key={t.id}>
-            <th className={styles.taskName}>{t.name}</th>
+            <th className={styles.taskName}>{t.name}{t.id===VANGUARD_TASK&&<small className={styles.vanguardGoal}>/{vanguardTarget}회</small>}</th>
             {isSharedSoul(t)
               ? orderedCharacters.map((c,index)=>soulCell(t,c,index))
-              : orderedCharacters.map(c=><td key={c.id}>
+              : t.id===VANGUARD_TASK
+                ? orderedCharacters.map(c=><td key={c.id}>
+                    <select className={styles.countSelect} aria-label={c.name+' 뱅가드 진행 횟수'} value={Math.min(99,vanguardCount(c))} onChange={e=>setVanguardCount(c,Number(e.target.value))}>
+                      {Array.from({length:Math.max(vanguardTarget,Math.min(99,vanguardCount(c)))+1},(_,n)=><option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </td>)
+                : orderedCharacters.map(c=><td key={c.id}>
                   <label className={styles.checkWrap}><input type="checkbox" aria-label={c.name+' '+t.name}
                     checked={checked(t.id,c.id)} onChange={()=>toggle(t.id,c.id)}/><span aria-hidden="true">✓</span></label>
                 </td>)}
@@ -177,6 +202,6 @@ export default function ChoreTracker(){
         <tfoot><tr><th>완료</th>{orderedCharacters.map(c=><td key={c.id}>{data.tasks.filter(t=>(!isSharedSoul(t)||!c.soulGroup||data.characters.find(x=>x.soulGroup===c.soulGroup)?.id===c.id)&&checked(t.id,c.id)).length}/{data.tasks.filter(t=>!isSharedSoul(t)||!c.soulGroup||data.characters.find(x=>x.soulGroup===c.soulGroup)?.id===c.id).length}</td>)}</tr></tfoot>
       </table></div>
     </section>
-    <section className={styles.panel}><div className={styles.footerRow}><b>이번 주 체크 초기화</b><button onClick={()=>{if(window.confirm('이번 주 모든 캐릭터의 체크를 초기화할까요?'))update(d=>({...d,checks:{}}));}}>전체 체크 해제</button></div></section>
+    <section className={styles.panel}><div className={styles.footerRow}><b>이번 주 체크 초기화</b><button onClick={()=>{if(window.confirm('이번 주 모든 캐릭터의 체크를 초기화할까요?'))update(d=>({...d,checks:{},counts:{}}));}}>전체 체크 해제</button></div></section>
   </main>;
 }
