@@ -90,3 +90,6 @@
 .table .taskHead{text-align:center;padding-left:1px;padding-right:1px;font-size:10px}
 .table .taskName{padding-left:4px;font-size:10px;overflow-wrap:anywhere}
 }
+
+/* Center all task names in the frozen task column. */
+.table .taskName{text-align:center;padding-left:2px;padding-right:2px}
