@@ -176,3 +176,11 @@
 @media(max-width:640px){
 .recommend>.priceOverridePanel{margin:12px 12px 14px}
 }
+
+/* Prevent the reset label from breaking into vertical lines on mobile. */
+.optionBottom>.reset{flex:0 0 auto;min-width:max-content;white-space:nowrap;word-break:keep-all;overflow-wrap:normal;align-self:center;line-height:1.3}
+@media(max-width:640px){.optionBottom{min-width:0;flex-wrap:wrap}.optionBottom>.reset{margin-left:auto;padding:8px 12px}}
+
+/* Higher contrast for descriptions on the dark game background. */
+.fold>summary>div>span,.sectionHead>span{color:#f0e9e6;font-size:13px;font-weight:500;line-height:1.5}
+@media(max-width:640px){.fold>summary>div>span,.sectionHead>span{color:#f0e9e6;font-size:13px}}
