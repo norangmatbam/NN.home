@@ -189,8 +189,8 @@ export default function ChoreTracker(){
               ? orderedCharacters.map((c,index)=>soulCell(t,c,index))
               : t.id===VANGUARD_TASK
                 ? orderedCharacters.map(c=><td key={c.id}>
-                    <select className={styles.countSelect} aria-label={c.name+' 뱅가드 진행 횟수'} value={Math.min(99,vanguardCount(c))} onChange={e=>setVanguardCount(c,Number(e.target.value))}>
-                      {Array.from({length:Math.max(vanguardTarget,Math.min(99,vanguardCount(c)))+1},(_,n)=><option key={n} value={n}>{n}</option>)}
+                    <select className={styles.countSelect} aria-label={c.name+' 뱅가드 진행 횟수'} value={Math.min(99,vanguardCount(c.id))} onChange={e=>setVanguardCount(c.id,Number(e.target.value))}>
+                      {Array.from({length:Math.max(vanguardTarget,Math.min(99,vanguardCount(c.id)))+1},(_,n)=><option key={n} value={n}>{n}</option>)}
                     </select>
                   </td>)
                 : orderedCharacters.map(c=><td key={c.id}>
