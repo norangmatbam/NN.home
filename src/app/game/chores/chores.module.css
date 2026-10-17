@@ -28,3 +28,11 @@
 /* Keep the completion-row label fixed like other task labels. */
 .table tfoot th:first-child{position:sticky;left:0;z-index:3;background:#eaf4e4;text-align:left;padding-left:10px;width:118px;min-width:118px;max-width:118px}
 @media(max-width:640px){.table tfoot th:first-child{width:106px;min-width:106px;max-width:106px;padding-left:7px}}
+
+.zoomBar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:-2px 0 10px}
+.zoomBar>span{font-size:12px;font-weight:700;color:#72809a;margin-right:3px}
+.zoomBar>strong{min-width:42px;text-align:center;color:#3a5887;font-size:12px;font-variant-numeric:tabular-nums}
+.zoomBar button{padding:5px 9px;font-size:12px;min-height:30px;background:#f1f5fb;border-radius:8px}
+.zoomBar button:disabled{opacity:.4;cursor:default}
+.tableScroll .table{transform-origin:top left}
+@media(max-width:640px){.zoomBar{gap:5px}.zoomBar button{padding:5px 7px;font-size:11px}.zoomBar>span{font-size:11px}}
