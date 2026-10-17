@@ -3,7 +3,17 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 
 const API_BASE = 'https://open.mabimobi.life/v1';
-const TERMS = ['크리온 파이브스타 이어링 상자', '크리온 펜듈럼 앤 핀 커프 상자', '보석 스킬 세공기'];
+const TERMS = [
+  '크리온 파이브스타 이어링 상자',
+  '크리온 펜듈럼 앤 핀 커프 상자',
+  '보석 스킬 세공기',
+  '망령의 영혼석',
+  '야생의 영혼석',
+  '원념의 영혼석',
+  '공명의 영혼석',
+  '삼림의 영혼석',
+  '파동의 영혼석',
+];
 
 type MarketItem = {
   name: string;
