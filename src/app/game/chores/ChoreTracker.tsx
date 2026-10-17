@@ -56,7 +56,7 @@ function load(): Data {
         for(const [key,value] of Object.entries(data.counts||{}))result[key]=Math.max(0,Math.floor(Number(value)||0));
         for(const c of data.characters||[]){
           const key=VANGUARD_TASK+':'+c.id;
-          if(!(key in result)&&data.checks?.[key])result[key]=Math.max(1,Math.floor(Number(data.tasks?.find(t=>t.id===VANGUARD_TASK)?.target)||DEFAULT_VANGUARD_TARGET));
+          if(!(key in result)&&data.checks?.[key])result[key]=0;
         }
         return result;
       })(),
@@ -95,10 +95,10 @@ export default function ChoreTracker(){
   const update=(change:(data:Data)=>Data)=>setData(prev=>change(prev));
   const vanguardTask=data.tasks.find(t=>t.id===VANGUARD_TASK);
   const vanguardTarget=vanguardTask?.target||DEFAULT_VANGUARD_TARGET;
-  const vanguardCount=(c:string)=>Math.max(0,data.counts[VANGUARD_TASK+':'+c]||0);
+  const vanguardCount=(c:string)=>Math.max(0,data.counts[VANGUARD_TASK+':'+c] ?? vanguardTarget);
   const setVanguardCount=(c:string,count:number)=>update(d=>({...d,counts:{...d.counts,[VANGUARD_TASK+':'+c]:Math.max(0,Math.min(99,Math.floor(count)||0))}}));
   const checked=(t:string,c:string)=>{
-    if(t===VANGUARD_TASK)return vanguardCount(c)>=vanguardTarget;
+    if(t===VANGUARD_TASK)return vanguardCount(c)===0;
     const character=data.characters.find(v=>v.id===c);
     const group=character?.soulGroup || (c.startsWith('group:')?c.slice(6):'');
     return t===SHARED_SOUL_TASK && group
@@ -189,7 +189,7 @@ export default function ChoreTracker(){
               ? orderedCharacters.map((c,index)=>soulCell(t,c,index))
               : t.id===VANGUARD_TASK
                 ? orderedCharacters.map(c=><td key={c.id}>
-                    <select className={styles.countSelect} aria-label={c.name+' 뱅가드 진행 횟수'} value={Math.min(99,vanguardCount(c.id))} onChange={e=>setVanguardCount(c.id,Number(e.target.value))}>
+                    <select className={styles.countSelect} aria-label={c.name+' 뱅가드 남은 횟수'} value={Math.min(99,vanguardCount(c.id))} onChange={e=>setVanguardCount(c.id,Number(e.target.value))}>
                       {Array.from({length:Math.max(vanguardTarget,Math.min(99,vanguardCount(c.id)))+1},(_,n)=><option key={n} value={n}>{n}</option>)}
                     </select>
                   </td>)
