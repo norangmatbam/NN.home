@@ -9,6 +9,8 @@ type Character = { id: string; name: string; job: string; power: string; role: s
 type Data = { characters: Character[]; tasks: Task[]; checks: Record<string, boolean>; notes: Record<string,string>; week: string };
 
 const KEY = 'nn-game-chores-v1';
+const ZOOM_KEY = 'nn-game-chores-table-zoom-v1';
+const ZOOM_LEVELS = [40, 50, 60, 70, 80, 90, 100] as const;
 const SHARED_SOUL_TASK = 'weekly8';
 const SOUL_GROUP = new Set(['char0','char1','char2','char3','char4']);
 const SHARED_SOUL_CHECK = SHARED_SOUL_TASK + ':shared';
@@ -51,7 +53,20 @@ export default function ChoreTracker(){
   const [category,setCategory]=useState<Category>('주간');
   const [taskName,setTaskName]=useState('');
   const [charName,setCharName]=useState('');
-  useEffect(()=>{setData(load());setReady(true);},[]);
+  const [zoom,setZoom]=useState(100);
+  useEffect(()=>{
+    setData(load());
+    try {
+      const saved=Number(localStorage.getItem(ZOOM_KEY));
+      if(ZOOM_LEVELS.some(n=>n===saved))setZoom(saved);
+    }catch{}
+    setReady(true);
+  },[]);
+  const changeZoom=(value:number)=>{
+    const next=Math.max(40,Math.min(100,value));
+    setZoom(next);
+    try{localStorage.setItem(ZOOM_KEY,String(next));}catch{}
+  };
   useEffect(()=>{if(!ready)return;try{localStorage.setItem(KEY,JSON.stringify(data));}catch{}},[data,ready]);
   useEffect(()=>{
     const check=()=>setData(prev=>prev.week===weekKey()?prev:{...prev,week:weekKey(),checks:{}});
@@ -95,8 +110,16 @@ export default function ChoreTracker(){
       <div className={styles.editList}>{data.tasks.map(t=><div key={t.id}><select value={t.category} onChange={e=>update(d=>({...d,tasks:d.tasks.map(v=>v.id===t.id?{...v,category:e.target.value as Category}:v)}))}><option>주간</option><option>주말</option></select><input aria-label="숙제 이름" value={t.name} onChange={e=>update(d=>({...d,tasks:d.tasks.map(v=>v.id===t.id?{...v,name:e.target.value}:v)}))}/><button onClick={()=>{if(window.confirm(t.name+' 숙제를 삭제할까요?'))update(d=>({...d,tasks:d.tasks.filter(v=>v.id!==t.id)}))}}>삭제</button></div>)}</div>
     </section>}
     <section className={styles.panel}>
-      <div className={styles.tableIntro}><b>이번 주 숙제표</b><span>가로로 스크롤해 캐릭터를 확인할 수 있어요 →</span></div>
-      <div className={styles.tableScroll}><table className={styles.table}>
+      <div className={styles.tableIntro}><b>이번 주 숙제표</b><span>가로 스크롤 또는 배율 조절</span></div>
+      <div className={styles.zoomBar}>
+        <span>표 크기</span>
+        <button type="button" aria-label="숙제표 축소" disabled={zoom<=40} onClick={()=>changeZoom(zoom-10)}>−</button>
+        <strong>{zoom}%</strong>
+        <button type="button" aria-label="숙제표 확대" disabled={zoom>=100} onClick={()=>changeZoom(zoom+10)}>＋</button>
+        <button type="button" onClick={()=>changeZoom(100)}>원래 크기</button>
+        <button type="button" onClick={()=>changeZoom(40)}>전체 보기</button>
+      </div>
+      <div className={styles.tableScroll}><table className={styles.table} style={{zoom: zoom / 100}}>
         <thead><tr><th className={styles.taskHead}>구분 · 숙제</th>{data.characters.map(c=><th key={c.id} className={styles.charHead}><span>{c.name}</span></th>)}</tr></thead>
         <tbody>{(['주간','주말'] as Category[]).map(cat=><>
           <tr className={styles.groupRow} key={cat+'title'}><th>{cat}</th>{data.characters.map(c=><td key={c.id} />)}</tr>
