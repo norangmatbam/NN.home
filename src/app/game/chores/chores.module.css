@@ -93,3 +93,11 @@
 
 /* Center all task names in the frozen task column. */
 .table .taskName{text-align:center;padding-left:2px;padding-right:2px}
+
+/* Compact the frozen first column further at all zoom levels. */
+.table .taskHead,.table .taskName,.table tfoot th:first-child{width:66px;min-width:66px;max-width:66px;box-sizing:border-box}
+.table .taskName,.table .taskHead{text-align:center;padding-left:1px;padding-right:1px;overflow-wrap:anywhere}
+@media(max-width:640px){
+.table .taskHead,.table .taskName,.table tfoot th:first-child{width:60px;min-width:60px;max-width:60px}
+.table .taskHead,.table .taskName{font-size:10px}
+}
