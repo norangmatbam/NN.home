@@ -40,3 +40,11 @@
 
 /* Game tools: consistent 8px button corners. */
 .wrap button,.floatNav button{border-radius:8px!important}
+
+/* More room for material name + farming-place badge on narrow screens. */
+@media(max-width:640px){
+  .mat{grid-template-columns:minmax(0,1fr) 30px 67px;gap:5px}
+  .mat>div:nth-child(2){text-align:right}
+  .matName{gap:5px}
+  .matName b{min-width:0}
+}
