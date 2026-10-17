@@ -1081,33 +1081,6 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
         </div>
       </section>
 
-      {mode==='D' && <section className={styles.priceOverridePanel}>
-        <button type="button" className={styles.overrideToggle} aria-expanded={showPriceOverrides} onClick={()=>setShowPriceOverrides(v=>!v)}>
-          거래소 가격 수동 보정 {Object.keys(priceOverrides).length>0?'('+Object.keys(priceOverrides).length+'개 적용 중)':''} {showPriceOverrides?'▲':'▼'}
-        </button>
-        {showPriceOverrides && <div className={styles.priceOverrideBody}>
-          <p>실제 거래소에서 확인한 완제품 가격을 입력하면 D의 추천 순위·총비용·강화 횟수에 적용돼요. API 새로고침에도 유지됩니다.</p>
-          <label>장비 이름
-            <input type="text" list="deca-armor-names" value={overrideName} onChange={e=>setOverrideName(e.target.value)} placeholder="정확한 장비 이름" />
-          </label>
-          <datalist id="deca-armor-names">{armorMarketNames.map(name=><option key={name} value={name}/>)}</datalist>
-          <label>실제 구매 가격 (데카)
-            <input type="number" inputMode="numeric" min="1" value={overridePrice} onChange={e=>setOverridePrice(e.target.value)} placeholder="예: 6124" />
-          </label>
-          <button type="button" disabled={!overrideName.trim()||!Number.isSafeInteger(Number(overridePrice))||Number(overridePrice)<=0}
-            onClick={()=>{
-              const name=normalized(overrideName), price=Number(overridePrice);
-              if(!name || !Number.isSafeInteger(price) || price<=0)return;
-              updatePriceOverrides({...priceOverrides,[name]:price});
-              setOverridePrice('');
-            }}>가격 적용</button>
-          {Object.entries(priceOverrides).map(([name,price])=><div className={styles.overrideRow} key={name}>
-            <span>{name} · <b>{fmt(price)} 데카</b></span>
-            <button type="button" onClick={()=>{const next={...priceOverrides};delete next[name];updatePriceOverrides(next);}}>해제</button>
-          </div>)}
-          {Object.keys(priceOverrides).length>0&&<button type="button" onClick={()=>{if(window.confirm('수동 보정 가격을 모두 해제할까요?'))updatePriceOverrides({});}}>전체 보정 해제</button>}
-        </div>}
-      </section>}
 
       <details
         className={styles.fold}
@@ -1250,6 +1223,34 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
       </div>
 
       <section className={styles.recommend}>
+      {mode==='D' && <section className={styles.priceOverridePanel}>
+        <button type="button" className={styles.overrideToggle} aria-expanded={showPriceOverrides} onClick={()=>setShowPriceOverrides(v=>!v)}>
+          거래소 가격 수동 보정 {Object.keys(priceOverrides).length>0?'('+Object.keys(priceOverrides).length+'개 적용 중)':''} {showPriceOverrides?'▲':'▼'}
+        </button>
+        {showPriceOverrides && <div className={styles.priceOverrideBody}>
+          <p>실제 거래소에서 확인한 완제품 가격을 입력하면 D의 추천 순위·총비용·강화 횟수에 적용돼요. API 새로고침에도 유지됩니다.</p>
+          <label>장비 이름
+            <input type="text" list="deca-armor-names" value={overrideName} onChange={e=>setOverrideName(e.target.value)} placeholder="정확한 장비 이름" />
+          </label>
+          <datalist id="deca-armor-names">{armorMarketNames.map(name=><option key={name} value={name}/>)}</datalist>
+          <label>실제 구매 가격 (데카)
+            <input type="number" inputMode="numeric" min="1" value={overridePrice} onChange={e=>setOverridePrice(e.target.value)} placeholder="예: 6124" />
+          </label>
+          <button type="button" disabled={!overrideName.trim()||!Number.isSafeInteger(Number(overridePrice))||Number(overridePrice)<=0}
+            onClick={()=>{
+              const name=normalized(overrideName), price=Number(overridePrice);
+              if(!name || !Number.isSafeInteger(price) || price<=0)return;
+              updatePriceOverrides({...priceOverrides,[name]:price});
+              setOverridePrice('');
+            }}>가격 적용</button>
+          {Object.entries(priceOverrides).map(([name,price])=><div className={styles.overrideRow} key={name}>
+            <span>{name} · <b>{fmt(price)} 데카</b></span>
+            <button type="button" onClick={()=>{const next={...priceOverrides};delete next[name];updatePriceOverrides(next);}}>해제</button>
+          </div>)}
+          {Object.keys(priceOverrides).length>0&&<button type="button" onClick={()=>{if(window.confirm('수동 보정 가격을 모두 해제할까요?'))updatePriceOverrides({});}}>전체 보정 해제</button>}
+        </div>}
+      </section>}
+
         {mode === 'M' && lack === 0 ? (
           <div className={styles.complete}>
             <b>목표 마도저항을 이미 달성했어요.</b>
