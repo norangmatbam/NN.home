@@ -75,7 +75,7 @@ export default function DecaCalculator() {
   useEffect(() => { if (loaded) void loadMarket(false); }, [loaded, loadMarket]);
 
   const soulQuotes = SOUL_STONES.flatMap(stone => {
-    const quote = items.find(item => item.name.replace(/\\s+/g, ' ').trim() === stone.name);
+    const quote = items.find(item => item.name.replace(/\s+/g, ' ').trim() === stone.name);
     return quote && Number(quote.min_price) > 0 && Number(quote.total_count) > 0
       ? [{ ...stone, price: Number(quote.min_price), listings: Number(quote.total_count) }]
       : [];
