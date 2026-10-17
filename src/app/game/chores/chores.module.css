@@ -81,3 +81,12 @@
 .targetSetting{display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:11px;color:#66758d}
 .targetSetting input{width:49px;flex:none;min-width:0;text-align:center}
 @media(max-width:640px){.countSelect{max-width:40px;min-height:21px;font-size:11px;padding:1px 0}.vanguardGoal{font-size:9px}}
+
+/* Narrow frozen task column; center only its header label. */
+.table .taskHead,.table .taskName,.table tfoot th:first-child{width:86px;min-width:86px;max-width:86px}
+.table .taskHead{text-align:center;padding-left:2px;padding-right:2px}
+@media(max-width:640px){
+.table .taskHead,.table .taskName,.table tfoot th:first-child{width:74px;min-width:74px;max-width:74px}
+.table .taskHead{text-align:center;padding-left:1px;padding-right:1px;font-size:10px}
+.table .taskName{padding-left:4px;font-size:10px;overflow-wrap:anywhere}
+}
