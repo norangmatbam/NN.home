@@ -8,6 +8,14 @@ const ITEMS = [
   '크리온 펜듈럼 앤 핀 커프 상자',
   '보석 스킬 세공기',
 ] as const;
+const SOUL_STONES = [
+  { name: '망령의 영혼석', location: '페카 심층 1층' },
+  { name: '야생의 영혼석', location: '피오드 1층' },
+  { name: '원념의 영혼석', location: '페카 심층 2층' },
+  { name: '공명의 영혼석', location: '룬다 1층' },
+  { name: '삼림의 영혼석', location: '피오드 2층' },
+  { name: '파동의 영혼석', location: '룬다 2층' },
+] as const;
 type ItemName = typeof ITEMS[number];
 const CASH_PRICE: Record<ItemName, { cash: number; won: number }> = {
   '크리온 파이브스타 이어링 상자': { cash: 600, won: 6000 },
@@ -66,6 +74,13 @@ export default function DecaCalculator() {
   }, []);
   useEffect(() => { if (loaded) void loadMarket(false); }, [loaded, loadMarket]);
 
+  const soulQuotes = SOUL_STONES.flatMap(stone => {
+    const quote = items.find(item => item.name.replace(/\\s+/g, ' ').trim() === stone.name);
+    return quote && Number(quote.min_price) > 0 && Number(quote.total_count) > 0
+      ? [{ ...stone, price: Number(quote.min_price), listings: Number(quote.total_count) }]
+      : [];
+  }).sort((a, b) => b.price - a.price || a.name.localeCompare(b.name, 'ko'));
+  const soulRankingComplete = soulQuotes.length === SOUL_STONES.length;
   const shortage = Math.max(0, parseAmount(required) - parseAmount(owned));
   const changeValue = (field: 'required' | 'owned', text: string) => {
     if (text !== '' && (!/^\d+$/.test(text) || Number(text) > Number.MAX_SAFE_INTEGER)) return;
@@ -112,6 +127,33 @@ export default function DecaCalculator() {
           </div>
           <button type="button" disabled={loading} onClick={() => void loadMarket(true)}>{loading ? '조회 중…' : '시세 새로고침'}</button>
         </div>
+      </section>
+
+      <section className={styles.panel}>
+        <div className={styles.soulHeader}>
+          <h2>영혼석 파밍 추천 TOP 2</h2>
+          <small>거래소 최저가 기준 · 1개당 가격 순</small>
+        </div>
+        {loading ? <p className={styles.soulStatus}>영혼석 시세 조회 중…</p>
+          : error ? <p className={styles.soulStatus}>시세 조회 실패: {error}</p>
+          : <>
+            <div className={styles.soulRanking}>
+              {soulQuotes.slice(0, 2).map((stone, index) => (
+                <div className={styles.soulCard} key={stone.name}>
+                  <span className={styles.soulRank}>{index + 1}순위</span>
+                  <div className={styles.soulInfo}>
+                    <b>{stone.name}</b>
+                    <span className={styles.soulLocation}>{stone.location}</span>
+                    <small>수수료 차감 실수령 {fmt(Math.floor(stone.price * (1 - FEE_RATE)))} 데카 /개</small>
+                  </div>
+                  <strong>{fmt(stone.price)}<small> 데카</small></strong>
+                </div>
+              ))}
+            </div>
+            {!soulRankingComplete && <p className={styles.soulStatus}>6종 중 {soulQuotes.length}종만 시세 확인됨. 미조회 영혼석이 있어 전체 순위가 확정되지 않았어요.</p>}
+            {soulRankingComplete && <p className={styles.soulStatus}>현재 조회된 6종의 최저 판매가를 비교했어요. 실제 거래량과 판매 속도에 따라 파밍 효율은 달라질 수 있어요.</p>}
+          </>
+        }
       </section>
 
       <section className={styles.panel}>
