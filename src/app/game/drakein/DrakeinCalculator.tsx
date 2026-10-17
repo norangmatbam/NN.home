@@ -1,5 +1,6 @@
 'use client';
 
+import MaterialWithLocation from '../MaterialWithLocation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { JOB_GROUPS } from '../simulator/marketData';
 import { useSharedOwnedMaterials, type SharedMaterialName } from '../sharedOwnedMaterials';
@@ -221,7 +222,7 @@ export default function DrakeinCalculator() {
           {Array.from(new Set(results.flatMap(r => r.rows.map(row => row.name)))).map(name => {
             const value = name === '마력 깃든 용비늘' ? dragonOwned : owned[name as SharedMaterialName];
             return <label key={name} className={styles.material}>
-              <span>{name}</span>
+              <MaterialWithLocation name={name} />
               <input type="number" min={0} inputMode="numeric"
                 value={materialDraft?.name === name ? materialDraft.text : value}
                 onFocus={() => setMaterialDraft({ name, text: value === 0 ? '' : String(value) })}
@@ -251,7 +252,7 @@ export default function DrakeinCalculator() {
               <div className={styles.breakdown}>
                 {row.rows.map(material => (
                   <div className={styles.breakdownRow} key={material.name}>
-                    <span>{material.name}</span>
+                    <MaterialWithLocation name={material.name} />
                     <span>필요 {fmt(material.need)} · 보유 {fmt(material.have)} · 부족 {fmt(material.shortage)}</span>
                     <b className={material.cost === null ? styles.failed : ''}>{costLabel(material.cost)}</b>
                   </div>
