@@ -80,6 +80,7 @@ type PlanStep = {
   cost: number;
   next: SlotState;
   acquisition?: Acquisition;
+  materialBreakdown?: { name: MaterialName; qty: number; used: number; bought: number; unitPrice: number; cost: number }[];
 };
 
 type PlanResult = {
@@ -612,6 +613,7 @@ function applyOwnedInventory(
     let craftCost: number | null = null;
     let canCraft = !!recipe?.complete;
     const materialUse: Partial<Record<SharedMaterialName, number>> = {};
+    const materialBreakdown: NonNullable<PlanStep['materialBreakdown']> = [];
 
     if (recipe?.complete) {
       let cost = 0;
@@ -627,6 +629,7 @@ function applyOwnedInventory(
         const use = Math.min(have, qty);
         const buy = qty - use;
         materialUse[name] = use;
+        materialBreakdown.push({ name: rawName, qty, used: use, bought: buy, unitPrice: price, cost: buy * price });
         cost += buy * price;
       }
       if (canCraft) craftCost = cost;
@@ -660,6 +663,7 @@ function applyOwnedInventory(
     return {
       ...step,
       cost: cost ?? step.cost,
+      materialBreakdown: method === '제작' && canCraft ? materialBreakdown : undefined,
       acquisition: step.acquisition ? {
         ...step.acquisition,
         craftCost,
@@ -1260,10 +1264,27 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
                                     ? ARMOR_KINDS.find(armor => getEquipmentName(step.slot,step.kind as Grade,state.job,armor) === step.acquisition?.itemName) ?? state.armorKind
                                     : state.armorKind;
                                   const recipe = recipeMaterials(step.slot,step.kind as Grade,state.job,kind,marketItems);
-                                  return recipe ? <div className={styles.stepRecipeRows}>
-                                    {recipe.rows.map(row=><div key={row.name}><MaterialWithLocation name={row.name} /><b>×{fmt(row.qty)}</b><span>{row.price == null ? '시세 없음' : fmt(row.price*row.qty)+' 데카'}</span></div>)}
-                                    {!recipe.complete && <small>일부 제작 재료가 미확정된 레시피입니다.</small>}
-                                  </div> : <small>제작 레시피가 없습니다.</small>;
+                                  const actual = mode === 'D' && step.materialBreakdown;
+                                  const previous = i > 0 ? group.steps[i-1] : null;
+                                  const previousByName = new Map((previous?.materialBreakdown ?? []).map(row => [row.name, row.cost]));
+                                  const extra = actual && previous?.acquisition?.method === '제작'
+                                    ? actual.map(row => ({ ...row, difference: row.cost - (previousByName.get(row.name) ?? 0) }))
+                                      .filter(row => row.difference > 0)
+                                    : [];
+                                  return actual ? <div className={styles.stepRecipeRows}>
+                                    <div className={styles.recipeExplanation}>보유 재료를 차감한 실제 구매 비용</div>
+                                    {actual.map(row=><div className={styles.actualMaterialRow} key={row.name}>
+                                      <MaterialWithLocation name={row.name} />
+                                      <span>필요 {fmt(row.qty)} · 보유 {fmt(row.used)} · 구매 {fmt(row.bought)}</span>
+                                      <b>{fmt(row.cost)} 데카</b>
+                                    </div>)}
+                                    {extra.length>0 && <div className={styles.costIncreaseNote}>직전 회차보다 구매 비용 증가: {extra.map(row=>row.name+' +'+fmt(row.difference)+'데카').join(', ')}</div>}
+                                  </div> : step.acquisition?.method === '구매'
+                                    ? <div className={styles.recipeExplanation}>완제품 구매를 선택해 보유 재료는 차감되지 않았어요.</div>
+                                    : recipe ? <div className={styles.stepRecipeRows}>
+                                      {recipe.rows.map(row=><div key={row.name}><MaterialWithLocation name={row.name} /><b>×{fmt(row.qty)}</b><span>{row.price == null ? '시세 없음' : fmt(row.price*row.qty)+' 데카'}</span></div>)}
+                                      {!recipe.complete && <small>일부 제작 재료가 미확정된 레시피입니다.</small>}
+                                    </div> : <small>제작 레시피가 없습니다.</small>;
                                 })()}
                             </details>
                             <small>{step.acquisition?.method ?? '확인 필요'} · 마도저항 +{fmt(step.delta)}
