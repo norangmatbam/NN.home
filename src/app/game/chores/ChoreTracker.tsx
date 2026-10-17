@@ -182,7 +182,7 @@ export default function ChoreTracker(){
       <div className={styles.tableScroll}><table className={styles.table} style={{zoom: zoom / 100}}>
         <thead><tr><th className={styles.taskHead}>구분 · 숙제</th>{orderedCharacters.map(c=><th key={c.id} className={styles.charHead}><span>{c.name}</span></th>)}</tr></thead>
         <tbody>{(['주간','주말'] as Category[]).map(cat=><>
-          <tr className={styles.groupRow} key={cat+'title'}><th>{cat}</th>{orderedCharacters.map(c=><td key={c.id} />)}</tr>
+          <tr className={styles.groupRow} key={cat+'title'}><th>{cat}</th>{orderedCharacters.length > 0 && <td colSpan={orderedCharacters.length} />}</tr>
           {data.tasks.filter(t=>t.category===cat).map(t=><tr key={t.id}>
             <th className={styles.taskName}>{t.name}</th>
             {isSharedSoul(t)
