@@ -123,7 +123,7 @@ export default function ChoreTracker(){
           checked={checked(task.id,c.id)} onChange={()=>toggle(task.id,c.id)}/>
         <span aria-hidden="true">✓</span>
       </label>
-      {group && <span className={styles.sharedGroupCaption}>그룹 {group} 공용</span>}
+
     </td>;
   };
   const addTask=()=>{const name=taskName.trim();if(!name)return;update(d=>({...d,tasks:[...d.tasks,{id:uid(),name,category}]}));setTaskName('');};
@@ -131,13 +131,9 @@ export default function ChoreTracker(){
   const rename=(id:string,name:string)=>update(d=>({...d,characters:d.characters.map(c=>c.id===id?{...c,name}:c)}));
   return <main className={styles.wrap}>
     <header className={styles.heading}><div><h1>캐릭터 숙제 체크</h1><p>캐릭터별 주간·주말 숙제를 체크하고 한눈에 진행 상황을 확인해요.</p></div>
-      <button onClick={()=>setEditing(v=>!v)}>{editing?'편집 완료':'캐릭터·숙제 편집'}</button></header>
-    <section className={styles.summary}>
-      <div><b>{done} / {total}</b><span>이번 주 완료</span></div><div><b>{progress}%</b><span>진행률</span></div>
-      <div className={styles.progress}><i style={{width:progress+'%'}} /></div>
-      <small>주간 체크는 월요일 00시(기기 현지 시간)에 초기화됩니다. 데이터는 현재 브라우저에만 저장됩니다.</small>
-    </section>
+      <button aria-expanded={editing} onClick={()=>setEditing(v=>!v)}>{editing?'편집 접기 ▲':'캐릭터·숙제 편집 ▼'}</button></header>
     {editing&&<section className={styles.editor}>
+      <div className={styles.editorHeading}><b>캐릭터·숙제 편집</b><button type="button" onClick={()=>setEditing(false)}>접기 ▲</button></div>
       <h2>캐릭터 추가</h2><div className={styles.controls}><input placeholder="캐릭터 이름" value={charName} onChange={e=>setCharName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addChar()}/><button onClick={addChar}>추가</button></div>
       <p className={styles.sharedHelp}>같은 그룹은 소울 구매를 한 번만 체크해요. 개별은 캐릭터별로 체크합니다.</p>
       <div className={styles.editList}>{data.characters.map(c=><div key={c.id}>
@@ -149,6 +145,11 @@ export default function ChoreTracker(){
       <h2>숙제 추가</h2><div className={styles.controls}><select value={category} onChange={e=>setCategory(e.target.value as Category)}><option>주간</option><option>주말</option></select><input placeholder="숙제 이름" value={taskName} onChange={e=>setTaskName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addTask()}/><button onClick={addTask}>추가</button></div>
       <div className={styles.editList}>{data.tasks.map(t=><div key={t.id}><select value={t.category} onChange={e=>update(d=>({...d,tasks:d.tasks.map(v=>v.id===t.id?{...v,category:e.target.value as Category}:v)}))}><option>주간</option><option>주말</option></select><input aria-label="숙제 이름" value={t.name} onChange={e=>update(d=>({...d,tasks:d.tasks.map(v=>v.id===t.id?{...v,name:e.target.value}:v)}))}/><button onClick={()=>{if(window.confirm(t.name+' 숙제를 삭제할까요?'))update(d=>({...d,tasks:d.tasks.filter(v=>v.id!==t.id)}))}}>삭제</button></div>)}</div>
     </section>}
+    <section className={styles.summary}>
+      <div><b>{done} / {total}</b><span>이번 주 완료</span></div><div><b>{progress}%</b><span>진행률</span></div>
+      <div className={styles.progress}><i style={{width:progress+'%'}} /></div>
+      <small>주간 체크는 월요일 00시(기기 현지 시간)에 초기화됩니다. 데이터는 현재 브라우저에만 저장됩니다.</small>
+    </section>
     <section className={styles.panel}>
       <div className={styles.tableIntro}><b>이번 주 숙제표</b><span>가로 스크롤 또는 배율 조절</span></div>
       <div className={styles.zoomBar}>
