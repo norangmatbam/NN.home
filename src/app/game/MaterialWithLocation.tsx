@@ -9,11 +9,11 @@ const FARM_LOCATIONS: Record<string, string> = {
   '파동의 영혼석': '룬다 2층',
 };
 
-const labelStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px', minWidth: 0 };
+const labelStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px', minWidth: 0 };
 const badgeStyle: CSSProperties = {
   display: 'inline-flex', alignItems: 'center', flex: 'none', whiteSpace: 'nowrap',
-  padding: '1px 5px', borderRadius: '999px', background: '#edf2fa',
-  border: '1px solid #d6e2f3', color: '#53709a', fontSize: '9px',
+  padding: '2px 6px', borderRadius: '999px', background: '#edf2fa',
+  border: '1px solid #d6e2f3', color: '#53709a', fontSize: '10px',
   lineHeight: 1.35, fontWeight: 600,
 };
 
