@@ -712,7 +712,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
         if(value && typeof value==='object' && !Array.isArray(value)){
           const valid:Record<string,number>={};
           for(const [name,price] of Object.entries(value)){
-            if(name && Number.isSafeInteger(price) && (price as number)>0)valid[normalized(name)]=price as number;
+            if(name && typeof price === 'number' && Number.isSafeInteger(price) && price>0)valid[normalized(name)]=price;
           }
           setPriceOverrides(valid);
         }
