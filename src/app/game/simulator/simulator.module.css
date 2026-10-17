@@ -184,3 +184,17 @@
 /* Higher contrast for descriptions on the dark game background. */
 .fold>summary>div>span,.sectionHead>span{color:#f0e9e6;font-size:13px;font-weight:500;line-height:1.5}
 @media(max-width:640px){.fold>summary>div>span,.sectionHead>span{color:#f0e9e6;font-size:13px}}
+
+/* Keep the reset action aligned with the weapon option, including on mobile. */
+.optionBottom{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:10px}
+.optionBottom>.checkRow{min-width:0;display:grid;grid-template-columns:17px minmax(0,1fr);column-gap:8px;row-gap:3px;align-items:center}
+.optionBottom>.checkRow>input{grid-column:1;grid-row:1}
+.optionBottom>.checkRow>span{grid-column:2;grid-row:1;min-width:0}
+.optionBottom>.checkRow>small{grid-column:2;grid-row:2;padding-left:0;min-width:0}
+.optionBottom>.reset{grid-column:2;grid-row:1;margin:0;align-self:center;white-space:nowrap}
+@media(max-width:640px){
+.optionBottom{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;flex-wrap:nowrap}
+.optionBottom>.checkRow{display:grid;grid-template-columns:17px minmax(0,1fr)}
+.optionBottom>.checkRow>small{padding-left:0;flex-basis:auto}
+.optionBottom>.reset{margin:0;min-width:72px;padding:9px 12px}
+}
