@@ -24,3 +24,7 @@
 .sharedNote{display:block;margin-top:3px;font-size:10px;font-weight:600;color:#678162;line-height:1.3}
 .table .sharedCell{background:#f2f8ec}
 .sharedDash{font-size:10px;color:#7e9b74;font-weight:650}
+
+/* Keep the completion-row label fixed like other task labels. */
+.table tfoot th:first-child{position:sticky;left:0;z-index:3;background:#eaf4e4;text-align:left;padding-left:10px;width:118px;min-width:118px;max-width:118px}
+@media(max-width:640px){.table tfoot th:first-child{width:106px;min-width:106px;max-width:106px;padding-left:7px}}
