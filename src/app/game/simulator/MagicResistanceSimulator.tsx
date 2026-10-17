@@ -93,6 +93,7 @@ const BASE_PER_SLOT = 300;
 const STORAGE_KEY = 'nn-game-resistance-sim-v1';
 const FOLD_STORAGE_KEY = 'nn-game-simulator-folds-v1';
 const DECA_BUDGET_KEY = 'nn-game-simulator-deca-budget-v1';
+const PRICE_OVERRIDE_KEY = 'nn-game-simulator-d-price-overrides-v1';
 const SIM_EVENT = 'nn-game-simulator-state-change';
 
 const SLOTS: { id: SlotId; label: string; infusable: boolean; weapon?: boolean }[] = [
@@ -688,6 +689,10 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
   );
   const [loaded, setLoaded] = useState(false);
   const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
+  const [priceOverrides,setPriceOverrides] = useState<Record<string,number>>({});
+  const [overrideName,setOverrideName] = useState('해연의 비늘 갑옷 신발ZZ');
+  const [overridePrice,setOverridePrice] = useState('');
+  const [showPriceOverrides,setShowPriceOverrides] = useState(false);
   const [marketUpdatedAt, setMarketUpdatedAt] = useState<string | null>(null);
   const [marketLoading, setMarketLoading] = useState(true);
   const [marketError, setMarketError] = useState('');
@@ -699,6 +704,40 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
     setMaterial: setSharedMaterial,
   } = useSharedOwnedMaterials();
 
+  useEffect(() => {
+    try {
+      const raw=localStorage.getItem(PRICE_OVERRIDE_KEY);
+      if(raw){
+        const value=JSON.parse(raw) as Record<string,unknown>;
+        if(value && typeof value==='object' && !Array.isArray(value)){
+          const valid:Record<string,number>={};
+          for(const [name,price] of Object.entries(value)){
+            if(name && Number.isSafeInteger(price) && (price as number)>0)valid[normalized(name)]=price as number;
+          }
+          setPriceOverrides(valid);
+        }
+      }
+    }catch{}
+  },[]);
+  const updatePriceOverrides=(next:Record<string,number>)=>{
+    setPriceOverrides(next);
+    try{localStorage.setItem(PRICE_OVERRIDE_KEY,JSON.stringify(next));}catch{}
+  };
+  const effectiveMarketItems=useMemo(()=>{
+    if(mode!=='D'||Object.keys(priceOverrides).length===0)return marketItems;
+    const existing=new Set(marketItems.map(item=>normalized(item.name)));
+    return [
+      ...marketItems.map(item=>priceOverrides[normalized(item.name)] != null
+        ? {...item,min_price:priceOverrides[normalized(item.name)]}
+        : item),
+      ...Object.entries(priceOverrides).filter(([name])=>!existing.has(name)).map(([name,price])=>({
+        kind_id:0,name,parent_category:'',min_price:price,total_count:1,
+      })),
+    ];
+  },[marketItems,priceOverrides,mode]);
+  const armorMarketNames=useMemo(()=>marketItems
+    .filter(item=>/^(해연|잔영)의 .*?(비늘 갑옷|가죽|천옷|실크|옷감)/.test(item.name))
+    .map(item=>item.name).sort((a,b)=>a.localeCompare(b,'ko')), [marketItems]);
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -796,18 +835,18 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
   const current = useMemo(() => totalResistance(state), [state]);
   const lack = Math.max(0, state.target - current);
   const basePricePlan = useMemo(
-    () => marketItems.length ? buildCostPlan(state, marketItems, current) : null,
-    [state, marketItems, current],
+    () => marketItems.length ? buildCostPlan(state, effectiveMarketItems, current) : null,
+    [state, effectiveMarketItems, current],
   );
   const pricePlan = useMemo(
-    () => applyOwnedInventory(basePricePlan, state, marketItems, sharedOwned),
-    [basePricePlan, state, marketItems, sharedOwned],
+    () => applyOwnedInventory(basePricePlan, state, effectiveMarketItems, sharedOwned),
+    [basePricePlan, state, effectiveMarketItems, sharedOwned],
   );
   const decaPlan = useMemo(
     () => mode === 'D' && marketItems.length
-      ? buildBudgetPlan(state, marketItems, decaBudget, sharedOwned)
+      ? buildBudgetPlan(state, effectiveMarketItems, decaBudget, sharedOwned)
       : null,
-    [mode, state, marketItems, decaBudget, sharedOwned],
+    [mode, state, effectiveMarketItems, decaBudget, sharedOwned],
   );
   const activePlan = mode === 'D' ? decaPlan : pricePlan;
   const projected = activePlan ? current + activePlan.gain : current;
@@ -1041,6 +1080,34 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
           </button>
         </div>
       </section>
+
+      {mode==='D' && <section className={styles.priceOverridePanel}>
+        <button type="button" className={styles.overrideToggle} aria-expanded={showPriceOverrides} onClick={()=>setShowPriceOverrides(v=>!v)}>
+          거래소 가격 수동 보정 {Object.keys(priceOverrides).length>0?'('+Object.keys(priceOverrides).length+'개 적용 중)':''} {showPriceOverrides?'▲':'▼'}
+        </button>
+        {showPriceOverrides && <div className={styles.priceOverrideBody}>
+          <p>실제 거래소에서 확인한 완제품 가격을 입력하면 D의 추천 순위·총비용·강화 횟수에 적용돼요. API 새로고침에도 유지됩니다.</p>
+          <label>장비 이름
+            <input type="text" list="deca-armor-names" value={overrideName} onChange={e=>setOverrideName(e.target.value)} placeholder="정확한 장비 이름" />
+          </label>
+          <datalist id="deca-armor-names">{armorMarketNames.map(name=><option key={name} value={name}/>)}</datalist>
+          <label>실제 구매 가격 (데카)
+            <input type="number" inputMode="numeric" min="1" value={overridePrice} onChange={e=>setOverridePrice(e.target.value)} placeholder="예: 6124" />
+          </label>
+          <button type="button" disabled={!overrideName.trim()||!Number.isSafeInteger(Number(overridePrice))||Number(overridePrice)<=0}
+            onClick={()=>{
+              const name=normalized(overrideName), price=Number(overridePrice);
+              if(!name || !Number.isSafeInteger(price) || price<=0)return;
+              updatePriceOverrides({...priceOverrides,[name]:price});
+              setOverridePrice('');
+            }}>가격 적용</button>
+          {Object.entries(priceOverrides).map(([name,price])=><div className={styles.overrideRow} key={name}>
+            <span>{name} · <b>{fmt(price)} 데카</b></span>
+            <button type="button" onClick={()=>{const next={...priceOverrides};delete next[name];updatePriceOverrides(next);}}>해제</button>
+          </div>)}
+          {Object.keys(priceOverrides).length>0&&<button type="button" onClick={()=>{if(window.confirm('수동 보정 가격을 모두 해제할까요?'))updatePriceOverrides({});}}>전체 보정 해제</button>}
+        </div>}
+      </section>}
 
       <details
         className={styles.fold}
