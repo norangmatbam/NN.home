@@ -184,7 +184,7 @@ export default function ChoreTracker(){
         <tbody>{(['주간','주말'] as Category[]).map(cat=><>
           <tr className={styles.groupRow} key={cat+'title'}><th>{cat}</th>{orderedCharacters.map(c=><td key={c.id} />)}</tr>
           {data.tasks.filter(t=>t.category===cat).map(t=><tr key={t.id}>
-            <th className={styles.taskName}>{t.name}{t.id===VANGUARD_TASK&&<small className={styles.vanguardGoal}>/{vanguardTarget}회</small>}</th>
+            <th className={styles.taskName}>{t.name}</th>
             {isSharedSoul(t)
               ? orderedCharacters.map((c,index)=>soulCell(t,c,index))
               : t.id===VANGUARD_TASK
