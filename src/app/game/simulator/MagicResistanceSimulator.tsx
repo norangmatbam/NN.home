@@ -1,5 +1,6 @@
 'use client';
 
+import MaterialWithLocation from '../MaterialWithLocation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './simulator.module.css';
 import {
@@ -1043,7 +1044,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
         <div className={styles.materialGrid}>
           {SHARED_MATERIAL_NAMES.map(name => (
             <label className={styles.materialInput} key={name}>
-              <span>{name}</span>
+              <MaterialWithLocation name={name} />
               <input
                 type="number"
                 inputMode="numeric"
@@ -1252,7 +1253,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
                                     : state.armorKind;
                                   const recipe = recipeMaterials(step.slot,step.kind as Grade,state.job,kind,marketItems);
                                   return recipe ? <div className={styles.stepRecipeRows}>
-                                    {recipe.rows.map(row=><div key={row.name}><span>{row.name}</span><b>×{fmt(row.qty)}</b><span>{row.price == null ? '시세 없음' : fmt(row.price*row.qty)+' 데카'}</span></div>)}
+                                    {recipe.rows.map(row=><div key={row.name}><MaterialWithLocation name={row.name} /><b>×{fmt(row.qty)}</b><span>{row.price == null ? '시세 없음' : fmt(row.price*row.qty)+' 데카'}</span></div>)}
                                     {!recipe.complete && <small>일부 제작 재료가 미확정된 레시피입니다.</small>}
                                   </div> : <small>제작 레시피가 없습니다.</small>;
                                 })()}
