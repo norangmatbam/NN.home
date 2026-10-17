@@ -20,6 +20,14 @@ import {
   type SlotId,
 } from './marketData';
 
+const ARMOR_SLOTS = new Set<SlotId>(['hat','top','bottom','gloves','shoes']);
+function armorMaterialTag(slot: SlotId, name: string): ArmorKind | null {
+  if (!ARMOR_SLOTS.has(slot) || !name || name.includes('혼합')) return null;
+  if (name.includes('비늘 갑옷')) return '중갑';
+  if (name.includes('가죽')) return '경갑';
+  return '천옷';
+}
+
 type SlotState = { runeOn: boolean; bonus: number };
 type SimState = {
   target: number;
@@ -1217,7 +1225,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
                   <div className={styles.planCardTop}>
                     <div>
                       <b className={styles.planTitle}>{mode === 'D' && <span className={`${styles.priorityBadge} ${index === 0 ? styles.priorityFirst : index === 1 ? styles.prioritySecond : styles.priorityOther}`}>{index + 1}순위</span>}<span>{group.label} {group.kind === '룬' ? '10성 룬' : group.kind}</span></b>
-                      <small>{group.itemName}</small>
+                      <small>{group.itemName}{mode === 'D' && armorMaterialTag(group.slot, group.itemName) && <span className={styles.armorKindBadge}>{armorMaterialTag(group.slot, group.itemName)}</span>}</small>
                     </div>
                     <strong>{fmt(group.totalCost)}<small> 데카</small></strong>
                   </div>
@@ -1242,7 +1250,7 @@ export default function MagicResistanceSimulator({ mode = 'M' }: { mode?: 'M' | 
                         {group.steps.map((step,i)=>(
                           <div className={styles.priceStep} key={i}>
                             <div className={styles.stepHeadline}>
-                              <b>{i+1}회차 · {step.acquisition?.itemName ?? group.itemName}</b>
+                              <b>{i+1}회차 · {step.acquisition?.itemName ?? group.itemName}{mode === 'D' && armorMaterialTag(step.slot,step.acquisition?.itemName ?? group.itemName) && <span className={styles.armorKindBadge}>{armorMaterialTag(step.slot,step.acquisition?.itemName ?? group.itemName)}</span>}</b>
                               <strong>{fmt(step.cost)} 데카</strong>
                             </div>
                             <details className={styles.stepRecipe}>
