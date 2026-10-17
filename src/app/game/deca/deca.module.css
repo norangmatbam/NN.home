@@ -10,3 +10,19 @@
 
 /* Game tools: consistent 8px button corners. */
 .wrap button{border-radius:8px!important}
+
+
+.soulHeader{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.soulHeader h2{margin:0}.soulHeader small{color:var(--muted);font-size:11px}
+.soulRanking{display:grid;gap:9px}
+.soulCard{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:9px;background:#fafcff}
+.soulRank{flex:none;display:inline-flex;align-items:center;padding:4px 7px;border-radius:8px;background:#eaf1ff;color:#436399;font-weight:800;font-size:11px;white-space:nowrap}
+.soulCard:nth-child(2) .soulRank{background:#f2edf8;color:#775998}
+.soulInfo{display:flex;align-items:center;gap:5px 7px;flex-wrap:wrap;flex:1;min-width:0}
+.soulInfo>b{font-size:14px;color:var(--ink)}
+.soulLocation{display:inline-flex;padding:2px 6px;border-radius:999px;border:1px solid #d6e2f3;background:#edf2fa;color:#53709a;font-size:10px;white-space:nowrap}
+.soulInfo>small{flex-basis:100%;font-size:11px;color:var(--muted)}
+.soulCard>strong{flex:none;font-size:19px;color:var(--gold);white-space:nowrap}
+.soulCard>strong small{font-size:11px}
+.soulStatus{margin:12px 0 0;color:var(--muted);font-size:12px;line-height:1.6}
+@media(max-width:480px){.soulCard{gap:7px;padding:10px 8px}.soulInfo>b{font-size:12px}.soulCard>strong{font-size:16px}.soulRank{font-size:10px;padding:4px 5px}}
