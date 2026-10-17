@@ -1,5 +1,6 @@
 'use client';
 
+import MaterialWithLocation from './MaterialWithLocation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './game.module.css';
 import { getRecipe, JOB_GROUPS, type SlotId } from './simulator/marketData';
@@ -486,7 +487,7 @@ export default function GameMaterialCalculator() {
                 >
                   <div className={styles.who}>
                     <i className={styles.dot + ' ' + dotClass} />
-                    <span>{material.name}</span>
+                    <MaterialWithLocation name={material.name} />
                   </div>
                   <div className={styles.mobileCell}>
                     <span>거래소 데카</span>
@@ -630,7 +631,7 @@ export default function GameMaterialCalculator() {
                         <div className={styles.mat} key={id}>
                           <div className={styles.matName}>
                             <i className={styles.dot + ' ' + dotClass} />
-                            <b>{material.name}</b>
+                            <b><MaterialWithLocation name={material.name} /></b>
                           </div>
                           <div>{fmt(qty)}</div>
                           <div className={styles.gold + (marketPrices[id] == null ? ' ' + styles.lookupFailed : '')}>
