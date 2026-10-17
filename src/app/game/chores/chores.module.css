@@ -40,3 +40,8 @@
 /* Per-character soul-buying group editor. */
 .editList>div>select{flex:0 0 85px;width:85px;min-width:0;font-size:12px;padding:8px 4px}
 .sharedHelp{color:#71819a;font-size:11px;line-height:1.5;margin:4px 0 9px}
+
+/* Shared soul-buying cells span every member of the group. */
+.table td.sharedCell{text-align:center;vertical-align:middle;background:#eef7e9}
+.sharedGroupCaption{display:block;font-size:10px;line-height:1.35;color:#62865c;font-weight:650;margin-top:2px}
+@media(max-width:640px){.sharedGroupCaption{font-size:9px}}
