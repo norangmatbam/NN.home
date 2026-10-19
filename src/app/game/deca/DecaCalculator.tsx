@@ -7,6 +7,7 @@ const ITEMS = [
   '크리온 파이브스타 이어링 상자',
   '크리온 펜듈럼 앤 핀 커프 상자',
   '보석 스킬 세공기',
+  '그랜드 앙상블 토탈 패키지',
 ] as const;
 const SOUL_STONES = [
   { name: '망령의 영혼석', location: '페카 심층 1층' },
@@ -17,10 +18,11 @@ const SOUL_STONES = [
   { name: '파동의 영혼석', location: '룬다 2층' },
 ] as const;
 type ItemName = typeof ITEMS[number];
-const CASH_PRICE: Record<ItemName, { cash: number; won: number }> = {
+const CASH_PRICE: Record<ItemName, { cash: number; won: number } | null> = {
   '크리온 파이브스타 이어링 상자': { cash: 600, won: 6000 },
   '크리온 펜듈럼 앤 핀 커프 상자': { cash: 600, won: 6000 },
   '보석 스킬 세공기': { cash: 100, won: 1000 },
+  '그랜드 앙상블 토탈 패키지': null,
 };
 type MarketItem = { name: string; min_price: number; total_count: number };
 type Payload = { ok: boolean; items?: MarketItem[]; last_updated_at?: string | null; error?: string };
@@ -176,7 +178,7 @@ export default function DecaCalculator() {
                   <span>최저가 {label(price)}</span>
                 </div>
                 <div className={styles.metrics}>
-                  <div><span>아이템 구매가</span><b>{fmt(cashPrice.cash)}캐시 · {fmt(cashPrice.won)}원</b></div>
+                  <div><span>아이템 구매가</span><b>{cashPrice ? fmt(cashPrice.cash)+'캐시 · '+fmt(cashPrice.won)+'원' : '가격 확인 필요'}</b></div>
                   <div><span>판매 수수료 (15%)</span><b>{label(fee)}</b></div>
                   <div><span>1개 실수령액</span><b>{label(net)}</b></div>
                 </div>
@@ -184,7 +186,7 @@ export default function DecaCalculator() {
                   <span>필요 판매 수량</span>
                   <strong className={count == null ? styles.failed : ''}>{count == null ? loading ? '조회 중…' : '조회 실패' : fmt(count) + '개'}</strong>
                   {total != null && <small>{fmt(total)}데카 수령 · {fmt(Math.max(0, total - shortage))}데카 초과</small>}
-                  {count != null && <div className={styles.cashTotal}>
+                  {count != null && cashPrice && <div className={styles.cashTotal}>
                     <span>필요 현금 비용</span>
                     <b>{fmt(count * cashPrice.won)}원</b>
                     <small>{fmt(count * cashPrice.cash)}캐시 · 1,000데카당 약 {net != null && net > 0 ? fmt(Math.round(cashPrice.won * 1000 / net)) + '원' : '계산 불가'}</small>
