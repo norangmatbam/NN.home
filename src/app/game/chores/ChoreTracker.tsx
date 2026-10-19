@@ -27,10 +27,12 @@ const initialTasks: Task[] = [
   ...['어비스 3회','레이드 1회','종말파괴기','콕데타'].map((name,i)=>({id:'weekend'+i,name,category:'주말' as const})),
 ];
 function weekKey(date = new Date()) {
-  // Monday based ISO week date, calculated using local calendar dates.
-  const day = (date.getDay()+6)%7;
-  const monday = new Date(date.getFullYear(),date.getMonth(),date.getDate()-day);
-  return [monday.getFullYear(),String(monday.getMonth()+1).padStart(2,'0'),String(monday.getDate()).padStart(2,'0')].join('-');
+  // The weekly boundary is Monday 06:00 KST (UTC+09:00), not local midnight.
+  // Shift the instant to the KST calendar and back six hours before finding Monday.
+  const shifted = new Date(date.getTime() + 3 * 60 * 60 * 1000);
+  const day = (shifted.getUTCDay() + 6) % 7;
+  shifted.setUTCDate(shifted.getUTCDate() - day);
+  return [shifted.getUTCFullYear(),String(shifted.getUTCMonth()+1).padStart(2,'0'),String(shifted.getUTCDate()).padStart(2,'0')].join('-');
 }
 function defaults(): Data { return { characters, tasks: initialTasks, checks: {}, counts: {}, notes: {}, week: weekKey() }; }
 function load(): Data {
@@ -90,7 +92,13 @@ export default function ChoreTracker(){
   useEffect(()=>{
     const check=()=>setData(prev=>prev.week===weekKey()?prev:{...prev,week:weekKey(),checks:{},counts:{}});
     document.addEventListener('visibilitychange',check);
-    return ()=>document.removeEventListener('visibilitychange',check);
+    window.addEventListener('focus',check);
+    const timer=window.setInterval(check,60_000);
+    return ()=>{
+      document.removeEventListener('visibilitychange',check);
+      window.removeEventListener('focus',check);
+      window.clearInterval(timer);
+    };
   },[]);
   const update=(change:(data:Data)=>Data)=>setData(prev=>change(prev));
   const vanguardTask=data.tasks.find(t=>t.id===VANGUARD_TASK);
@@ -167,7 +175,7 @@ export default function ChoreTracker(){
     <section className={styles.summary}>
       <div><b>{done} / {total}</b><span>이번 주 완료</span></div><div><b>{progress}%</b><span>진행률</span></div>
       <div className={styles.progress}><i style={{width:progress+'%'}} /></div>
-      <small>주간 체크는 월요일 00시(기기 현지 시간)에 초기화됩니다. 데이터는 현재 브라우저에만 저장됩니다.</small>
+      <small>주간 체크는 매주 월요일 오전 6시(한국 시간)에 초기화됩니다. 데이터는 현재 브라우저에만 저장됩니다.</small>
     </section>
     <section className={styles.panel}>
       <div className={styles.tableIntro}><b>이번 주 숙제표</b><span>가로 스크롤 또는 배율 조절</span></div>
