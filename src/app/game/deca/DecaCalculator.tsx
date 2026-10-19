@@ -22,7 +22,7 @@ const CASH_PRICE: Record<ItemName, { cash: number; won: number } | null> = {
   '크리온 파이브스타 이어링 상자': { cash: 600, won: 6000 },
   '크리온 펜듈럼 앤 핀 커프 상자': { cash: 600, won: 6000 },
   '보석 스킬 세공기': { cash: 100, won: 1000 },
-  '그랜드 앙상블 토탈 패키지': null,
+  '그랜드 앙상블 토탈 패키지': { cash: 3980, won: 39800 },
 };
 type MarketItem = { name: string; min_price: number; total_count: number };
 type Payload = { ok: boolean; items?: MarketItem[]; last_updated_at?: string | null; error?: string };
