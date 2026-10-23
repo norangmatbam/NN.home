@@ -39,6 +39,35 @@ const CLASS_GROUPS: Record<string, string[]> = {
   '듀얼블레이드': '보름달+,질주+,속행+,강화+,회오리+,열상+,기본+,천침+,교차+'.split(','),
   '격투가': '도약+,순발력+,격파+,약점+,중첩+,돌파+,강격+,전진+,승천+'.split(','),
 };
+
+// 시즌 1 ★8 도감: 게임 화면의 직업별 표시 순서.
+const SEASON1_MYTHIC = new Set('만 갈래 물길,흰 까마귀,메아리치는 진노,무한,닫힌 운명,검게 물든 후광,그림자로 엮은 회랑,바스러지는 빛,세상을 삼키는 악의,이름 없는 혼돈,영원,쏟아지는 별'.split(','));
+const isMythic = (rune: string, season: Season) =>
+  season === 1 ? SEASON1_MYTHIC.has(rune) : SEASON2_MYTHIC_RUNES.some(r => r === rune);
+const SEASON1_EMBLEMS = '무자비한 포식자,순수한 힘,부서진 하늘,인도하는 빛,대마법사,물결치는 검,산맥 군주,아득한 빛,갈라진 땅,녹아내린 대지'.split(',');
+const SEASON1_CLASSES: Record<string, string[]> = {
+  '화염술사': '불기둥+,열풍+,화력+,청염+,분출+,발화+,잿더미+,불씨+'.split(','),
+  '빙결술사': '수정+,빙검+,겨울+,빙하+,파편+,고드름+,서광+,폭풍+'.split(','),
+  '전격술사': '도관+,천둥+,벼락+,역장+,섬광+,환기+,방전+,광휘+'.split(','),
+  '전사': '포효+,패기+,참격+,붕괴+,극점+,돌격+,맹공+,돌진+'.split(','),
+  '대검전사': '분노+,봉쇄+,회심+,광전사+,반격+,탄력+,회전+,절단+'.split(','),
+  '검술사': '연출+,일섬+,평정+,낙화+,격돌+,강격+,무아+,재빠른+'.split(','),
+  '궁수': '치명적+,탈출+,닻+,추적+,매+,몰아침+,재빠른+,날렵함+'.split(','),
+  '장궁병': '무너짐+,돌개+,집중+,비연+,초음파+,파쇄+,내상+,끈질김+'.split(','),
+  '석궁사수': '연쇄+,화약+,감전+,균열+,산탄+,전류+,방해+,투척+'.split(','),
+  '힐러': '서약+,개화+,고동침+,물결+,위안+,길상+,광륜+,빛무리+'.split(','),
+  '사제': '수레바퀴+,심판+,빛줄기+,희생+,성전+,집행+,축복+,날개+'.split(','),
+  '수도사': '광휘+,축성+,업화+,정화+,인과+,해일+,뇌정+,응보+'.split(','),
+  '암흑술사': '속박+,제사장+,광기+,착취+,절제+,심연+,타락+,나락+'.split(','),
+  '음유시인': '즉흥+,무아+,기만+,재치+,조율+,급습+,변주+,화음+'.split(','),
+  '악사': '공명+,조율+,종장+,이중주+,속주+,박애+,매혹+,통성+'.split(','),
+  '댄서': '갈채+,다가옴+,발걸음+,전환+,나비+,산뜻함+,간결함+,정열+'.split(','),
+  '도적': '치밀함+,폭발+,주입+,땅거미+,독무+,교활함+,투척+,독성+'.split(','),
+  '듀얼블레이드': '보름달+,질주+,속행+,강화+,회오리+,열상+,기본+,천침+'.split(','),
+  '격투가': '도약+,순발력+,격파+,약점+,중첩+,일섬+,강격+,전진+'.split(','),
+};
+const SEASON1_CLASS_OF = new Map(Object.entries(SEASON1_CLASSES).flatMap(([job,names]) => names.map(name => [name,job] as const)));
+
 const WEAPON = new Set([...RUNE_ORDER['무기'], ...SEASON2_RUNE_CATALOG['무기']]);
 const ARMOR = new Set([...RUNE_ORDER['방어구'], ...SEASON2_RUNE_CATALOG['방어구']]);
 const EMBLEM = new Set([...RUNE_ORDER['엠블럼'], ...SEASON2_RUNE_CATALOG['엠블럼']]);
@@ -46,6 +75,8 @@ const CLASS_OF = new Map(Object.entries(CLASS_GROUPS).flatMap(([job, names]) => 
 function categoryOf(rune: string, season: Season): Category {
   if (season === 1 && ['만 갈래 물길','흰 까마귀','메아리치는 진노','무한'].includes(rune)) return '무기';
   if (season === 1 && SEASON1_MYTHIC.has(rune)) return '방어구';
+  if (season === 1 && SEASON1_EMBLEMS.includes(rune)) return '엠블럼';
+  if (season === 1 && SEASON1_CLASS_OF.has(rune)) return '클래스·장신구';
   if (season === 2 && SEASON2_RUNE_CATALOG['무기'].some(r => r === rune)) return '무기';
   if (season === 2 && SEASON2_RUNE_CATALOG['방어구'].some(r => r === rune)) return '방어구';
   if (season === 2 && SEASON2_RUNE_CATALOG['엠블럼'].some(r => r === rune)) return '엠블럼';
@@ -56,6 +87,15 @@ function categoryOf(rune: string, season: Season): Category {
   return '분류 확인 필요';
 }
 function runeOrder(rune: string, category: Category, season: Season): number {
+  if (season === 1 && category === '엠블럼') {
+    const i = SEASON1_EMBLEMS.indexOf(rune);
+    if (i >= 0) return i;
+  }
+  if (season === 1 && category === '클래스·장신구') {
+    const job = SEASON1_CLASS_OF.get(rune);
+    const i = job ? Object.keys(SEASON1_CLASSES).indexOf(job) * 100 + SEASON1_CLASSES[job].indexOf(rune) : -1;
+    if (i >= 0) return i;
+  }
   if (season === 2 && (category === '무기' || category === '방어구' || category === '엠블럼')) {
     const index = SEASON2_RUNE_CATALOG[category].findIndex(r => r === rune);
     if (index >= 0) return index;
@@ -122,7 +162,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const currentWords = words[season];
   const currentOwned = useMemo(() => new Set(owned[season]), [owned, season]);
   const currentSelected = useMemo(() => new Set(selected[season]), [selected, season]);
-  const runes = useMemo(() => [...new Set([...currentWords.flatMap(w => w.runes), ...(season === 2 ? Object.values(SEASON2_RUNE_CATALOG).flat() : [...SEASON1_MYTHIC])])].sort((a, b) => a.localeCompare(b, 'ko')), [currentWords, season]);
+  const runes = useMemo(() => [...new Set([...currentWords.flatMap(w => w.runes), ...(season === 2 ? Object.values(SEASON2_RUNE_CATALOG).flat() : [...SEASON1_MYTHIC, ...SEASON1_EMBLEMS, ...Object.values(SEASON1_CLASSES).flat()])])].sort((a, b) => a.localeCompare(b, 'ko')), [currentWords, season]);
   const categorized = useMemo(() => CATEGORY_ORDER.map(category => ({
     category, runes: runes.filter(r => categoryOf(r, season) === category && r.includes(runeSearch.trim())).sort((a,b) => runeOrder(a, category, season) - runeOrder(b, category, season) || a.localeCompare(b, 'ko')),
   })), [runes, runeSearch, season]);
@@ -185,8 +225,8 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
         {categorized.map(group => <details className={styles.fold} key={group.category}>
           <summary><b>{group.category}</b><span>{group.runes.filter(r => currentOwned.has(r)).length} / {group.runes.length}개 <strong>⌄</strong></span></summary>
           <div className={styles.runes}>
-            {group.category === '클래스·장신구' ? Object.keys(CLASS_GROUPS).map(job => {
-              const classRunes = group.runes.filter(r => CLASS_OF.get(r) === job);
+            {group.category === '클래스·장신구' ? Object.keys(season === 1 ? SEASON1_CLASSES : CLASS_GROUPS).map(job => {
+              const classRunes = group.runes.filter(r => (season === 1 ? SEASON1_CLASS_OF : CLASS_OF).get(r) === job);
               return classRunes.length ? <div className={styles.classGroup} key={job}>
                 <b>{job} <small>{classRunes.filter(r => currentOwned.has(r)).length} / {classRunes.length}</small></b>
                 <div className={styles.runePills}>{classRunes.map(r => <button type="button" key={r}
@@ -194,7 +234,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
                   aria-pressed={currentOwned.has(r)} onClick={() => toggleRune(r)}>{r}{isMythic(r, season) ? ' · 신화' : ''}</button>)}</div>
               </div> : null;
             }) : group.runes.map(r => <button type="button" key={r}
-              className={SEASON2_MYTHIC_RUNES.some(x => x === r) ? (currentOwned.has(r) ? styles.mythicChecked : styles.mythicRune) : (currentOwned.has(r) ? styles.runeChecked : styles.rune)}
+              className={isMythic(r, season) ? (currentOwned.has(r) ? styles.mythicChecked : styles.mythicRune) : (currentOwned.has(r) ? styles.runeChecked : styles.rune)}
               aria-pressed={currentOwned.has(r)} onClick={() => toggleRune(r)}>{r}</button>)}
             {!group.runes.length && <span className={styles.sub}>표시할 룬이 없어요.</span>}
           </div>
