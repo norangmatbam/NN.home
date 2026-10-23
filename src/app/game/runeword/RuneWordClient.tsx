@@ -10,24 +10,26 @@ type Category = '무기' | '방어구' | '클래스·장신구' | '엠블럼' | 
 
 const CATEGORY_ORDER: Category[] = ['무기', '방어구', '클래스·장신구', '엠블럼', '분류 확인 필요'];
 
-// 확실히 확인한 룬만 분류합니다. 잘못된 슬롯으로 안내하는 것보다
-// 미분류로 남기는 편이 정확합니다.
-const EMBLEM = new Set((
-  '아득한 빛,산맥 군주,흩날리는 검,대마법사,인도하는 빛,부서진 하늘,순수한 힘,' +
-  '갈라진 땅,쌍둥이 별,압도적인 힘,고대 수호자,신전 기사,집정관,준비된 자,' +
-  '바위 감시자,황혼,공포,태양,폭군,지휘관,불사,영웅,푸른 거목,다가오는 죽음,' +
-  '무너진 경계,금 간 봉인,뼈 인장,첫 번째 서약,봉인술사,영원한 밤,위대함,' +
-  '빛바랜 별,거대한 분노,잠들지 않는 불,가라앉은 왕국,해방,끓는 피'
-).split(','));
-
-// PDF는 룬워드 조합 자료이고 룬의 장착 부위 표가 아니므로,
-// + 접미사의 장신구 룬과 확인된 일부 룬 외에는 미분류로 유지합니다.
+// 스크린샷에서 명확하게 식별되는 룬을 기준으로 부위별 분류합니다.
+// PDF의 룬워드 조합만으로 부위를 추론하지 않습니다.
+const WEAPON = new Set('눈부신 잔영,황산+,계시+,광채+,타오르는 영광,오랜 광기,어둠의 충동,위엄+,부패+,창백한 기수,거대한 분노,비열한 날개,두 갈래 뿔,추적자,대군주+,죽음'.split(','));
+const ARMOR = new Set('기본가+,첫 번째 서약,녹슨 방패,긍지,위엄,극점,공세+,정복자+,일번 찬가,기사단장,승전,열의+,수호자,맹세+,계승자,등대지기,빛살+,교차하는 사슬,날 선 적의,무덤지기+,복수+,모호한 형상,잿빛 장막,금 간 봉인,무너진 경계,아귀,부서진 왕관,거두는 손길,남아 있는 무력,민중,광휘,잊힌 맹약,칼바람,불안정한 힘,폭염+,행복한 결말,번개 숨결,들 심장,용암 비늘,얼음 발톱,숲 길잡이,바다뱀+,잠든 땅,비늘 덮인 현자,오랜 성배,무너진 경계,금 간 봉인,뼈 인장,첫 번째 서약,봉인술사,끓는 피'.split(','));
+const EMBLEM = new Set('아득한 빛,위대함,영원한 밤,빛바랜 별'.split(','));
+const CLASS_GROUPS: Record<string, string[]> = {
+  '화염술사': '불기둥+,열풍+,화력+,청염+,분출+,발화+,잿더미+,불씨+,폭격+'.split(','),
+  '빙결술사': '수정+,빙검+,겨울+,빙하+,파편+,고드름+,설원+,북풍+,오로라+'.split(','),
+  '전격술사': '뇌정+,낙뢰+,우레+,섬광+,도관+,천둥+,환기+'.split(','),
+  '전사': '포효+,패기+,참격+,붕괴+,맹공+,돌진+,광전사+,회전+,분노+'.split(','),
+  '대검전사': '분노+,봉쇄+,회심+,절단+,무자비+,중검+'.split(','),
+  '검술사': '연출+,일섬+,평정+,낙화+,무희+,격파+,무아+'.split(','),
+  '수도사': '광휘+,축성+,업화+,정화+,뇌정+'.split(','),
+};
+const CLASS_OF = new Map(Object.entries(CLASS_GROUPS).flatMap(([job, names]) => names.map(name => [name, job] as const)));
 function categoryOf(rune: string): Category {
-  if (['무한','메아리치는 진노','만 갈래 물길','죽음','영웅','옛 마법사','서리바람+','망각+','검무+','파괴자+'].includes(rune)) return '무기';
-  if (['무너진 경계','금 간 봉인','뼈 인장','첫 번째 서약','봉인술사','새벽별','고대 수호자','압도적인 힘','바위 감시자','준비된 자','집정관','신전 기사'].includes(rune)) return '방어구';
-  if (rune.endsWith('+') && !['밤+','야수+','은둔자+','파멸+','근위병+','황폐+'].includes(rune)) return '클래스·장신구';
-  if (['무너진 경계','금 간 봉인','뼈 인장','첫 번째 서약','봉인술사','고대 수호자','신전 기사','집정관','준비된 자','바위 감시자','압도적인 힘'].includes(rune)) return '방어구';
+  if (WEAPON.has(rune)) return '무기';
+  if (ARMOR.has(rune)) return '방어구';
   if (EMBLEM.has(rune)) return '엠블럼';
+  if (CLASS_OF.has(rune)) return '클래스·장신구';
   return '분류 확인 필요';
 }
 
@@ -144,13 +146,13 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
         {categorized.map(group => <details className={styles.fold} key={group.category}>
           <summary><b>{group.category}</b><span>{group.runes.filter(r => currentOwned.has(r)).length} / {group.runes.length}개 <strong>⌄</strong></span></summary>
           <div className={styles.runes}>
-            {group.runes.length ? group.runes.map(r => <label key={r} className={currentOwned.has(r) ? styles.runeChecked : styles.rune}>
-              <input type="checkbox" checked={currentOwned.has(r)} onChange={() => toggleRune(r)} />{r}
-            </label>) : <span className={styles.sub}>표시할 룬이 없어요.</span>}
+            {group.runes.length ? group.runes.map(r => <button type="button" key={r}
+              className={currentOwned.has(r) ? styles.runeChecked : styles.rune}
+              aria-pressed={currentOwned.has(r)} onClick={() => toggleRune(r)}>{r}</button>) : <span className={styles.sub}>표시할 룬이 없어요.</span>}
           </div>
         </details>)}
       </div>
-      <p className={styles.warning}>룬워드 PDF에는 룬별 장착 부위 정보가 없어, 확정할 수 없는 룬은 ‘분류 확인 필요’에 표시했어요. 해당 룬도 정상적으로 체크하고 필터링할 수 있습니다.</p>
+      <p className={styles.warning}>공식 화면 이미지에서 분류를 확인할 수 없는 룬은 ‘분류 확인 필요’에 표시했어요. 해당 룬도 정상적으로 체크하고 필터링할 수 있습니다.</p>
       <button className={styles.secondary} onClick={() => { if (window.confirm('현재 시즌의 보유 룬 체크를 초기화할까요?')) setOwned(p => ({ ...p, [season]: [] })); }}>현재 시즌 보유 룬 초기화</button>
     </section>
 
