@@ -49,26 +49,29 @@ const SEASON1_ARMORS = '아망+,행운,바위 감시자,쇄도+,무도가+,해�
 const SEASON1_EMBLEMS = '무자비한 포식자,순수한 힘,부서진 하늘,인도하는 빛,대마법사,물결치는 검,산맥 군주,아득한 빛,갈라진 땅,녹아내린 대지'.split(',');
 const SEASON1_CLASSES: Record<string, string[]> = {
   '화염술사': '불기둥+,열풍+,화력+,청염+,분출+,발화+,잿더미+,불씨+'.split(','),
-  '빙결술사': '수정+,빙검+,겨울+,빙하+,파편+,고드름+,서광+,폭풍+'.split(','),
-  '전격술사': '도관+,천둥+,벼락+,역장+,섬광+,환기+,방전+,광휘+'.split(','),
+  '빙결술사': '수정+,빙검+,겨울+,빙하+,파편+,고드름+,북풍+,오로라+'.split(','),
+  '전격술사': '도관+,천둥+,벼락+,역장+,섬광+,환기+,방전+,초음파+'.split(','),
   '전사': '포효+,패기+,참격+,붕괴+,극점+,돌격+,맹공+,돌진+'.split(','),
   '대검전사': '분노+,봉쇄+,회심+,광전사+,반격+,탄력+,회전+,절단+'.split(','),
-  '검술사': '연출+,일섬+,평정+,낙화+,격돌+,강격+,무아+,재빠른+'.split(','),
-  '궁수': '치명적+,탈출+,닻+,추적+,매+,몰아침+,재빠른+,날렵함+'.split(','),
+  '검술사': '관통+,일섬+,평정+,낙화+,격돌+,강격+,압박+,무희+'.split(','),
+  '궁수': '치명적인+,탈출+,닻+,추적+,매+,몰아침+,재빠른+,날렵함+'.split(','),
   '장궁병': '무너짐+,돌개+,집중+,비연+,초음파+,파쇄+,내상+,끈질김+'.split(','),
   '석궁사수': '연쇄+,화약+,감전+,균열+,산탄+,전류+,방해+,투척+'.split(','),
-  '힐러': '서약+,개화+,고동침+,물결+,위안+,길상+,광륜+,빛무리+'.split(','),
-  '사제': '수레바퀴+,심판+,빛줄기+,희생+,성전+,집행+,축복+,날개+'.split(','),
+  '힐러': '서약+,개화+,고동침+,물결+,억압+,감쌈+,광륜+,빛무리+'.split(','),
+  '사제': '수레바퀴+,심판+,빛줄기+,희생+,성전+,집행자,축복+,날개+'.split(','),
   '수도사': '광휘+,축성+,업화+,정화+,인과+,해일+,뇌정+,응보+'.split(','),
   '암흑술사': '속박+,제사장+,광기+,착취+,절제+,심연+,타락+,나락+'.split(','),
   '음유시인': '즉흥+,무아+,기만+,재치+,조율+,급습+,변주+,화음+'.split(','),
-  '악사': '공명+,조율+,종장+,이중주+,속주+,박애+,매혹+,통성+'.split(','),
+  '악사': '공명+,조율+,종장+,이중주+,속주+,박애+,매혹+,반전+'.split(','),
   '댄서': '갈채+,다가옴+,발걸음+,전환+,나비+,산뜻함+,간결함+,정열+'.split(','),
   '도적': '치밀함+,폭발+,주입+,땅거미+,독무+,교활함+,투척+,독성+'.split(','),
   '듀얼블레이드': '보름달+,질주+,속행+,강화+,회오리+,열상+,기본+,천침+'.split(','),
-  '격투가': '도약+,순발력+,격파+,약점+,중첩+,일섬+,강격+,전진+'.split(','),
+  '격투가': '도약+,순발력+,격파+,약점+,충돌+,분쇄+,강격+,전진+'.split(','),
 };
-const SEASON1_CLASS_OF = new Map(Object.entries(SEASON1_CLASSES).flatMap(([job,names]) => names.map(name => [name,job] as const)));
+const SEASON1_CLASS_OF = new Map<string, string>();
+for (const [job, names] of Object.entries(SEASON1_CLASSES)) {
+  for (const name of names) if (!SEASON1_CLASS_OF.has(name)) SEASON1_CLASS_OF.set(name, job);
+}
 
 const WEAPON = new Set([...RUNE_ORDER['무기'], ...SEASON2_RUNE_CATALOG['무기']]);
 const ARMOR = new Set([...RUNE_ORDER['방어구'], ...SEASON2_RUNE_CATALOG['방어구']]);
@@ -171,7 +174,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const currentWords = words[season];
   const currentOwned = useMemo(() => new Set(owned[season]), [owned, season]);
   const currentSelected = useMemo(() => new Set(selected[season]), [selected, season]);
-  const runes = useMemo(() => [...new Set([...currentWords.flatMap(w => w.runes), ...(season === 2 ? Object.values(SEASON2_RUNE_CATALOG).flat() : [...SEASON1_MYTHIC, ...SEASON1_EMBLEMS, ...Object.values(SEASON1_CLASSES).flat()])])].sort((a, b) => a.localeCompare(b, 'ko')), [currentWords, season]);
+  const runes = useMemo(() => [...new Set([...currentWords.flatMap(w => w.runes), ...(season === 2 ? Object.values(SEASON2_RUNE_CATALOG).flat() : [...SEASON1_MYTHIC, ...SEASON1_EMBLEMS])])].sort((a, b) => a.localeCompare(b, 'ko')), [currentWords, season]);
   const categorized = useMemo(() => CATEGORY_ORDER.map(category => ({
     category, runes: runes.filter(r => categoryOf(r, season) === category && r.includes(runeSearch.trim())).sort((a,b) => runeOrder(a, category, season) - runeOrder(b, category, season) || a.localeCompare(b, 'ko')),
   })), [runes, runeSearch, season]);
