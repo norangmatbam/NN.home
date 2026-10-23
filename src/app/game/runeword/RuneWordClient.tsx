@@ -170,10 +170,26 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const currentWords = words[season];
   const currentOwned = useMemo(() => new Set(owned[season]), [owned, season]);
   const currentSelected = useMemo(() => new Set(selected[season]), [selected, season]);
-  const runes = useMemo(() => [...new Set([...currentWords.flatMap(w => w.runes), ...(season === 2 ? [...Object.values(SEASON2_RUNE_CATALOG).flat(), ...Object.values(CLASS_GROUPS).flat()] : [...SEASON1_WEAPONS, ...SEASON1_ARMORS, ...SEASON1_MYTHIC, ...SEASON1_EMBLEMS, ...Object.values(SEASON1_CLASSES).flat()])])], [currentWords, season]);
+  // Capture order is authoritative: never dedupe or alphabetize display rows.
+  const catalog = useMemo<Record<Category, string[]>>(() => {
+    const standard = season === 1
+      ? { '무기': SEASON1_WEAPONS, '방어구': SEASON1_ARMORS,
+          '클래스·장신구': Object.values(SEASON1_CLASSES).flat(), '엠블럼': SEASON1_EMBLEMS }
+      : { '무기': [...SEASON2_RUNE_CATALOG['무기']],
+          '방어구': [...SEASON2_RUNE_CATALOG['방어구']],
+          '클래스·장신구': Object.values(CLASS_GROUPS).flat(),
+          '엠블럼': [...SEASON2_RUNE_CATALOG['엠블럼']] };
+    const known = new Set(Object.values(standard).flat());
+    const unmatched = [...new Set(currentWords.flatMap(word => word.runes).filter(r => !known.has(r)))];
+    return { ...standard, '분류 확인 필요': unmatched };
+  }, [season, currentWords]);
+  const runeCatalogCount = Object.entries(catalog).filter(([kind]) => kind !== '분류 확인 필요')
+    .flatMap(([, names]) => names).length;
+  const obtainedCatalogCount = Object.entries(catalog).filter(([kind]) => kind !== '분류 확인 필요')
+    .flatMap(([, names]) => names).filter(r => currentOwned.has(r)).length;
   const categorized = useMemo(() => CATEGORY_ORDER.map(category => ({
-    category, runes: runes.filter(r => categoryOf(r, season) === category && r.includes(runeSearch.trim())).sort((a,b) => runeOrder(a, category, season) - runeOrder(b, category, season) || a.localeCompare(b, 'ko')),
-  })), [runes, runeSearch, season]);
+    category, runes: catalog[category].filter(r => r.includes(runeSearch.trim())),
+  })), [catalog, runeSearch]);
 
   const items = useMemo(() => currentWords
     .map(word => ({
@@ -225,7 +241,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
     <section className={styles.panel}>
       <div className={styles.sectionTitle}>
         <h2>보유 룬 체크</h2>
-        <span>{currentOwned.size} / {runes.length}개 획득</span>
+        <span>{obtainedCatalogCount} / {runeCatalogCount}개 획득</span>
       </div>
       <p className={styles.sub}>획득한 룬을 체크하세요. 시즌별 체크 상태는 이 브라우저에 저장됩니다.</p>
       <input className={styles.input} aria-label="보유 룬 검색" placeholder="룬 이름 검색" value={runeSearch} onChange={e => setRuneSearch(e.target.value)} />
@@ -234,7 +250,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
           <summary><b>{group.category}</b><span>{group.runes.filter(r => currentOwned.has(r)).length} / {group.runes.length}개 <strong>⌄</strong></span></summary>
           <div className={styles.runes}>
             {group.category === '클래스·장신구' ? Object.keys(season === 1 ? SEASON1_CLASSES : CLASS_GROUPS).map(job => {
-              const classRunes = group.runes.filter(r => (season === 1 ? SEASON1_CLASS_OF : SEASON2_CLASS_OF).get(r) === job);
+              const classRunes = (season === 1 ? SEASON1_CLASSES : CLASS_GROUPS)[job].filter(r => r.includes(runeSearch.trim()));
               return classRunes.length ? <div className={styles.classGroup} key={job}>
                 <b>{job} <small>{classRunes.filter(r => currentOwned.has(r)).length} / {classRunes.length}</small></b>
                 <div className={styles.runePills}>{classRunes.map(r => <button type="button" key={r}
