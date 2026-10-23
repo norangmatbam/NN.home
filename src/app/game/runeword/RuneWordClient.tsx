@@ -146,9 +146,18 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
         {categorized.map(group => <details className={styles.fold} key={group.category}>
           <summary><b>{group.category}</b><span>{group.runes.filter(r => currentOwned.has(r)).length} / {group.runes.length}개 <strong>⌄</strong></span></summary>
           <div className={styles.runes}>
-            {group.runes.length ? group.runes.map(r => <button type="button" key={r}
+            {group.category === '클래스·장신구' ? Object.keys(CLASS_GROUPS).map(job => {
+              const classRunes = group.runes.filter(r => CLASS_OF.get(r) === job);
+              return classRunes.length ? <div className={styles.classGroup} key={job}>
+                <b>{job} <small>{classRunes.filter(r => currentOwned.has(r)).length} / {classRunes.length}</small></b>
+                <div className={styles.runePills}>{classRunes.map(r => <button type="button" key={r}
+                  className={currentOwned.has(r) ? styles.runeChecked : styles.rune}
+                  aria-pressed={currentOwned.has(r)} onClick={() => toggleRune(r)}>{r}</button>)}</div>
+              </div> : null;
+            }) : group.runes.map(r => <button type="button" key={r}
               className={currentOwned.has(r) ? styles.runeChecked : styles.rune}
-              aria-pressed={currentOwned.has(r)} onClick={() => toggleRune(r)}>{r}</button>) : <span className={styles.sub}>표시할 룬이 없어요.</span>}
+              aria-pressed={currentOwned.has(r)} onClick={() => toggleRune(r)}>{r}</button>)}
+            {!group.runes.length && <span className={styles.sub}>표시할 룬이 없어요.</span>}
           </div>
         </details>)}
       </div>
