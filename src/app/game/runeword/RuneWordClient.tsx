@@ -11,13 +11,6 @@ type Category = '무기' | '방어구' | '클래스·장신구' | '엠블럼' | 
 
 const CATEGORY_ORDER: Category[] = ['무기', '방어구', '클래스·장신구', '엠블럼', '분류 확인 필요'];
 
-// 시즌 2 게임 도감 스크린샷의 표시 순서. 미확인 이름은 별도 분류에 둡니다.
-// 순서를 바꾸지 않기 위해 Set이 아니라 배열을 기준으로 정렬합니다.
-const RUNE_ORDER: Record<'무기' | '방어구' | '엠블럼', string[]> = {
-  '무기': '눈부신 잔영,황산+,계시+,광채+,타오르는 영광,오랜 광기,억눌린 충동,위엄+,부패+,창백한 기수,거대한 분노,비워 날개,두 갈래 뿔,추적자,대군주+,죽음'.split(','),
-  '방어구': '기본가+,첫 번째 서약,녹슨 방패,긍지,위엄,극점,공세+,정복자+,일번 찬가,기사단장,승전,열의+,수호자,맹세+,계승자,등대지기,빛살+,교차하는 사슬,날 선 적의,무덤지기+,복수+,모호한 형상,잿빛 장막,금 간 봉인,무너진 경계,아귀,부서진 왕관,거두는 손길,남아 있는 무력,민중,광휘,잊힌 맹약,칼바람,불안정한 힘,폭염+,행복한 결말,번개 숨결,돌 심장,용암 비늘,얼음 발톱,숲 길잡이,바다뱀+,잠든 땅,비늘 덮인 현자,오랜 성배'.split(','),
-  '엠블럼': '고결함,백금 천칭,초월,침묵,해방,영원한 밤,태초,빛바랜 별,위대함,원점에'.split(','),
-};
 const CLASS_GROUPS: Record<string, string[]> = {
   '화염술사': '불기둥+,열풍+,화력+,청염+,분출+,발화+,잿더미+,불씨+,폭격+'.split(','),
   '마법사': '서리기사+,낙뢰+,우레+,깜빡임+,증폭+,운석+,신시대+,암석+,빙창+'.split(','),
@@ -74,51 +67,6 @@ const SEASON1_CLASSES: Record<string, string[]> = {
   '격투가': '도약+,순발력+,격파+,약점+,충돌+,일발+,강격+,전진+'.split(','),
 
 };
-const SEASON1_CLASS_OF = new Map<string, string>();
-for (const [job, names] of Object.entries(SEASON1_CLASSES)) {
-  for (const name of names) if (!SEASON1_CLASS_OF.has(name)) SEASON1_CLASS_OF.set(name, job);
-}
-
-// 시즌 간 분류/정렬을 공유하지 않습니다. 같은 이름도 해당 시즌 데이터에서만 조회합니다.
-const SEASON2_CLASS_OF = new Map<string, string>();
-for (const [job, names] of Object.entries(CLASS_GROUPS)) {
-  for (const name of names) if (!SEASON2_CLASS_OF.has(name)) SEASON2_CLASS_OF.set(name, job);
-}
-function categoryOf(rune: string, season: Season): Category {
-  if (season === 1) {
-    if (SEASON1_WEAPONS.includes(rune)) return '무기';
-    if (SEASON1_ARMORS.includes(rune) || (SEASON1_MYTHIC.has(rune) && !SEASON1_WEAPONS.includes(rune))) return '방어구';
-    if (SEASON1_EMBLEMS.includes(rune)) return '엠블럼';
-    if (SEASON1_CLASS_OF.has(rune)) return '클래스·장신구';
-    return '분류 확인 필요';
-  }
-  if (SEASON2_RUNE_CATALOG['무기'].some(name => name === rune)) return '무기';
-  if (SEASON2_RUNE_CATALOG['방어구'].some(name => name === rune)) return '방어구';
-  if (SEASON2_RUNE_CATALOG['엠블럼'].some(name => name === rune)) return '엠블럼';
-  if (SEASON2_CLASS_OF.has(rune)) return '클래스·장신구';
-  return '분류 확인 필요';
-}
-function runeOrder(rune: string, category: Category, season: Season): number {
-  if (season === 1) {
-    if (category === '무기') return SEASON1_WEAPONS.indexOf(rune) < 0 ? 99999 : SEASON1_WEAPONS.indexOf(rune);
-    if (category === '방어구') return SEASON1_ARMORS.indexOf(rune) < 0 ? 99999 : SEASON1_ARMORS.indexOf(rune);
-    if (category === '엠블럼') return SEASON1_EMBLEMS.indexOf(rune) < 0 ? 99999 : SEASON1_EMBLEMS.indexOf(rune);
-    if (category === '클래스·장신구') {
-      const job = SEASON1_CLASS_OF.get(rune);
-      return job ? Object.keys(SEASON1_CLASSES).indexOf(job) * 100 + SEASON1_CLASSES[job].indexOf(rune) : 99999;
-    }
-    return 99999;
-  }
-  if (category === '무기' || category === '방어구' || category === '엠블럼') {
-    const index = SEASON2_RUNE_CATALOG[category].findIndex(name => name === rune);
-    return index < 0 ? 99999 : index;
-  }
-  if (category === '클래스·장신구') {
-    const job = SEASON2_CLASS_OF.get(rune);
-    return job ? Object.keys(CLASS_GROUPS).indexOf(job) * 100 + CLASS_GROUPS[job].indexOf(rune) : 99999;
-  }
-  return 99999;
-}
 
 const WEIGHTS: Record<string, number> = {
   '치명타': .5 / 70,
