@@ -105,6 +105,7 @@ function fmt(n: number) { return (n > 0 ? '+' : '') + n.toFixed(2) + '%'; }
 validateClassRunes(SEASON1_CLASSES, 1);
 const STORAGE = 'nn-game-runeword-ownership-v1';
 const SELECTED_STORAGE = 'nn-game-runeword-selected-v1';
+const SEASON_STORAGE = 'nn-game-runeword-active-season-v1';
 
 export default function RuneWordClient({ words }: { words: Record<Season, RuneWord[]> }) {
   const [season, setSeason] = useState<Season>(1);
@@ -121,6 +122,8 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
     try {
       const a = JSON.parse(localStorage.getItem(STORAGE) || '{}');
       const b = JSON.parse(localStorage.getItem(SELECTED_STORAGE) || '{}');
+      const savedSeason = localStorage.getItem(SEASON_STORAGE);
+      if (savedSeason === '1' || savedSeason === '2') setSeason(Number(savedSeason) as Season);
       setOwned({ 1: Array.isArray(a[1]) ? a[1] : [], 2: Array.isArray(a[2]) ? a[2] : [] });
       setSelected({ 1: Array.isArray(b[1]) ? b[1] : [], 2: Array.isArray(b[2]) ? b[2] : [] });
     } catch {}
@@ -128,6 +131,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   }, []);
   useEffect(() => { if (ready) localStorage.setItem(STORAGE, JSON.stringify(owned)); }, [owned, ready]);
   useEffect(() => { if (ready) localStorage.setItem(SELECTED_STORAGE, JSON.stringify(selected)); }, [selected, ready]);
+  useEffect(() => { if (ready) localStorage.setItem(SEASON_STORAGE, String(season)); }, [season, ready]);
 
   const currentWords = words[season];
   const currentOwned = useMemo(() => new Set(owned[season]), [owned, season]);
