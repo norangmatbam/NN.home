@@ -10,27 +10,57 @@ type Category = '무기' | '방어구' | '클래스·장신구' | '엠블럼' | 
 
 const CATEGORY_ORDER: Category[] = ['무기', '방어구', '클래스·장신구', '엠블럼', '분류 확인 필요'];
 
-// 스크린샷에서 명확하게 식별되는 룬을 기준으로 부위별 분류합니다.
-// PDF의 룬워드 조합만으로 부위를 추론하지 않습니다.
-const WEAPON = new Set('눈부신 잔영,황산+,계시+,광채+,타오르는 영광,오랜 광기,어둠의 충동,위엄+,부패+,창백한 기수,거대한 분노,비열한 날개,두 갈래 뿔,추적자,대군주+,죽음'.split(','));
-const ARMOR = new Set('기본가+,첫 번째 서약,녹슨 방패,긍지,위엄,극점,공세+,정복자+,일번 찬가,기사단장,승전,열의+,수호자,맹세+,계승자,등대지기,빛살+,교차하는 사슬,날 선 적의,무덤지기+,복수+,모호한 형상,잿빛 장막,금 간 봉인,무너진 경계,아귀,부서진 왕관,거두는 손길,남아 있는 무력,민중,광휘,잊힌 맹약,칼바람,불안정한 힘,폭염+,행복한 결말,번개 숨결,들 심장,용암 비늘,얼음 발톱,숲 길잡이,바다뱀+,잠든 땅,비늘 덮인 현자,오랜 성배,무너진 경계,금 간 봉인,뼈 인장,첫 번째 서약,봉인술사,끓는 피'.split(','));
-const EMBLEM = new Set('아득한 빛,위대함,영원한 밤,빛바랜 별'.split(','));
+// 시즌 2 게임 도감 스크린샷의 표시 순서. 미확인 이름은 별도 분류에 둡니다.
+// 순서를 바꾸지 않기 위해 Set이 아니라 배열을 기준으로 정렬합니다.
+const RUNE_ORDER: Record<'무기' | '방어구' | '엠블럼', string[]> = {
+  '무기': '눈부신 잔영,황산+,계시+,광채+,타오르는 영광,오랜 광기,억눌린 충동,위엄+,부패+,창백한 기수,거대한 분노,비워 날개,두 갈래 뿔,추적자,대군주+,죽음'.split(','),
+  '방어구': '기본가+,첫 번째 서약,녹슨 방패,긍지,위엄,극점,공세+,정복자+,일번 찬가,기사단장,승전,열의+,수호자,맹세+,계승자,등대지기,빛살+,교차하는 사슬,날 선 적의,무덤지기+,복수+,모호한 형상,잿빛 장막,금 간 봉인,무너진 경계,아귀,부서진 왕관,거두는 손길,남아 있는 무력,민중,광휘,잊힌 맹약,칼바람,불안정한 힘,폭염+,행복한 결말,번개 숨결,돌 심장,용암 비늘,얼음 발톱,숲 길잡이,바다뱀+,잠든 땅,비늘 덮인 현자,오랜 성배'.split(','),
+  '엠블럼': '고결함,백금 천칭,초월,침묵,해방,영원한 밤,태초,빛바랜 별,위대함,원점에'.split(','),
+};
 const CLASS_GROUPS: Record<string, string[]> = {
   '화염술사': '불기둥+,열풍+,화력+,청염+,분출+,발화+,잿더미+,불씨+,폭격+'.split(','),
   '빙결술사': '수정+,빙검+,겨울+,빙하+,파편+,고드름+,설원+,북풍+,오로라+'.split(','),
-  '전격술사': '뇌정+,낙뢰+,우레+,섬광+,도관+,천둥+,환기+'.split(','),
-  '전사': '포효+,패기+,참격+,붕괴+,맹공+,돌진+,광전사+,회전+,분노+'.split(','),
-  '대검전사': '분노+,봉쇄+,회심+,절단+,무자비+,중검+'.split(','),
+  '전격술사': '뇌정+,낙뢰+,우레+,섬광+,도관+,천둥+,환기+,방전+,벼락+'.split(','),
+  '전사': '포효+,패기+,참격+,붕괴+,맹공+,돌진+,광투사+,회전+,분노+'.split(','),
+  '대검전사': '분노+,봉쇄+,회심+,절단+,무자비+,중검+,회전+,절단+,무자비+'.split(','),
   '검술사': '연출+,일섬+,평정+,낙화+,무희+,격파+,무아+'.split(','),
-  '수도사': '광휘+,축성+,업화+,정화+,뇌정+'.split(','),
+  '궁수': '치명적+,탈출+,도약+,추적+,매+,몰아침+,재빠른+,날렵함+,나선+'.split(','),
+  '장궁병': '무너짐+,돌개+,집중+,비연+,초음파+,파쇄+,내상+,끈질김+,호응+'.split(','),
+  '석궁사수': '연쇄+,화약+,감전+,균열+,산탄+,전류+,방해+,투척+,폭발+'.split(','),
+  '힐러': '서약+,개화+,고동침+,물결+,위안+,길상+,방목+,빛무리+,기만+'.split(','),
+  '사제': '수레바퀴+,심판+,빛줄기+,희생+,성전+,축복+,축성+,빛줄기+,집행+'.split(','),
+  '수도사': '광휘+,축성+,업화+,정화+,인과+,해일+,뇌정+,동화+,등불+'.split(','),
+  '암흑술사': '속박+,제사장+,광기+,착취+,절제+,심연+,타락+,나락+,구속+'.split(','),
+  '음유시인': '즉흥+,무아+,기만+,재치+,조율+,급습+,변주+,화음+,합주+'.split(','),
+  '악사': '공명+,조율+,종장+,이중주+,박애+,나비+,매혹+,음성+,순환+'.split(','),
+  '댄서': '갈채+,다가옴+,발걸음+,전환+,나비+,산뜻함+,간결함+,정열+,환호+'.split(','),
+  '도적': '치밀함+,폭발+,주입+,땅거미+,독무+,교활함+,투척+,독성+,덫+'.split(','),
+  '듀얼블레이드': '보름달+,질주+,속행+,강화+,회오리+,열상+,기본+,천침+,교차+'.split(','),
+  '격투가': '도약+,순발력+,격파+,약점+,중첩+,돌파+,강격+,전진+,승천+'.split(','),
 };
+const WEAPON = new Set(RUNE_ORDER['무기']);
+const ARMOR = new Set(RUNE_ORDER['방어구']);
+const EMBLEM = new Set(RUNE_ORDER['엠블럼']);
 const CLASS_OF = new Map(Object.entries(CLASS_GROUPS).flatMap(([job, names]) => names.map(name => [name, job] as const)));
-function categoryOf(rune: string): Category {
+function categoryOf(rune: string, season: Season): Category {
+  if (season === 1) return '분류 확인 필요'; // 시즌 2 이미지를 시즌 1에 잘못 적용하지 않음
   if (WEAPON.has(rune)) return '무기';
   if (ARMOR.has(rune)) return '방어구';
   if (EMBLEM.has(rune)) return '엠블럼';
   if (CLASS_OF.has(rune)) return '클래스·장신구';
   return '분류 확인 필요';
+}
+function runeOrder(rune: string, category: Category): number {
+  if (category === '클래스·장신구') {
+    const job = CLASS_OF.get(rune);
+    const groups = Object.keys(CLASS_GROUPS);
+    if (job) return groups.indexOf(job) * 100 + CLASS_GROUPS[job].indexOf(rune);
+  }
+  if (category === '무기' || category === '방어구' || category === '엠블럼') {
+    const index = RUNE_ORDER[category].indexOf(rune);
+    if (index >= 0) return index;
+  }
+  return 99999;
 }
 
 const WEIGHTS: Record<string, number> = {
@@ -85,8 +115,8 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const currentSelected = useMemo(() => new Set(selected[season]), [selected, season]);
   const runes = useMemo(() => [...new Set(currentWords.flatMap(w => w.runes))].sort((a, b) => a.localeCompare(b, 'ko')), [currentWords]);
   const categorized = useMemo(() => CATEGORY_ORDER.map(category => ({
-    category, runes: runes.filter(r => categoryOf(r) === category && r.includes(runeSearch.trim())),
-  })), [runes, runeSearch]);
+    category, runes: runes.filter(r => categoryOf(r, season) === category && r.includes(runeSearch.trim())).sort((a,b) => runeOrder(a, category) - runeOrder(b, category) || a.localeCompare(b, 'ko')),
+  })), [runes, runeSearch, season]);
 
   const items = useMemo(() => currentWords
     .map(word => ({
