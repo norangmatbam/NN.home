@@ -43,7 +43,6 @@ const ARMOR = new Set(RUNE_ORDER['방어구']);
 const EMBLEM = new Set(RUNE_ORDER['엠블럼']);
 const CLASS_OF = new Map(Object.entries(CLASS_GROUPS).flatMap(([job, names]) => names.map(name => [name, job] as const)));
 function categoryOf(rune: string, season: Season): Category {
-  if (season === 1) return '분류 확인 필요'; // 시즌 2 이미지를 시즌 1에 잘못 적용하지 않음
   if (WEAPON.has(rune)) return '무기';
   if (ARMOR.has(rune)) return '방어구';
   if (EMBLEM.has(rune)) return '엠블럼';
