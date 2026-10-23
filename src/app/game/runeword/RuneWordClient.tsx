@@ -188,11 +188,11 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
               return classRunes.length ? <div className={styles.classGroup} key={job}>
                 <b>{job} <small>{classRunes.filter(r => currentOwned.has(r)).length} / {classRunes.length}</small></b>
                 <div className={styles.runePills}>{classRunes.map(r => <button type="button" key={r}
-                  className={currentOwned.has(r) ? styles.runeChecked : styles.rune}
+                  className={SEASON2_MYTHIC_RUNES.some(x => x === r) ? (currentOwned.has(r) ? styles.mythicChecked : styles.mythicRune) : (currentOwned.has(r) ? styles.runeChecked : styles.rune)}
                   aria-pressed={currentOwned.has(r)} onClick={() => toggleRune(r)}>{r}{season === 2 && SEASON2_MYTHIC_RUNES.some(x => x === r) ? ' · 신화' : ''}</button>)}</div>
               </div> : null;
             }) : group.runes.map(r => <button type="button" key={r}
-              className={currentOwned.has(r) ? styles.runeChecked : styles.rune}
+              className={SEASON2_MYTHIC_RUNES.some(x => x === r) ? (currentOwned.has(r) ? styles.mythicChecked : styles.mythicRune) : (currentOwned.has(r) ? styles.runeChecked : styles.rune)}
               aria-pressed={currentOwned.has(r)} onClick={() => toggleRune(r)}>{r}</button>)}
             {!group.runes.length && <span className={styles.sub}>표시할 룬이 없어요.</span>}
           </div>
