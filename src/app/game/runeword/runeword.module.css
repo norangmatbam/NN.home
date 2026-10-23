@@ -7,3 +7,10 @@
 @media(max-width:680px){.runes{gap:7px}.rune,.runeChecked{min-height:34px;padding:7px 11px;font-size:12px}}
 
 .classGroup{flex:1 1 100%;padding:6px 0 11px;border-bottom:1px solid #edf0f5}.classGroup:last-child{border-bottom:0}.classGroup>b{display:block;margin:0 0 9px;color:#344663;font-size:13px}.classGroup small{font-size:11px;color:#7f8ba1;font-weight:500;margin-left:5px}.runePills{display:flex;flex-wrap:wrap;gap:7px}
+
+/* Rarity palette: mythic yellow; other runes orange. Both selected and unselected states. */
+.runes .rune,.runePills .rune{background:#fff1e6;border-color:#eab991;color:#a75416}
+.runes .runeChecked,.runePills .runeChecked{background:#e97621;border-color:#d56012;color:#fff;font-weight:750}
+.runes .mythicRune,.runePills .mythicRune{background:#fff9de;border:1px solid #e8c764;color:#916b0c;border-radius:999px;min-height:36px;padding:7px 12px;font:inherit;font-size:13px;cursor:pointer}
+.runes .mythicChecked,.runePills .mythicChecked{background:#f4c542;border:1px solid #d7a41d;color:#473500;border-radius:999px;min-height:36px;padding:7px 12px;font:inherit;font-size:13px;font-weight:750;cursor:pointer}
+.mythicRune:focus-visible,.mythicChecked:focus-visible{outline:2px solid #3579bc;outline-offset:2px}
