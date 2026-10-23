@@ -14,3 +14,8 @@
 .runes .mythicRune,.runePills .mythicRune{background:#fff9de;border:1px solid #e8c764;color:#916b0c;border-radius:999px;min-height:36px;padding:7px 12px;font:inherit;font-size:13px;cursor:pointer}
 .runes .mythicChecked,.runePills .mythicChecked{background:#f4c542;border:1px solid #d7a41d;color:#473500;border-radius:999px;min-height:36px;padding:7px 12px;font:inherit;font-size:13px;font-weight:750;cursor:pointer}
 .mythicRune:focus-visible,.mythicChecked:focus-visible{outline:2px solid #3579bc;outline-offset:2px}
+
+/* Single-type rune word label, displayed alongside the title. */
+.wordNameRow{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin-bottom:4px}
+.wordNameRow h3{margin:0}
+.typeBadge{display:inline-flex;align-items:center;max-width:100%;border:1px solid #cddbf0;border-radius:999px;padding:2px 8px;background:#eef4ff;color:#345b90;font-size:11px;font-weight:700;line-height:1.5;white-space:nowrap}
