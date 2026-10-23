@@ -81,6 +81,27 @@ const SEASON1_CLASSES: Record<string, string[]> = {
 
 };
 
+function singleTypeBadge(runes: string[], season: Season): string | null {
+  if (!runes.length) return null;
+  const classes = season === 1 ? SEASON1_CLASSES : CLASS_GROUPS;
+  const weapons: readonly string[] = season === 1 ? SEASON1_WEAPONS : SEASON2_RUNE_CATALOG['무기'];
+  const armors: readonly string[] = season === 1 ? SEASON1_ARMORS : SEASON2_RUNE_CATALOG['방어구'];
+  const emblems: readonly string[] = season === 1 ? SEASON1_EMBLEMS : SEASON2_RUNE_CATALOG['엠블럼'];
+
+  const typeFor = (rune: string): string | null => {
+    const types: string[] = [];
+    if (weapons.includes(rune)) types.push('무기');
+    if (armors.includes(rune)) types.push('방어구');
+    if (emblems.includes(rune)) types.push('엠블럼');
+    for (const [job, names] of Object.entries(classes)) {
+      if (names.includes(rune)) types.push(`장신구-${job}`);
+    }
+    return types.length === 1 ? types[0] : null;
+  };
+  const type = typeFor(runes[0]);
+  return type && runes.every(rune => typeFor(rune) === type) ? type : null;
+}
+
 const WEIGHTS: Record<string, number> = {
   '치명타': .5 / 70,
   '추가타': .45 / 70,
@@ -161,6 +182,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
     .map(word => ({
       ...word,
       ...estimate(word, baseAttack),
+      typeBadge: singleTypeBadge(word.runes, season),
       missing: word.runes.filter(r => !currentOwned.has(r)),
     }))
     .filter(word => (!filterAvailable || word.missing.length === 0) &&
@@ -169,7 +191,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
       if (sort === 'name') return a.name.localeCompare(b.name, 'ko');
       if (sort === 'missing') return a.missing.length - b.missing.length || b.percent - a.percent;
       return b.percent - a.percent || a.name.localeCompare(b.name, 'ko');
-    }), [currentWords, baseAttack, currentOwned, filterAvailable, search, sort]);
+    }), [currentWords, baseAttack, currentOwned, filterAvailable, search, sort, season]);
 
   const selectedWords = currentWords.filter(w => currentSelected.has(w.name));
   const totalEffect = useMemo(() => {
@@ -257,7 +279,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
       <div className={styles.cards}>
         {items.map(w => <article key={w.name} className={styles.word}>
           <div className={styles.wordTop}>
-            <div><h3>{w.name}</h3><span className={w.missing.length ? styles.notReady : styles.ready}>{w.missing.length ? '부족한 룬 ' + w.missing.length + '개' : '사용 가능'}</span></div>
+            <div><div className={styles.wordNameRow}><h3>{w.name}</h3>{w.typeBadge && <span className={styles.typeBadge}>{w.typeBadge}</span>}</div><span className={w.missing.length ? styles.notReady : styles.ready}>{w.missing.length ? '부족한 룬 ' + w.missing.length + '개' : '사용 가능'}</span></div>
             <div className={styles.score}><b>{fmt(w.percent)}</b><small>부분 DPS 추정</small></div>
           </div>
           <div className={styles.stats}>{w.effects.map((e, i) => <span key={i}>{e.name} <b>{signed(e.value)}</b></span>)}</div>
