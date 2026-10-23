@@ -37,6 +37,19 @@ const CLASS_GROUPS: Record<string, string[]> = {
 };
 
 // 시즌 1 ★8 도감: 게임 화면의 직업별 표시 순서.
+// A rune belongs to one class only within a given season.
+function validateClassRunes(groups: Record<string, string[]>, season: 1 | 2) {
+  const seen = new Map<string, string>();
+  for (const [job, names] of Object.entries(groups)) {
+    for (const name of names) {
+      const previous = seen.get(name);
+      if (previous) throw new Error(`시즌 ${season} 장신구 룬 중복: ${name} (${previous}, ${job})`);
+      seen.set(name, job);
+    }
+  }
+}
+validateClassRunes(CLASS_GROUPS, 2);
+
 const SEASON1_MYTHIC = new Set('만 갈래 물길,메아리치는 진노,검게 물든 후광,그림자로 엮은 회랑,바스러지는 빛,세상을 삼키는 악의,이름 없는 혼돈,쏟아지는 별'.split(','));
 const isMythic = (rune: string, season: Season) =>
   season === 1 ? SEASON1_MYTHIC.has(rune) : SEASON2_MYTHIC_RUNES.some(r => r === rune);
@@ -89,6 +102,7 @@ function estimate(word: RuneWord, baseAttack: number) {
 }
 function signed(n: number) { return (n > 0 ? '+' : '') + n.toLocaleString('ko-KR'); }
 function fmt(n: number) { return (n > 0 ? '+' : '') + n.toFixed(2) + '%'; }
+validateClassRunes(SEASON1_CLASSES, 1);
 const STORAGE = 'nn-game-runeword-ownership-v1';
 const SELECTED_STORAGE = 'nn-game-runeword-selected-v1';
 
