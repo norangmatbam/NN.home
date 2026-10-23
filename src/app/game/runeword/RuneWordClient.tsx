@@ -23,7 +23,10 @@ const EMBLEM = new Set((
 // PDF는 룬워드 조합 자료이고 룬의 장착 부위 표가 아니므로,
 // + 접미사의 장신구 룬과 확인된 일부 룬 외에는 미분류로 유지합니다.
 function categoryOf(rune: string): Category {
-  if (rune.endsWith('+')) return '클래스·장신구';
+  if (['무한','메아리치는 진노','만 갈래 물길','죽음','영웅','옛 마법사','서리바람+','망각+','검무+','파괴자+'].includes(rune)) return '무기';
+  if (['무너진 경계','금 간 봉인','뼈 인장','첫 번째 서약','봉인술사','새벽별','고대 수호자','압도적인 힘','바위 감시자','준비된 자','집정관','신전 기사'].includes(rune)) return '방어구';
+  if (rune.endsWith('+') && !['밤+','야수+','은둔자+','파멸+','근위병+','황폐+'].includes(rune)) return '클래스·장신구';
+  if (['무너진 경계','금 간 봉인','뼈 인장','첫 번째 서약','봉인술사','고대 수호자','신전 기사','집정관','준비된 자','바위 감시자','압도적인 힘'].includes(rune)) return '방어구';
   if (EMBLEM.has(rune)) return '엠블럼';
   return '분류 확인 필요';
 }
