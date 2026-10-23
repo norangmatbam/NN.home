@@ -73,53 +73,43 @@ for (const [job, names] of Object.entries(SEASON1_CLASSES)) {
   for (const name of names) if (!SEASON1_CLASS_OF.has(name)) SEASON1_CLASS_OF.set(name, job);
 }
 
-const WEAPON = new Set([...RUNE_ORDER['무기'], ...SEASON2_RUNE_CATALOG['무기']]);
-const ARMOR = new Set([...RUNE_ORDER['방어구'], ...SEASON2_RUNE_CATALOG['방어구']]);
-const EMBLEM = new Set([...RUNE_ORDER['엠블럼'], ...SEASON2_RUNE_CATALOG['엠블럼']]);
-const CLASS_OF = new Map(Object.entries(CLASS_GROUPS).flatMap(([job, names]) => names.map(name => [name, job] as const)));
+// 시즌 간 분류/정렬을 공유하지 않습니다. 같은 이름도 해당 시즌 데이터에서만 조회합니다.
+const SEASON2_CLASS_OF = new Map<string, string>();
+for (const [job, names] of Object.entries(CLASS_GROUPS)) {
+  for (const name of names) if (!SEASON2_CLASS_OF.has(name)) SEASON2_CLASS_OF.set(name, job);
+}
 function categoryOf(rune: string, season: Season): Category {
   if (season === 1) {
     if (SEASON1_WEAPONS.includes(rune)) return '무기';
-    if (SEASON1_ARMORS.includes(rune) || (SEASON1_MYTHIC.has(rune) && !SEASON1_WEAPONS.includes(rune))) return '방어구';
+    if (SEASON1_ARMORS.includes(rune) || SEASON1_MYTHIC.has(rune)) return '방어구';
     if (SEASON1_EMBLEMS.includes(rune)) return '엠블럼';
     if (SEASON1_CLASS_OF.has(rune)) return '클래스·장신구';
     return '분류 확인 필요';
   }
-  if (SEASON2_RUNE_CATALOG['무기'].some(r => r === rune)) return '무기';
-  if (SEASON2_RUNE_CATALOG['방어구'].some(r => r === rune)) return '방어구';
-  if (SEASON2_RUNE_CATALOG['엠블럼'].some(r => r === rune)) return '엠블럼';
-  if (CLASS_OF.has(rune)) return '클래스·장신구';
+  if (SEASON2_RUNE_CATALOG['무기'].some(name => name === rune)) return '무기';
+  if (SEASON2_RUNE_CATALOG['방어구'].some(name => name === rune)) return '방어구';
+  if (SEASON2_RUNE_CATALOG['엠블럼'].some(name => name === rune)) return '엠블럼';
+  if (SEASON2_CLASS_OF.has(rune)) return '클래스·장신구';
   return '분류 확인 필요';
 }
-
 function runeOrder(rune: string, category: Category, season: Season): number {
-  if (season === 1 && category === '무기') {
-    const i = SEASON1_WEAPONS.indexOf(rune); if (i >= 0) return i;
-  }
-  if (season === 1 && category === '방어구') {
-    const i = SEASON1_ARMORS.indexOf(rune); if (i >= 0) return i;
-  }
-  if (season === 1 && category === '엠블럼') {
-    const i = SEASON1_EMBLEMS.indexOf(rune);
-    if (i >= 0) return i;
-  }
-  if (season === 1 && category === '클래스·장신구') {
-    const job = SEASON1_CLASS_OF.get(rune);
-    const i = job ? Object.keys(SEASON1_CLASSES).indexOf(job) * 100 + SEASON1_CLASSES[job].indexOf(rune) : -1;
-    if (i >= 0) return i;
-  }
-  if (season === 2 && (category === '무기' || category === '방어구' || category === '엠블럼')) {
-    const index = SEASON2_RUNE_CATALOG[category].findIndex(r => r === rune);
-    if (index >= 0) return index;
-  }
-  if (category === '클래스·장신구') {
-    const job = CLASS_OF.get(rune);
-    const groups = Object.keys(CLASS_GROUPS);
-    if (job) return groups.indexOf(job) * 100 + CLASS_GROUPS[job].indexOf(rune);
+  if (season === 1) {
+    if (category === '무기') return SEASON1_WEAPONS.indexOf(rune) < 0 ? 99999 : SEASON1_WEAPONS.indexOf(rune);
+    if (category === '방어구') return SEASON1_ARMORS.indexOf(rune) < 0 ? 99999 : SEASON1_ARMORS.indexOf(rune);
+    if (category === '엠블럼') return SEASON1_EMBLEMS.indexOf(rune) < 0 ? 99999 : SEASON1_EMBLEMS.indexOf(rune);
+    if (category === '클래스·장신구') {
+      const job = SEASON1_CLASS_OF.get(rune);
+      return job ? Object.keys(SEASON1_CLASSES).indexOf(job) * 100 + SEASON1_CLASSES[job].indexOf(rune) : 99999;
+    }
+    return 99999;
   }
   if (category === '무기' || category === '방어구' || category === '엠블럼') {
-    const index = RUNE_ORDER[category].indexOf(rune);
-    if (index >= 0) return index;
+    const index = SEASON2_RUNE_CATALOG[category].findIndex(name => name === rune);
+    return index < 0 ? 99999 : index;
+  }
+  if (category === '클래스·장신구') {
+    const job = SEASON2_CLASS_OF.get(rune);
+    return job ? Object.keys(CLASS_GROUPS).indexOf(job) * 100 + CLASS_GROUPS[job].indexOf(rune) : 99999;
   }
   return 99999;
 }
@@ -238,7 +228,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
           <summary><b>{group.category}</b><span>{group.runes.filter(r => currentOwned.has(r)).length} / {group.runes.length}개 <strong>⌄</strong></span></summary>
           <div className={styles.runes}>
             {group.category === '클래스·장신구' ? Object.keys(season === 1 ? SEASON1_CLASSES : CLASS_GROUPS).map(job => {
-              const classRunes = group.runes.filter(r => (season === 1 ? SEASON1_CLASS_OF : CLASS_OF).get(r) === job);
+              const classRunes = group.runes.filter(r => (season === 1 ? SEASON1_CLASS_OF : SEASON2_CLASS_OF).get(r) === job);
               return classRunes.length ? <div className={styles.classGroup} key={job}>
                 <b>{job} <small>{classRunes.filter(r => currentOwned.has(r)).length} / {classRunes.length}</small></b>
                 <div className={styles.runePills}>{classRunes.map(r => <button type="button" key={r}
