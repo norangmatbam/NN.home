@@ -5,3 +5,5 @@
 .runeChecked{border-color:#e8a83f;background:#f3b64f;color:#342619;font-weight:750;box-shadow:0 1px 3px #4d33182b}
 .rune:focus-visible,.runeChecked:focus-visible{outline:2px solid #5085bd;outline-offset:2px}
 @media(max-width:680px){.runes{gap:7px}.rune,.runeChecked{min-height:34px;padding:7px 11px;font-size:12px}}
+
+.classGroup{flex:1 1 100%;padding:6px 0 11px;border-bottom:1px solid #edf0f5}.classGroup:last-child{border-bottom:0}.classGroup>b{display:block;margin:0 0 9px;color:#344663;font-size:13px}.classGroup small{font-size:11px;color:#7f8ba1;font-weight:500;margin-left:5px}.runePills{display:flex;flex-wrap:wrap;gap:7px}
