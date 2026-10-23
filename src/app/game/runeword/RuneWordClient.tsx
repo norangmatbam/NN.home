@@ -45,7 +45,7 @@ const SEASON1_MYTHIC = new Set('만 갈래 물길,흰 까마귀,메아리치는 
 const isMythic = (rune: string, season: Season) =>
   season === 1 ? SEASON1_MYTHIC.has(rune) : SEASON2_MYTHIC_RUNES.some(r => r === rune);
 const SEASON1_WEAPONS = '불길,결정,뇌명,독사+,공포,집행자,야수+,밤+,투사+,은둔자+,망각+,서리바람+,옛 마법사,물결치는 날,파괴자+,검무+,무수한 궤적,마지막 자비,끝없는 순환,종언+,영웅,폭군,천체 정렬,금빛 문장,만 갈래 물길,메아리치는 진노'.split(',');
-const SEASON1_ARMORS = '아망+,행운,바위 감시자,쇄도+,무도가+,해결사+,불사,설산,절개+,환영+,응징+,자비+,맹공+,쐐기,파괴자+,독성+,태양,필사+,붕괴하는 별,사냥꾼,모래 폭풍,집정관,새벽별,어두운 징조,요정 무리,수정 꽃잎,나무 사슴,산들바람,압도적인 힘,유리대포,주문 매듭,단조된 빛,유성,초신성,장막+,가로막는 역장,모래 폭풍,재산보다 명예,이름 없는 혼돈,그림자로 엮은 회랑,검게 물든 후광,바스러지는 빛,세상을 삼키는 악의,살아있는 별'.split(',');
+const SEASON1_ARMORS = ["아망+","광륜","바위 감시자","쇄도+","무도가+","해결사+","불멸","설산","절개+","환영+","황금 들판","모래 폭풍","황혼+","신성한 칙령","준비된 자","지휘관","영웅림","신전 기사","근위병+","침묵하는 산","교사+","파멸+","집정관","새벽별","옛 예언자","압도적인 힘","섬세한 손놀림","성역+","불안정한 힘","고대 수호자","갈퀴발톱+","태양","삭쓸바람","돌온","등고하는 별","용격대장+","응징+","집념+","본색+","쌍둥이 별","푸른 거목","어두운 징조","요정 무리","수정 꽃잎","나무 사슴","에메랄드 숲","돌사","사냥꾼","약탈자","원소 조화","다가오는 죽음","잊힌 성소","바람 화살","무법자","천공의 화로","쐐기","산들바람","나무 껍질","살아있는 불길","주문 매듭","단조된 빛","유성","초신성","창백한 섬광","일렁이는 불꽃","물결퍼지는 전율","번개 채찍","기본기","검게 물든 후광","그림자로 엮은 회랑","바스러지는 빛","세상을 삼키는 악의","이름 없는 혼돈","살아있는 별"];
 const SEASON1_EMBLEMS = '무자비한 포식자,순수한 힘,부서진 하늘,인도하는 빛,대마법사,물결치는 검,산맥 군주,아득한 빛,갈라진 땅,녹아내린 대지'.split(',');
 const SEASON1_CLASSES: Record<string, string[]> = {
   '화염술사': '불기둥+,열풍+,화력+,청염+,분출+,발화+,잿더미+,불씨+'.split(','),
@@ -164,7 +164,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const currentWords = words[season];
   const currentOwned = useMemo(() => new Set(owned[season]), [owned, season]);
   const currentSelected = useMemo(() => new Set(selected[season]), [selected, season]);
-  const runes = useMemo(() => [...new Set([...currentWords.flatMap(w => w.runes), ...(season === 2 ? Object.values(SEASON2_RUNE_CATALOG).flat() : [...SEASON1_MYTHIC, ...SEASON1_EMBLEMS])])].sort((a, b) => a.localeCompare(b, 'ko')), [currentWords, season]);
+  const runes = useMemo(() => [...new Set([...currentWords.flatMap(w => w.runes), ...(season === 2 ? Object.values(SEASON2_RUNE_CATALOG).flat() : [...SEASON1_WEAPONS, ...SEASON1_ARMORS, ...SEASON1_MYTHIC, ...SEASON1_EMBLEMS])])], [currentWords, season]);
   const categorized = useMemo(() => CATEGORY_ORDER.map(category => ({
     category, runes: runes.filter(r => categoryOf(r, season) === category && r.includes(runeSearch.trim())).sort((a,b) => runeOrder(a, category, season) - runeOrder(b, category, season) || a.localeCompare(b, 'ko')),
   })), [runes, runeSearch, season]);
