@@ -14,7 +14,8 @@ function load(season: 1 | 2): RuneWord[] {
         const divider = stat.lastIndexOf(':');
         return { name: stat.slice(0, divider), value: Number(stat.slice(divider + 1)) };
       }),
-      runes: runeSource.split(','),
+      // Align the historical recipe label with the rune name printed in the game catalog.
+      runes: runeSource.split(',').map(r => r === '치명적인+' ? '치명적+' : r),
     };
   });
 }
