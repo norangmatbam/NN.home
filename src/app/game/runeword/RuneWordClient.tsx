@@ -147,7 +147,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const [search, setSearch] = useState('');
   const [runeSearch, setRuneSearch] = useState('');
   const [sort, setSort] = useState<'dps' | 'name' | 'missing'>('dps');
-  const [baseAttack, setBaseAttack] = useState(26500);
+  const baseAttack = 26500;
 
   useEffect(() => {
     try {
@@ -264,7 +264,6 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
         </select>
         <label className={styles.switch}><input type="checkbox" checked={filterAvailable} onChange={e => setFilterAvailable(e.target.checked)} /> 사용 가능만 보기</label>
       </div>
-      <div className={styles.attack}>공증 제외 공격력 기준 <input aria-label="공증 제외 공격력" type="number" min={1} value={baseAttack} onChange={e => setBaseAttack(Math.max(1, Number(e.target.value) || 1))} /></div>
       <p className={styles.warning}>DPS는 특정 직업 가중치 없는 참고 추정치입니다. 공격력·치명타·추가타·강타·연타·스킬 위력만 환산하며 나머지 옵션은 제외하므로, 완전한 실전 DPS 순위가 아닙니다.</p>
       <p className={styles.sub}>검색 결과 {items.length}개</p>
       <div className={styles.cards}>
