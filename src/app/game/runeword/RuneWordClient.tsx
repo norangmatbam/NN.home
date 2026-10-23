@@ -44,7 +44,7 @@ const CLASS_GROUPS: Record<string, string[]> = {
 const SEASON1_MYTHIC = new Set('만 갈래 물길,흰 까마귀,메아리치는 진노,무한,닫힌 운명,검게 물든 후광,그림자로 엮은 회랑,바스러지는 빛,세상을 삼키는 악의,이름 없는 혼돈,영원,쏟아지는 별'.split(','));
 const isMythic = (rune: string, season: Season) =>
   season === 1 ? SEASON1_MYTHIC.has(rune) : SEASON2_MYTHIC_RUNES.some(r => r === rune);
-const SEASON1_WEAPONS = '불길,결정,독사+,공포,집행자,야수+,밤+,투사+,은둔자+,망각+,서리바람+,옛 마법사,물결치는 날,파괴자+,검무+,무수한 궤적,마지막 자비,끝없는 순환,종언+,영웅,천체 정렬,금빛 문장,만 갈래 물길,메아리치는 진노,흰 까마귀,무한'.split(',');
+const SEASON1_WEAPONS = '불길,결정,뇌명,독사+,공포,집행자,야수+,밤+,투사+,은둔자+,망각+,서리바람+,옛 마법사,물결치는 날,파괴자+,검무+,무수한 궤적,마지막 자비,끝없는 순환,종언+,영웅,폭군,천체 정렬,금빛 문장,만 갈래 물길,메아리치는 진노'.split(',');
 const SEASON1_ARMORS = '아망+,행운,바위 감시자,쇄도+,무도가+,해결사+,불사,설산,절개+,환영+,응징+,자비+,맹공+,쐐기,파괴자+,독성+,태양,필사+,붕괴하는 별,사냥꾼,모래 폭풍,집정관,새벽별,어두운 징조,요정 무리,수정 꽃잎,나무 사슴,산들바람,압도적인 힘,유리대포,주문 매듭,단조된 빛,유성,초신성,장막+,가로막는 역장,모래 폭풍,재산보다 명예,이름 없는 혼돈,그림자로 엮은 회랑,검게 물든 후광,바스러지는 빛,세상을 삼키는 악의,살아있는 별'.split(',');
 const SEASON1_EMBLEMS = '무자비한 포식자,순수한 힘,부서진 하늘,인도하는 빛,대마법사,물결치는 검,산맥 군주,아득한 빛,갈라진 땅,녹아내린 대지'.split(',');
 const SEASON1_CLASSES: Record<string, string[]> = {
@@ -81,7 +81,7 @@ for (const [job, names] of Object.entries(CLASS_GROUPS)) {
 function categoryOf(rune: string, season: Season): Category {
   if (season === 1) {
     if (SEASON1_WEAPONS.includes(rune)) return '무기';
-    if (SEASON1_ARMORS.includes(rune) || SEASON1_MYTHIC.has(rune)) return '방어구';
+    if (SEASON1_ARMORS.includes(rune) || (SEASON1_MYTHIC.has(rune) && !SEASON1_WEAPONS.includes(rune))) return '방어구';
     if (SEASON1_EMBLEMS.includes(rune)) return '엠블럼';
     if (SEASON1_CLASS_OF.has(rune)) return '클래스·장신구';
     return '분류 확인 필요';
