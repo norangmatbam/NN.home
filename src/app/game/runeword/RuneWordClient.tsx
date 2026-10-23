@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import styles from './runeword.module.css';
+import { SEASON2_RUNE_CATALOG, SEASON2_MYTHIC_RUNES } from './season2Catalog';
 
 type Effect = { name: string; value: number };
 export type RuneWord = { name: string; effects: Effect[]; runes: string[] };
@@ -38,18 +39,25 @@ const CLASS_GROUPS: Record<string, string[]> = {
   '듀얼블레이드': '보름달+,질주+,속행+,강화+,회오리+,열상+,기본+,천침+,교차+'.split(','),
   '격투가': '도약+,순발력+,격파+,약점+,중첩+,돌파+,강격+,전진+,승천+'.split(','),
 };
-const WEAPON = new Set(RUNE_ORDER['무기']);
-const ARMOR = new Set(RUNE_ORDER['방어구']);
-const EMBLEM = new Set(RUNE_ORDER['엠블럼']);
+const WEAPON = new Set([...RUNE_ORDER['무기'], ...SEASON2_RUNE_CATALOG['무기']]);
+const ARMOR = new Set([...RUNE_ORDER['방어구'], ...SEASON2_RUNE_CATALOG['방어구']]);
+const EMBLEM = new Set([...RUNE_ORDER['엠블럼'], ...SEASON2_RUNE_CATALOG['엠블럼']]);
 const CLASS_OF = new Map(Object.entries(CLASS_GROUPS).flatMap(([job, names]) => names.map(name => [name, job] as const)));
 function categoryOf(rune: string, season: Season): Category {
+  if (season === 2 && SEASON2_RUNE_CATALOG['무기'].some(r => r === rune)) return '무기';
+  if (season === 2 && SEASON2_RUNE_CATALOG['방어구'].some(r => r === rune)) return '방어구';
+  if (season === 2 && SEASON2_RUNE_CATALOG['엠블럼'].some(r => r === rune)) return '엠블럼';
   if (WEAPON.has(rune)) return '무기';
   if (ARMOR.has(rune)) return '방어구';
   if (EMBLEM.has(rune)) return '엠블럼';
   if (CLASS_OF.has(rune)) return '클래스·장신구';
   return '분류 확인 필요';
 }
-function runeOrder(rune: string, category: Category): number {
+function runeOrder(rune: string, category: Category, season: Season): number {
+  if (season === 2 && (category === '무기' || category === '방어구' || category === '엠블럼')) {
+    const index = SEASON2_RUNE_CATALOG[category].findIndex(r => r === rune);
+    if (index >= 0) return index;
+  }
   if (category === '클래스·장신구') {
     const job = CLASS_OF.get(rune);
     const groups = Object.keys(CLASS_GROUPS);
@@ -112,9 +120,9 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const currentWords = words[season];
   const currentOwned = useMemo(() => new Set(owned[season]), [owned, season]);
   const currentSelected = useMemo(() => new Set(selected[season]), [selected, season]);
-  const runes = useMemo(() => [...new Set(currentWords.flatMap(w => w.runes))].sort((a, b) => a.localeCompare(b, 'ko')), [currentWords]);
+  const runes = useMemo(() => [...new Set([...currentWords.flatMap(w => w.runes), ...(season === 2 ? Object.values(SEASON2_RUNE_CATALOG).flat() : [])])].sort((a, b) => a.localeCompare(b, 'ko')), [currentWords, season]);
   const categorized = useMemo(() => CATEGORY_ORDER.map(category => ({
-    category, runes: runes.filter(r => categoryOf(r, season) === category && r.includes(runeSearch.trim())).sort((a,b) => runeOrder(a, category) - runeOrder(b, category) || a.localeCompare(b, 'ko')),
+    category, runes: runes.filter(r => categoryOf(r, season) === category && r.includes(runeSearch.trim())).sort((a,b) => runeOrder(a, category, season) - runeOrder(b, category, season) || a.localeCompare(b, 'ko')),
   })), [runes, runeSearch, season]);
 
   const items = useMemo(() => currentWords
@@ -181,7 +189,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
                 <b>{job} <small>{classRunes.filter(r => currentOwned.has(r)).length} / {classRunes.length}</small></b>
                 <div className={styles.runePills}>{classRunes.map(r => <button type="button" key={r}
                   className={currentOwned.has(r) ? styles.runeChecked : styles.rune}
-                  aria-pressed={currentOwned.has(r)} onClick={() => toggleRune(r)}>{r}</button>)}</div>
+                  aria-pressed={currentOwned.has(r)} onClick={() => toggleRune(r)}>{r}{season === 2 && SEASON2_MYTHIC_RUNES.some(x => x === r) ? ' · 신화' : ''}</button>)}</div>
               </div> : null;
             }) : group.runes.map(r => <button type="button" key={r}
               className={currentOwned.has(r) ? styles.runeChecked : styles.rune}
