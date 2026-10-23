@@ -9,6 +9,7 @@ const ITEMS = [
   { label: '드래케인', href: '/game/drakein' },
   { label: '데카', href: '/game/deca' },
   { label: '보석 스왑', href: '/game/gem-swap' },
+  { label: '룬워드', href: '/game/runeword' },
   { label: '숙제 체크', href: '/game/chores' },
 ];
 
