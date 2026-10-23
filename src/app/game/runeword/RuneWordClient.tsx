@@ -44,6 +44,8 @@ const ARMOR = new Set([...RUNE_ORDER['방어구'], ...SEASON2_RUNE_CATALOG['방�
 const EMBLEM = new Set([...RUNE_ORDER['엠블럼'], ...SEASON2_RUNE_CATALOG['엠블럼']]);
 const CLASS_OF = new Map(Object.entries(CLASS_GROUPS).flatMap(([job, names]) => names.map(name => [name, job] as const)));
 function categoryOf(rune: string, season: Season): Category {
+  if (season === 1 && ['만 갈래 물길','흰 까마귀','메아리치는 진노','무한'].includes(rune)) return '무기';
+  if (season === 1 && SEASON1_MYTHIC.has(rune)) return '방어구';
   if (season === 2 && SEASON2_RUNE_CATALOG['무기'].some(r => r === rune)) return '무기';
   if (season === 2 && SEASON2_RUNE_CATALOG['방어구'].some(r => r === rune)) return '방어구';
   if (season === 2 && SEASON2_RUNE_CATALOG['엠블럼'].some(r => r === rune)) return '엠블럼';
@@ -120,7 +122,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const currentWords = words[season];
   const currentOwned = useMemo(() => new Set(owned[season]), [owned, season]);
   const currentSelected = useMemo(() => new Set(selected[season]), [selected, season]);
-  const runes = useMemo(() => [...new Set([...currentWords.flatMap(w => w.runes), ...(season === 2 ? Object.values(SEASON2_RUNE_CATALOG).flat() : [])])].sort((a, b) => a.localeCompare(b, 'ko')), [currentWords, season]);
+  const runes = useMemo(() => [...new Set([...currentWords.flatMap(w => w.runes), ...(season === 2 ? Object.values(SEASON2_RUNE_CATALOG).flat() : [...SEASON1_MYTHIC])])].sort((a, b) => a.localeCompare(b, 'ko')), [currentWords, season]);
   const categorized = useMemo(() => CATEGORY_ORDER.map(category => ({
     category, runes: runes.filter(r => categoryOf(r, season) === category && r.includes(runeSearch.trim())).sort((a,b) => runeOrder(a, category, season) - runeOrder(b, category, season) || a.localeCompare(b, 'ko')),
   })), [runes, runeSearch, season]);
@@ -188,8 +190,8 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
               return classRunes.length ? <div className={styles.classGroup} key={job}>
                 <b>{job} <small>{classRunes.filter(r => currentOwned.has(r)).length} / {classRunes.length}</small></b>
                 <div className={styles.runePills}>{classRunes.map(r => <button type="button" key={r}
-                  className={SEASON2_MYTHIC_RUNES.some(x => x === r) ? (currentOwned.has(r) ? styles.mythicChecked : styles.mythicRune) : (currentOwned.has(r) ? styles.runeChecked : styles.rune)}
-                  aria-pressed={currentOwned.has(r)} onClick={() => toggleRune(r)}>{r}{season === 2 && SEASON2_MYTHIC_RUNES.some(x => x === r) ? ' · 신화' : ''}</button>)}</div>
+                  className={isMythic(r, season) ? (currentOwned.has(r) ? styles.mythicChecked : styles.mythicRune) : (currentOwned.has(r) ? styles.runeChecked : styles.rune)}
+                  aria-pressed={currentOwned.has(r)} onClick={() => toggleRune(r)}>{r}{isMythic(r, season) ? ' · 신화' : ''}</button>)}</div>
               </div> : null;
             }) : group.runes.map(r => <button type="button" key={r}
               className={SEASON2_MYTHIC_RUNES.some(x => x === r) ? (currentOwned.has(r) ? styles.mythicChecked : styles.mythicRune) : (currentOwned.has(r) ? styles.runeChecked : styles.rune)}
