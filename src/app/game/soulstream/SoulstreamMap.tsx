@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState, ChangeEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import styles from './soulstream.module.css';
 
 type Node = {sheet_id:number;node_number:number;name:string;node_type:string;x:number;y:number;previous_nodes:number[];next_nodes:number[];effect_summary:string;effect_data?:{tiers?:string[]};activating_time_minute:number;red_soul_cost:number;blue_soul_cost:number;yellow_soul_cost:number;recommend_sequence:number|null};
@@ -15,10 +15,20 @@ function parse(raw:string):Data{
  return d;
 }
 export default function SoulstreamMap(){
- const [data,setData]=useState<Data|null>(null),[raw,setRaw]=useState(''),[error,setError]=useState('');
+ const [data,setData]=useState<Data|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);
  const [selected,setSelected]=useState<number|null>(null),[query,setQuery]=useState(''),[filter,setFilter]=useState<'all'|'강타'|'연타'>('all');
- const [levels,setLevels]=useState<Record<number,number>>({}),[zoom,setZoom]=useState(1),[importOpen,setImportOpen]=useState(true);
- useEffect(()=>{try{const s=localStorage.getItem(DATA_KEY);if(s){setData(parse(s));setImportOpen(false)}const p=localStorage.getItem(STATE_KEY);if(p)setLevels(JSON.parse(p));}catch{}},[]);
+ const [levels,setLevels]=useState<Record<number,number>>({}),[zoom,setZoom]=useState(1);
+ useEffect(()=>{try{const p=localStorage.getItem(STATE_KEY);if(p)setLevels(JSON.parse(p));}catch{}; void refresh();},[]);
+ async function refresh(){
+  setLoading(true);setError('');
+  try{
+   const response=await fetch('/api/game/soulstream/catalog',{cache:'no-store'});
+   if(!response.ok)throw Error('원본 서버 응답 오류 ('+response.status+')');
+   const text=await response.text();const parsed=parse(text);
+   setData(parsed);
+  }catch(e){setError('모비라이프 원본 노드 정보를 불러올 수 없습니다. '+(e instanceof Error?e.message:''));}
+  finally{setLoading(false);}
+ }
  const nodes=useMemo(()=>data?.nodes||[],[data]),byId=useMemo(()=>new Map(nodes.map(n=>[n.sheet_id,n])),[nodes]);
  const picked=selected===null?null:byId.get(selected)||null;
  const active=nodes.filter(n=>(levels[n.sheet_id]||0)>0);
@@ -26,28 +36,17 @@ export default function SoulstreamMap(){
  const shown=nodes.filter(n=>(!query||(n.name+' '+n.effect_summary+' '+n.node_number).toLowerCase().includes(query.toLowerCase()))&&(filter==='all'||n.effect_summary.includes(filter)));
  const limits=useMemo(()=>{if(!nodes.length)return{x:-33,y:-33,w:66,h:66};const xs=nodes.map(n=>n.x),ys=nodes.map(n=>n.y);const x=Math.min(...xs)-3,y=Math.min(...ys)-3;return{x,y,w:Math.max(...xs)-x+3,h:Math.max(...ys)-y+3};},[nodes]);
  const w=limits.w/zoom,h=limits.h/zoom,box=[limits.x+(limits.w-w)/2,-limits.y-limits.h+(limits.h-h)/2,w,h].join(' ');
- function load(text:string){try{const parsed=parse(text);localStorage.setItem(DATA_KEY,text);setData(parsed);setImportOpen(false);setError('');setRaw('');setSelected(null)}catch(e){setError(e instanceof Error?e.message:'JSON 형식 오류');}}
- async function onFile(e:ChangeEvent<HTMLInputElement>){const file=e.target.files?.[0];if(file)load(await file.text());e.target.value='';}
  function setLevel(n:Node,next:number){
   if(next>0&&n.previous_nodes.some(id=>(levels[id]||0)===0)){setError('이전 노드를 먼저 연결해야 합니다.');return;}
   if(next===0&&n.next_nodes.some(id=>(levels[id]||0)>0)){setError('연결된 다음 노드를 먼저 해제해야 합니다.');return;}
   const update={...levels,[n.sheet_id]:next};setLevels(update);localStorage.setItem(STATE_KEY,JSON.stringify(update));setError('');
  }
- function save(){const s=localStorage.getItem(DATA_KEY);if(!s)return;const u=URL.createObjectURL(new Blob([s],{type:'application/json'}));const a=document.createElement('a');a.href=u;a.download='soulstream-original.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
  const fmt=(n:number)=>n.toLocaleString('ko-KR');
  return <main className={styles.wrap}>
  <header className={styles.heading}><h1>소울스트림 지도</h1><p>283개 노드의 실제 좌표와 연결 관계 · 강타/연타 검색 · 소울 및 시간 계산</p></header>
- <section className={styles.toolbar}>
- <button onClick={()=>setImportOpen(v=>!v)}>{importOpen?'데이터 창 닫기':'원본 JSON 관리'}</button>
- {data&&<button onClick={save}>원본 JSON 저장</button>}
- </section>
- {importOpen&&<section className={styles.notice}>
- <strong>원본 JSON 불러오기</strong><p>283개 전체 노드의 필드를 확인해 불완전한 자료를 차단합니다. 가져온 정보는 이 기기의 브라우저에만 저장됩니다.</p>
- <label>JSON 파일 선택 <input type="file" accept=".json,application/json" onChange={onFile}/></label>
- <textarea style={{display:'block',width:'100%',minHeight:95,margin:'10px 0',padding:9,borderRadius:8}} value={raw} onChange={e=>setRaw(e.target.value)} placeholder="폰에서는 대화에 올렸던 원본 JSON 전체를 복사해 붙여넣을 수 있습니다."/>
- <button disabled={!raw.trim()} onClick={()=>load(raw)}>붙여넣은 JSON 적용</button></section>}
+ <section className={styles.toolbar}><button onClick={()=>void refresh()} disabled={loading}>{loading?'원본 불러오는 중':'원본 데이터 새로고침'}</button></section>
  {error&&<p className={styles.notice} role="alert">{error}</p>}
- {!data?<section className={styles.notice}><strong>정확한 원본 데이터가 아직 연결되지 않았습니다.</strong><p>기존 방사형 가상 지도와 불완전한 JSON을 대신 표시하지 않습니다.</p></section>:<>
+ {!data?<section className={styles.notice}><strong>{loading?'283개 노드의 원본 데이터를 불러오는 중입니다.':'원본 API 연결을 확인해 주세요.'}</strong><p>사용자 입력은 필요하지 않습니다. 원본 데이터를 수신하면 지도가 자동 표시됩니다.</p></section>:<>
  <section className={styles.stats}>
  <div><small>전체 / 연결</small><strong>{nodes.length} / {active.length}</strong></div>
  <div><small><i className={styles.red}/>붉은 소울</small><strong>{fmt(totals.r)}</strong></div>
