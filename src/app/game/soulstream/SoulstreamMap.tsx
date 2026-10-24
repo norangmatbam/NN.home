@@ -21,13 +21,27 @@ export default function SoulstreamMap(){
  useEffect(()=>{try{const p=localStorage.getItem(STATE_KEY);if(p)setLevels(JSON.parse(p));}catch{}; void refresh();},[]);
  async function refresh(){
   setLoading(true);setError('');
+  const sources=[
+   {name:'원본 직접 연결',url:'https://mabimobi.life/d/api/v1/soulstream/catalog'},
+   {name:'NN.home 서버 연결',url:'/api/game/soulstream/catalog'},
+  ];
+  const failures:string[]=[];
   try{
-   const response=await fetch('/api/game/soulstream/catalog',{cache:'no-store'});
-   if(!response.ok)throw Error('원본 서버 응답 오류 ('+response.status+')');
-   const text=await response.text();const parsed=parse(text);
-   setData(parsed);
-  }catch(e){setError('모비라이프 원본 노드 정보를 불러올 수 없습니다. '+(e instanceof Error?e.message:''));}
-  finally{setLoading(false);}
+   for(const source of sources){
+    try{
+     const response=await fetch(source.url,{cache:'no-store',headers:{accept:'application/json'}});
+     if(!response.ok){
+      let detail='';
+      try{const d=await response.json();detail=typeof d.upstreamStatus==='number'?' (원본 응답 '+d.upstreamStatus+')':'';}catch{}
+      throw Error('HTTP '+response.status+detail);
+     }
+     const parsed=parse(await response.text());
+     setData(parsed);setError('');return;
+    }catch(e){failures.push(source.name+': '+(e instanceof Error?e.message:'요청 실패'));}
+   }
+   setData(null);
+   setError('전체 노드 API 연결 실패 — '+failures.join(' / '));
+  }finally{setLoading(false);}
  }
  const nodes=useMemo(()=>data?.nodes||[],[data]),byId=useMemo(()=>new Map(nodes.map(n=>[n.sheet_id,n])),[nodes]);
  const picked=selected===null?null:byId.get(selected)||null;
