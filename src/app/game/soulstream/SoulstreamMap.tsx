@@ -180,10 +180,8 @@ export default function SoulstreamMap(){
  <div className={styles.costGrid}><div>🔴 {picked.red_soul_cost}</div><div>🔵 {picked.blue_soul_cost}</div><div>🟡 {picked.yellow_soul_cost}</div></div>
  <p>활성화 시간: {picked.activating_time_minute}분</p>
  <div className={styles.levelTitle}><b>연결 상태</b><span>현재 Lv.{levels[picked.sheet_id]||0}</span></div>
- <button type="button" onClick={()=>connectPrerequisites(picked)} style={{width:'100%',padding:'11px 12px',margin:'10px 0 8px',borderRadius:8,border:'1px solid #87b6d4',background:'#e8f3fa',color:'#194b69',fontWeight:700,cursor:'pointer'}}>선행 노드 모두 연결</button>
- <p style={{fontSize:12,color:'#66758b',margin:'0 0 10px'}}>시작 지점부터 이 별까지 필요한 노드를 자동 연결합니다. 기존 연결 단계는 유지하고, 새로 연결하는 항성은 Lv.1로 설정합니다.</p>
  <div className={styles.levelButtons}>{Array.from({length:picked.node_type==='Star'?4:2},(_,i)=><button key={i} className={(levels[picked.sheet_id]||0)===i?styles.current:''} onClick={()=>setLevel(picked,i)}>{i===0?'미연결': 'Lv.'+i}</button>)}</div>
- <div className={styles.dep}><strong>선행 노드</strong>{picked.previous_nodes.map(id=><button key={id} onClick={()=>setSelected(id)}>{byId.get(id)?.name||'에린'}</button>)}</div>
+ <div className={styles.dep}><strong>선행 노드</strong><div style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:8,marginTop:8}}>{picked.previous_nodes.length>0&&<button type="button" onClick={()=>connectPrerequisites(picked)} style={{background:'#e8f3fa',border:'1px solid #87b6d4',color:'#194b69',fontWeight:700}}>선행 노드 모두 연결</button>}{picked.previous_nodes.map(id=><button key={id} onClick={()=>setSelected(id)}>{byId.get(id)?.name||'에린'}</button>)}</div></div>
  </>:<p>지도에서 별을 선택하세요.</p>}
  <h3 style={{fontSize:14}}>노드 목록 ({shown.length})</h3>
  <div style={{maxHeight:280,overflowY:'auto',display:'grid',gap:5}}>{shown.map(n=><button key={n.sheet_id} onClick={()=>setSelected(n.sheet_id)} style={{textAlign:'left',padding:'7px 9px',background:selected===n.sheet_id?'#e1ebf7':'#f6f8fd',border:'1px solid #dce4f2',borderRadius:8,color:'#223653'}}>{levels[n.sheet_id]?'✓ ':''}{n.name||'에린'} <small>· {n.effect_summary.split('\n')[0]}</small></button>)}</div>
