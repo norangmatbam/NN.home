@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import styles from './runeword.module.css';
 import CombatStatsEditor from '../CombatStatsEditor';
-import NightTraceLevel from '../NightTraceLevel';
 import EquippedRunesEditor,{useEquippedRunes} from '../EquippedRunesEditor';
 import {DEFAULT_UPTIME} from '../combat-damage';
 import type {EquippedRune} from '../equipped-runes';
@@ -263,7 +262,6 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
       <details><summary style={{cursor:'pointer',fontWeight:700}}>현재 스탯 입력 / 변경 (게임 화면 기준)</summary>
         <div style={{marginTop:10}}><CombatStatsEditor stats={stats} onChange={setStats}/></div>
       </details>
-      <NightTraceLevel/>
       <EquippedRunesEditor equipped={equipped} onChange={updateEquipped}/>
     </section>
     <section className={styles.panel}>
