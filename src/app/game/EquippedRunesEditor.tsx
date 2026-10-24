@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useState} from 'react';
-import {RUNE_CATALOG,RUNE_PEAK_EFFECTS,peakBonusSummary,type EquippedRune,type RuneSlot} from './equipped-runes';
+import {RUNE_CATALOG,RUNE_PEAK_EFFECTS,getRuneBonuses,type EquippedRune,type RuneSlot} from './equipped-runes';
 import ui from './combat-inputs.module.css';
 const KEY='nn-combat-equipped-runes-v1';
 export function useEquippedRunes(){
@@ -35,10 +35,7 @@ export default function EquippedRunesEditor({equipped,onChange}:{equipped:Equipp
        {RUNE_PEAK_EFFECTS[r.name].label} 최대치 가정 적용
       </label>}
       <div className={ui.runeMeta}>
-       <span className={ui.pill}>{[
-        ...(data.tiers[r.tier]==null?[]:[BONUS_LABELS[data.bonus]+' +'+data.tiers[r.tier]+'%']),
-        ...(r.maxEffect?(peakBonusSummary(r)?.parts||[]).map(b=>BONUS_LABELS[b.key]+' +'+b.value+'% (최대)'):[])
-       ].join(' · ')||'DPS 미반영'}</span>
+       <span className={ui.pill}>{Object.entries(getRuneBonuses([r])).map(([key,value])=>BONUS_LABELS[key]+' +'+value+'%').join(' · ')||'DPS 미반영'}{r.maxEffect&&RUNE_PEAK_EFFECTS[r.name]?' · 최대치 가정':''}</span>
        <button type="button" className={ui.button+' '+ui.danger} onClick={()=>onChange(equipped.filter(x=>x!==r))}>삭제</button>
       </div>
       {r.maxEffect&&RUNE_PEAK_EFFECTS[r.name]&&<p className={ui.help}>{RUNE_PEAK_EFFECTS[r.name].caveat}</p>}
