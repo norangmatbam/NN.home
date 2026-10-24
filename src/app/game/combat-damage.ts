@@ -26,7 +26,7 @@ export type CombatStats={
 };
 export const initialStats:CombatStats={
  attack:26500,skill:3000,crit:8000,extra:3000,strike:4000,multi:5000,
- skillDamage:0,damageIncrease:0,critChance:25,critDamage:0,extraChance:0,
+ skillDamage:0,damageIncrease:0,critChance:0,critDamage:0,extraChance:0,
  strikeDamage:0,multiDamage:0,unprotectedDamage:0,unprotectedShare:0,
  strength:0,dexterity:0,intelligence:0,luck:0,will:0
 };
