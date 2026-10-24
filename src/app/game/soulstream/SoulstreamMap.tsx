@@ -21,6 +21,8 @@ export default function SoulstreamMap(){
  const [levels,setLevels]=useState<Record<number,number>>({}),[zoom,setZoom]=useState(1);
  const canvasRef=useRef<HTMLCanvasElement|null>(null);
  const panRef=useRef({x:0,y:0,startX:0,startY:0,downX:0,downY:0,moved:false});
+ const gestureRef=useRef<{points:Map<number,{x:number;y:number}>;distance:number;startZoom:number;startPan:{x:number;y:number};startCenter:{x:number;y:number}}>({points:new Map(),distance:0,startZoom:1,startPan:{x:0,y:0},startCenter:{x:0,y:0}});
+ const suppressClickRef=useRef(false);
  const [pan,setPan]=useState({x:0,y:0});
  useEffect(()=>{try{const p=localStorage.getItem(STATE_KEY);if(p)setLevels(JSON.parse(p));}catch{}},[]);
  const nodes=useMemo(()=>data?.nodes||[],[data]),byId=useMemo(()=>new Map(nodes.map(n=>[n.sheet_id,n])),[nodes]);
@@ -62,7 +64,7 @@ export default function SoulstreamMap(){
   paint();const resize=new ResizeObserver(paint);resize.observe(canvas);return()=>resize.disconnect();
  },[nodes,byId,limits,zoom,pan,levels,filter,selected]);
  function onCanvasClick(e:React.MouseEvent<HTMLCanvasElement>){
-  if(panRef.current.moved){panRef.current.moved=false;return;}
+  if(panRef.current.moved||suppressClickRef.current){panRef.current.moved=false;suppressClickRef.current=false;return;}
   const el=canvasRef.current;if(!el)return;const rect=el.getBoundingClientRect();
   const x=e.clientX-rect.left,y=e.clientY-rect.top;
   let best:Node|null=null,dist=Infinity;
@@ -71,13 +73,53 @@ export default function SoulstreamMap(){
  }
  function onPointerDown(e:React.PointerEvent<HTMLCanvasElement>){
   e.currentTarget.setPointerCapture(e.pointerId);
-  panRef.current={...panRef.current,startX:pan.x,startY:pan.y,downX:e.clientX,downY:e.clientY,moved:false};
+  const g=gestureRef.current;
+  g.points.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(g.points.size===1){
+   panRef.current={...panRef.current,startX:pan.x,startY:pan.y,downX:e.clientX,downY:e.clientY,moved:false};
+  }else if(g.points.size===2){
+   const [a,b]=Array.from(g.points.values());
+   const rect=e.currentTarget.getBoundingClientRect();
+   g.distance=Math.max(1,Math.hypot(a.x-b.x,a.y-b.y));
+   g.startZoom=zoom;
+   g.startPan={...pan};
+   g.startCenter={x:(a.x+b.x)/2-rect.left,y:(a.y+b.y)/2-rect.top};
+   panRef.current.moved=true;
+   suppressClickRef.current=true;
+  }
  }
  function onPointerMove(e:React.PointerEvent<HTMLCanvasElement>){
-  if(!e.currentTarget.hasPointerCapture(e.pointerId))return;
-  const dx=e.clientX-panRef.current.downX,dy=e.clientY-panRef.current.downY;
-  if(Math.abs(dx)+Math.abs(dy)>5)panRef.current.moved=true;
-  if(panRef.current.moved)setPan({x:panRef.current.startX+dx,y:panRef.current.startY+dy});
+  const g=gestureRef.current;
+  if(!g.points.has(e.pointerId))return;
+  g.points.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(g.points.size>=2){
+   const [a,b]=Array.from(g.points.values());
+   const rect=e.currentTarget.getBoundingClientRect();
+   const center={x:(a.x+b.x)/2-rect.left,y:(a.y+b.y)/2-rect.top};
+   const distance=Math.hypot(a.x-b.x,a.y-b.y);
+   const nextZoom=Math.max(.8,Math.min(5,g.startZoom*distance/g.distance));
+   const ratio=nextZoom/g.startZoom;
+   setZoom(nextZoom);
+   setPan({x:center.x-rect.width/2-(g.startCenter.x-rect.width/2-g.startPan.x)*ratio,y:center.y-rect.height/2-(g.startCenter.y-rect.height/2-g.startPan.y)*ratio});
+   panRef.current.moved=true;
+   suppressClickRef.current=true;
+  }else{
+   const dx=e.clientX-panRef.current.downX,dy=e.clientY-panRef.current.downY;
+   if(Math.abs(dx)+Math.abs(dy)>5)panRef.current.moved=true;
+   if(panRef.current.moved){setPan({x:panRef.current.startX+dx,y:panRef.current.startY+dy});suppressClickRef.current=true;}
+  }
+ }
+ function onPointerEnd(e:React.PointerEvent<HTMLCanvasElement>){
+  const g=gestureRef.current;
+  const wasPinching=g.points.size>=2;
+  g.points.delete(e.pointerId);
+  if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);
+  if(wasPinching){panRef.current.moved=true;suppressClickRef.current=true;}
+  if(g.points.size===1){
+   const remaining=Array.from(g.points.values())[0];
+   panRef.current={...panRef.current,startX:pan.x,startY:pan.y,downX:remaining.x,downY:remaining.y,moved:wasPinching};
+  }
+  if(g.points.size===0)g.distance=0;
  }
   function setLevel(n:Node,next:number){
   if(next>0&&n.previous_nodes.some(id=>(levels[id]||0)===0)){setError('이전 노드를 먼저 연결해야 합니다.');return;}
@@ -105,7 +147,7 @@ export default function SoulstreamMap(){
  </section>
  <div className={styles.layout}>
  <section className={styles.mapOuter}>
- <canvas ref={canvasRef} onClick={onCanvasClick} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId)}} aria-label="소울스트림 노드 지도" className={styles.liveCanvas}/><p style={{color:'#c8d5ef',textAlign:'center',fontSize:12}}>노드를 터치해 선택하세요 · 전체 좌표는 원본 JSON 기준</p>
+ <canvas ref={canvasRef} onClick={onCanvasClick} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd} aria-label="소울스트림 노드 지도" className={styles.liveCanvas}/><p style={{color:'#c8d5ef',textAlign:'center',fontSize:12}}>한 손가락으로 이동 · 두 손가락으로 확대·축소 · 노드를 터치해 선택</p>
  </section>
  <aside className={styles.inspector}>
  {picked?<><div className={styles.inspectorTop}><span className={styles.kind}>{picked.node_type==='Star'?'항성':'왜성'}</span><span>#{picked.node_number}</span></div>
