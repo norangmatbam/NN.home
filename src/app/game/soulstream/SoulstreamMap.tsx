@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './soulstream.module.css';
 import bundled from './soulstream-data.json';
+import CombatStatsEditor from '../CombatStatsEditor';
 import {initialStats,percentGain,tierEffects,type CombatStats,type CombatClass,type SoulEffect,type DamageUptime,JOB_OPTIONS,weaponStatLabel} from '../combat-damage';
 
 type Node = {sheet_id:number;node_number:number;name:string;node_type:string;x:number;y:number;previous_nodes:number[];next_nodes:number[];effect_summary:string;effect_data?:{tiers?:string[]};activating_time_minute:number;red_soul_cost:number;blue_soul_cost:number;yellow_soul_cost:number;recommend_sequence:number|null};
@@ -195,14 +196,6 @@ export default function SoulstreamMap(){
  const [showRecommendations,setShowRecommendations]=useState(true);
  const [showStats,setShowStats]=useState(false);
  const [baseStats,setBaseStats]=useState<CombatStats>(initialStats);
- const statFields:{key:keyof CombatStats;label:string}[]=[
-  {key:'attack',label:'현재 공격력'},{key:'skill',label:'스킬 위력'},{key:'crit',label:'치명타'},{key:'extra',label:'추가타'},
-  {key:'strike',label:'강타 강화'},{key:'multi',label:'연타 강화'},
-  {key:'skillDamage',label:'스킬 피해 (%)'},{key:'damageIncrease',label:'피해 증가 (%)'},
-  {key:'critChance',label:'추가 치확 (%)'},{key:'critDamage',label:'치피 옵션 (%)'},{key:'extraChance',label:'추확 옵션 (%)'},
-  {key:'strikeDamage',label:'강타 피해 (%)'},{key:'multiDamage',label:'연타 피해 (%)'},
-  {key:'unprotectedDamage',label:'무방비 피해 (%)'},{key:'unprotectedShare',label:'무방비 피해 적용 비중 (%)'}
- ];
  const recommendations=useMemo(()=>{
   const allEffects=(n:Node,level:number)=>tierEffects(n.effect_data?.tiers,level);
   const unitCost=(n:Node)=>n.red_soul_cost+n.blue_soul_cost+n.yellow_soul_cost;
@@ -283,10 +276,7 @@ export default function SoulstreamMap(){
     <small>전체 95/100은 엑셀 예시값, 중심 모드 100/70·70/100은 조정 가능한 가정값입니다. 두 가동률은 독립 적용됩니다.</small>
    </div>
    <button className={styles.statsToggle} onClick={()=>setShowStats(v=>!v)}>{showStats?'현재 스탯 입력 닫기':'현재 스탯 입력 / 변경'}</button>
-   {showStats&&<div className={styles.combatStats}>
-    {statFields.map(field=><label key={field.key}><span>{field.label}</span><input type="number" min="0" max="999999" step="any" value={baseStats[field.key]} onChange={e=>setBaseStats(prev=>({...prev,[field.key]:Math.max(0,Number(e.target.value)||0)}))}/></label>)}
-    <button onClick={()=>setBaseStats(initialStats)}>예시 스탯으로 초기화</button>
-   </div>}
+   {showStats&&<CombatStatsEditor stats={baseStats} onChange={setBaseStats}/>}
    <p className={styles.recommendInfo}>{recommendMode==='single'?'대상 노드의 다음 레벨에서 증가하는 능력치만 계산합니다.':'대상 노드와 미연결 선행 노드 Lv.1의 능력치·비용을 모두 계산합니다.'} 엑셀 기반 상대 피해 배율 증가율을 소울 합계로 나눈 추정 효율입니다. 입력값은 소울 효과가 반영된 현재 스탯 기준이며, 기본값은 예시입니다. 조건부 보너스·빠른 스킬·궁극기·브레이크 속도 등 환산 근거가 부족한 효과는 순위에서 제외합니다. 결과는 실측 DPS가 아닙니다.</p>
    <div className={styles.recommendList}>
     {recommendations.map((item,index)=><button key={item.node.sheet_id} onClick={()=>setSelected(item.node.sheet_id)} className={styles.recommendItem}>
