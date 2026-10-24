@@ -223,10 +223,12 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
     </div>
 
     <section className={styles.panel}>
-      <div className={styles.sectionTitle}>
-        <h2>보유 룬 체크</h2>
-        <span>{obtainedCatalogCount} / {runeCatalogCount}개 획득</span>
-      </div>
+      <details className={styles.ownedAccordion}>
+        <summary className={styles.ownedSummary}>
+          <span className={styles.ownedTitle}><strong>보유 룬 체크</strong><span>{obtainedCatalogCount} / {runeCatalogCount}개 획득</span></span>
+          <span className={styles.ownedChevron} aria-hidden="true"/>
+        </summary>
+        <div className={styles.ownedBody}>
       <p className={styles.sub}>획득한 룬을 체크하세요. 시즌별 체크 상태는 이 브라우저에 저장됩니다.</p>
       <input className={styles.input} aria-label="보유 룬 검색" placeholder="룬 이름 검색" value={runeSearch} onChange={e => setRuneSearch(e.target.value)} />
       <div className={styles.folds}>
@@ -250,6 +252,8 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
       </div>
       <p className={styles.warning}>공식 화면 이미지에서 분류를 확인할 수 없는 룬은 ‘분류 확인 필요’에 표시했어요. 해당 룬도 정상적으로 체크하고 필터링할 수 있습니다.</p>
       <button className={styles.secondary} onClick={() => { if (window.confirm('현재 시즌의 보유 룬 체크를 초기화할까요?')) setOwned(p => ({ ...p, [season]: [] })); }}>현재 시즌 보유 룬 초기화</button>
+        </div>
+      </details>
     </section>
 
     <section className={styles.panel}>
