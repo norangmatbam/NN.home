@@ -109,6 +109,10 @@ export function getRuneBonuses(selected:EquippedRune[]):Partial<Record<RuneBonus
    totals.critChance=(totals.critChance||0)+[16.5,17.8,19.1][item.tier]*2;
    continue;
   }
+  if(item.maxEffect&&item.name==='끓는 피'){
+   totals.skillDamage=(totals.skillDamage||0)+[24,26,27][item.tier];
+   continue;
+  }
   const rune=RUNE_CATALOG.find(r=>r.slot===item.slot&&r.name===item.name);
   const value=rune?.tiers[item.tier];
   if(value==null||!rune)continue;
