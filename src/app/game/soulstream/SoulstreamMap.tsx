@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './soulstream.module.css';
 import bundled from './soulstream-data.json';
+import {initialStats,percentGain,tierEffects,type CombatStats,type CombatClass,type SoulEffect} from './damage-model';
 
 type Node = {sheet_id:number;node_number:number;name:string;node_type:string;x:number;y:number;previous_nodes:number[];next_nodes:number[];effect_summary:string;effect_data?:{tiers?:string[]};activating_time_minute:number;red_soul_cost:number;blue_soul_cost:number;yellow_soul_cost:number;recommend_sequence:number|null};
 type Data = {meta?:{version?:string;node_count?:number};nodes:Node[];star_effects?:Record<string,unknown>;recommendations?:number[]};
@@ -186,39 +187,26 @@ export default function SoulstreamMap(){
 
  type CombatType='강타'|'연타';
  type RecommendationMode='single'|'route';
- const [combatType,setCombatType]=useState<CombatType>('강타');
+ const [combatType,setCombatType]=useState<CombatType>('연타');
+ const [combatClass,setCombatClass]=useState<CombatClass>('화염술사');
  const [recommendMode,setRecommendMode]=useState<RecommendationMode>('route');
  const [showRecommendations,setShowRecommendations]=useState(true);
+ const [showStats,setShowStats]=useState(false);
+ const [baseStats,setBaseStats]=useState<CombatStats>(initialStats);
+ const statFields:{key:keyof CombatStats;label:string}[]=[
+  {key:'attack',label:'현재 공격력'},{key:'skill',label:'스킬 위력'},{key:'crit',label:'치명타'},{key:'extra',label:'추가타'},
+  {key:'strike',label:'강타 강화'},{key:'multi',label:'연타 강화'},
+  {key:'skillDamage',label:'스킬 피해 (%)'},{key:'damageIncrease',label:'피해 증가 (%)'},
+  {key:'critChance',label:'추가 치확 (%)'},{key:'critDamage',label:'치피 옵션 (%)'},{key:'extraChance',label:'추확 옵션 (%)'},
+  {key:'strikeDamage',label:'강타 피해 (%)'},{key:'multiDamage',label:'연타 피해 (%)'},
+  {key:'unprotectedDamage',label:'무방비 피해 (%)'},{key:'unprotectedShare',label:'무방비 피해 적용 비중 (%)'}
+ ];
  const recommendations=useMemo(()=>{
-  // Heuristic relative scores (not measured DPS). Same weights across both views.
-  const attackWeight=1.0,allStatWeight=.88;
-  const score=(n:Node,lv:number)=>{
-   const t=n.effect_summary;
-   const detail=n.effect_data?.tiers?.[Math.max(0,lv-1)]||t;
-   const first=detail.split('\n')[0];
-   const effect=t+' '+first;
-   const isMajor=n.node_type==='Star';
-   let score=0;
-   if(/공격력\s*\+/.test(effect))score=attackWeight;
-   else if(/모든 능력치\s*\+/.test(effect))score=allStatWeight;
-   else if(/강타 강화\s*\+/.test(effect))score=combatType==='강타'?.72:.09;
-   else if(/연타 강화\s*\+/.test(effect))score=combatType==='연타'?.72:.09;
-   else if(/브레이크\s*\+/.test(effect))score=.61;
-   else if(/치명타\s*\+/.test(effect))score=.55;
-   else if(/스킬 위력\s*\+/.test(effect))score=.53;
-   else if(/빠른 스킬\s*\+/.test(effect))score=.45;
-   else if(/강타 피해/.test(effect))score=combatType==='강타'?.52:.04;
-   else if(/연타 피해/.test(effect))score=combatType==='연타'?.52:.04;
-   else if(/무방비 피해/.test(effect))score=.4;
-   else if(/추가타\s*\+/.test(effect))score=.38;
-   else if(/궁극기/.test(effect))score=.32;
-   else if(/힘\s*\+|솜씨\s*\+|지력\s*\+|행운\s*\+|의지\s*\+/.test(effect))score=.29;
-   else return 0;
-   // Tier progression is diminishing returns; Lv.1 is usually more efficient.
-   if(isMajor)score*=lv===1?1:lv===2?.46:.35;
-   return score;
-  };
+  const allEffects=(n:Node,level:number)=>tierEffects(n.effect_data?.tiers,level);
   const unitCost=(n:Node)=>n.red_soul_cost+n.blue_soul_cost+n.yellow_soul_cost;
+  const currentEffects: SoulEffect[]=nodes.flatMap(n=>allEffects(n,levels[n.sheet_id]||0));
+  const current=percentGain; // Reference the same model for both ranking methods.
+  // The user's entered stats are treated as the current baseline (do not double-count saved nodes).
   const collectMissing=(n:Node)=>{
    const seen=new Set<number>(),stack=new Set<number>(),missing:Node[]=[];
    const visit=(id:number)=>{
@@ -235,16 +223,26 @@ export default function SoulstreamMap(){
    if(n.node_type==='Erinn')return [];
    const lv=levels[n.sheet_id]||0,next=lv+1,max=n.node_type==='Star'?3:1;
    if(next>max)return [];
-   const gain=score(n,next);
-   if(gain<=0)return [];
+   const before=allEffects(n,lv),after=allEffects(n,next);
+   const diff: SoulEffect[]=after.map(x=>{
+    const previous=before.find(y=>y.label===x.label&&y.percent===x.percent);
+    return {...x,value:x.value-(previous?.value||0)};
+   }).filter(x=>x.value>0);
+   if(!diff.length)return [];
    const cost=unitCost(n);
-   if(!cost)return [];
+   if(cost<=0)return [];
    let missing:Node[]=[];
    try{missing=lv===0?collectMissing(n):[];}catch{return [];}
    const routeCost=cost+missing.reduce((sum,v)=>sum+unitCost(v),0);
-   return [{node:n,next,gain,cost,routeCost,additional:missing.length,singleEfficiency:gain/cost,routeEfficiency:gain/routeCost}];
-  }).sort((a,b)=>(recommendMode==='single'?b.singleEfficiency-a.singleEfficiency:b.routeEfficiency-a.routeEfficiency)||a.routeCost-b.routeCost).slice(0,12);
- },[nodes,byId,levels,combatType,recommendMode]);
+   const routeEffects=[...diff,...missing.flatMap(v=>allEffects(v,1))];
+   const gain=current(baseStats,diff,combatClass,combatType);
+   const routeGain=current(baseStats,routeEffects,combatClass,combatType);
+   const positive=diff.some(x=>/공격력|스킬위력|치명타|추가타|강타강화|연타강화|강타피해|연타피해|무방비피해|피해증가|힘|솜씨|지력|행운|모든능력치/.test(x.label));
+   if(!positive||gain<=0)return [];
+   return [{node:n,next,gain,routeGain,cost,routeCost,additional:missing.length,
+    efficiency:gain/cost,routeEfficiency:routeGain/routeCost}];
+  }).sort((a,b)=>(recommendMode==='single'?b.efficiency-a.efficiency:b.routeEfficiency-a.routeEfficiency)||a.routeCost-b.routeCost).slice(0,12);
+ },[nodes,byId,levels,combatType,combatClass,recommendMode,baseStats]);
 
  const fmt=(n:number)=>n.toLocaleString('ko-KR');
  return <main className={styles.wrap}>
@@ -268,20 +266,26 @@ export default function SoulstreamMap(){
 
  <section className={styles.recommendPanel}>
   <div className={styles.recommendHeading}>
-   <div><h2>전투 소울 추천</h2><p>현재 연결 상태 기준 · 직군별 상대 점수 · DPS 실측값이 아닌 참고용 우선순위</p></div>
+   <div><h2>전투 소울 추천</h2><p>엑셀 수식 기반 예상 피해 증가율 · 현재 스탯에 따라 순위 변경</p></div>
    <button onClick={()=>setShowRecommendations(v=>!v)}>{showRecommendations?'접기':'추천 보기'}</button>
   </div>
   {showRecommendations&&<>
    <div className={styles.recommendControls}>
     <div><b>직군</b><button className={combatType==='강타'?styles.recommendActive:''} onClick={()=>setCombatType('강타')}>강타 직군</button><button className={combatType==='연타'?styles.recommendActive:''} onClick={()=>setCombatType('연타')}>연타 직군</button></div>
     <div><b>추천 방식</b><button className={recommendMode==='single'?styles.recommendActive:''} onClick={()=>setRecommendMode('single')}>단일 노드 효율</button><button className={recommendMode==='route'?styles.recommendActive:''} onClick={()=>setRecommendMode('route')}>선행 경로 포함 효율</button></div>
+    <div><b>무기 스탯 환산</b><select aria-label="클래스" value={combatClass} onChange={e=>setCombatClass(e.target.value as CombatClass)}><option value="화염술사">화염술사 (지력×3·행운×2.5)</option><option value="전사">전사 (힘×5.5)</option><option value="기타 강타">기타 강타 (무기 계수 미반영)</option><option value="기타 연타">기타 연타 (무기 계수 미반영)</option></select></div>
    </div>
-   <p className={styles.recommendInfo}>{recommendMode==='single'?'대상 노드의 다음 1단계 투자 비용만 반영합니다. 실제 이동 경로 비용은 제외합니다.':'미연결 선행 노드를 모두 Lv.1로 연결하는 비용과 대상 노드의 다음 1단계 비용을 합산합니다.'} 붉은·푸른·노란 소울은 동일한 1개 단위로 합산합니다. 효과별 가중치는 참고용이며 직업별 실제 DPS·속성 차이와 소울 수급 편차는 미반영입니다.</p>
+   <button className={styles.statsToggle} onClick={()=>setShowStats(v=>!v)}>{showStats?'현재 스탯 입력 닫기':'현재 스탯 입력 / 변경'}</button>
+   {showStats&&<div className={styles.combatStats}>
+    {statFields.map(field=><label key={field.key}><span>{field.label}</span><input type="number" min="0" max="999999" step="any" value={baseStats[field.key]} onChange={e=>setBaseStats(prev=>({...prev,[field.key]:Math.max(0,Number(e.target.value)||0)}))}/></label>)}
+    <button onClick={()=>setBaseStats(initialStats)}>예시 스탯으로 초기화</button>
+   </div>}
+   <p className={styles.recommendInfo}>{recommendMode==='single'?'대상 노드의 다음 레벨에서 증가하는 능력치만 계산합니다.':'대상 노드와 미연결 선행 노드 Lv.1의 능력치·비용을 모두 계산합니다.'} 엑셀 기반 상대 피해 배율 증가율을 소울 합계로 나눈 추정 효율입니다. 입력값은 소울 효과가 반영된 현재 스탯 기준이며, 기본값은 예시입니다. 조건부 보너스·빠른 스킬·궁극기·브레이크 속도 등 환산 근거가 부족한 효과는 순위에서 제외합니다. 결과는 실측 DPS가 아닙니다.</p>
    <div className={styles.recommendList}>
     {recommendations.map((item,index)=><button key={item.node.sheet_id} onClick={()=>setSelected(item.node.sheet_id)} className={styles.recommendItem}>
      <span className={styles.recommendRank}>{index+1}</span>
-     <span className={styles.recommendItemMain}><strong>{item.node.name}</strong><small>{item.node.effect_summary.split('\\n')[0]} · Lv.{item.next} {item.additional>0?`· 선행 미연결 ${item.additional}개`:''}</small></span>
-     <span className={styles.recommendItemCost}><strong>{recommendMode==='single'?item.cost:item.routeCost} 소울</strong><small>상대점수/소울 {((recommendMode==='single'?item.singleEfficiency:item.routeEfficiency)*100).toFixed(2)}</small></span>
+     <span className={styles.recommendItemMain}><strong>{item.node.name}</strong><small>{item.node.effect_summary.split('\n')[0]} · Lv.{item.next} {item.additional>0?`· 선행 미연결 ${item.additional}개`:''}</small></span>
+     <span className={styles.recommendItemCost}><strong>{recommendMode==='single'?item.cost:item.routeCost} 소울</strong><small>예상 +{(recommendMode==='single'?item.gain:item.routeGain).toFixed(3)}%</small><small>%/소울 {(recommendMode==='single'?item.efficiency:item.routeEfficiency).toFixed(4)}</small></span>
     </button>)}
    </div>
   </>}
