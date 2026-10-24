@@ -1,149 +1,89 @@
 'use client';
-
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, ChangeEvent } from 'react';
 import styles from './soulstream.module.css';
 
-type ColorCost = { red: number; blue: number; yellow: number };
-type NodeKind = 'dwarf' | 'star';
-type NodeData = { id: string; x: number; y: number; title: string; kind: NodeKind; cost: ColorCost | null; maxLevel: number; parents: string[]; category: '공통' | '강타' | '연타' | '생산'; confirmed?: boolean };
-type Progress = Record<string, number>;
-type Edits = Record<string, { title: string; cost: ColorCost | null; category: NodeData['category'] }>;
-const KEY = 'nn-soulstream-map-v1';
-const EMPTY: ColorCost = { red: 0, blue: 0, yellow: 0 };
-const colors: (keyof ColorCost)[] = ['red', 'blue', 'yellow'];
-const labels = { red: '빨강', blue: '파랑', yellow: '노랑' };
-const add = (a: ColorCost, b: ColorCost): ColorCost => ({ red: a.red + b.red, blue: a.blue + b.blue, yellow: a.yellow + b.yellow });
-
-// 원본 지도와 유사한 방사형 형태의 편집 가능한 초안.
-// 확증되지 않은 노드의 수치/경로는 미확인으로 두어 실제 게임 데이터와 혼동되지 않도록 함.
-function buildMap(): NodeData[] {
-  const result: NodeData[] = [];
-  const cx = 600, cy = 520;
-  const dirs = [-90, -48, -16, 24, 65, 116, 156, 205];
-  const hints: {title: string; category: NodeData['category']}[][] = [
-    [{title:'힘 +12',category:'공통'},{title:'솜씨 +12',category:'공통'},{title:'지력 +12',category:'공통'},{title:'행운 +12',category:'공통'},{title:'노랑 소울 1개 생산시간',category:'생산'}],
-    [{title:'공격력 +41',category:'공통'},{title:'공격력 항성',category:'공통'},{title:'모든 능력 항성',category:'공통'},{title:'강타 +15',category:'강타'},{title:'강타 항성',category:'강타'}],
-    [{title:'공격력 +41',category:'공통'},{title:'강타 +15',category:'강타'},{title:'강타 항성',category:'강타'},{title:'스위 +15',category:'공통'},{title:'브레이크 항성',category:'공통'}],
-    [{title:'공격력 +41',category:'공통'},{title:'연타 +15',category:'연타'},{title:'연타 항성',category:'연타'},{title:'추가타 +15',category:'공통'},{title:'빠른 시전 항성',category:'공통'}],
-    [{title:'공격력 +41',category:'공통'},{title:'공격력 항성',category:'공통'},{title:'치명타 +15',category:'공통'},{title:'추가타 +15',category:'공통'},{title:'빠른 시전 항성',category:'공통'}],
-    [{title:'공격력 +41',category:'공통'},{title:'공격력 항성',category:'공통'},{title:'모든 능력 항성',category:'공통'},{title:'연타 +15',category:'연타'},{title:'연타 항성',category:'연타'}],
-    [{title:'공격력 +41',category:'공통'},{title:'브레이크 항성',category:'공통'},{title:'치명타 +15',category:'공통'},{title:'무방비 항성',category:'공통'},{title:'강타 피해 항성',category:'강타'}],
-    [{title:'공격력 +41',category:'공통'},{title:'브레이크 항성',category:'공통'},{title:'치명타 +15',category:'공통'},{title:'연타 +15',category:'연타'},{title:'연타 피해 항성',category:'연타'}],
-  ];
-  dirs.forEach((deg, branch) => {
-    const rad = deg * Math.PI / 180;
-    const dx = Math.cos(rad), dy = Math.sin(rad);
-    hints[branch].forEach((hint, step) => {
-      const r = 88 + step * 90;
-      const tangent = (step % 2 === 0 ? 1 : -1) * (branch % 2 === 0 ? 16 : 23);
-      const id = 'n' + branch + '-' + step;
-      const isStar = /항성|생산시간/.test(hint.title);
-      result.push({
-        id,
-        x: Math.round(cx + dx * r - dy * tangent),
-        y: Math.round(cy + dy * r + dx * tangent),
-        title: hint.title,
-        kind: isStar ? 'star' : 'dwarf',
-        cost: branch === 0 && step === 4 ? {red:10,blue:10,yellow:10} : null,
-        maxLevel: isStar ? 3 : 1,
-        parents: branch === 0 && step === 4
-          ? ['n0-0','n0-1','n0-2','n0-3']
-          : step === 0 ? [] : ['n' + branch + '-' + (step - 1)],
-        category: hint.category,
-        confirmed: branch === 0 && step === 4,
-      });
-    });
-  });
-  return result;
+type Node = {sheet_id:number;node_number:number;name:string;node_type:string;x:number;y:number;previous_nodes:number[];next_nodes:number[];effect_summary:string;effect_data?:{tiers?:string[]};activating_time_minute:number;red_soul_cost:number;blue_soul_cost:number;yellow_soul_cost:number;recommend_sequence:number|null};
+type Data = {meta?:{version?:string;node_count?:number};nodes:Node[];star_effects?:Record<string,unknown>;recommendations?:number[]};
+const DATA_KEY='nn-soulstream-full-json-v1', STATE_KEY='nn-soulstream-progress-v2';
+function parse(raw:string):Data{
+ const d=JSON.parse(raw) as Data;
+ if(!Array.isArray(d.nodes)||d.nodes.length!==283)throw Error('283개 노드의 원본 JSON이 필요합니다.');
+ const ids=new Set(d.nodes.map(n=>n.sheet_id));
+ if(ids.size!==283||!d.nodes.every(n=>typeof n.x==='number'&&typeof n.y==='number'&&typeof n.name==='string'&&typeof n.effect_summary==='string'&&typeof n.node_number==='number'&&typeof n.activating_time_minute==='number'&&typeof n.red_soul_cost==='number'&&typeof n.blue_soul_cost==='number'&&typeof n.yellow_soul_cost==='number'&&Array.isArray(n.previous_nodes)&&Array.isArray(n.next_nodes)))
+ throw Error('원본 JSON에 좌표·효과·비용 등의 필수 정보가 빠져 있습니다. 요약본은 사용할 수 없습니다.');
+ if(!d.nodes.every(n=>[...n.previous_nodes,...n.next_nodes].every(id=>ids.has(id))))throw Error('연결 노드 ID가 원본에 없습니다.');
+ return d;
 }
-const baseNodes = buildMap();
-const normalize = (value: unknown) => Math.max(0, Math.min(99999, Math.floor(Number(value) || 0)));
-function stored(): { progress: Progress; edits: Edits; mode: '강타' | '연타' } {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return { progress:{}, edits:{}, mode:'강타' };
-    const v = JSON.parse(raw);
-    return { progress: v.progress && typeof v.progress === 'object' ? v.progress : {}, edits: v.edits && typeof v.edits === 'object' ? v.edits : {}, mode: v.mode === '연타' ? '연타' : '강타' };
-  } catch { return {progress:{},edits:{},mode:'강타'}; }
-}
-export default function SoulstreamMap() {
-  const [progress, setProgress] = useState<Progress>({});
-  const [edits, setEdits] = useState<Edits>({});
-  const [mode, setMode] = useState<'강타' | '연타'>('강타');
-  const [selected, setSelected] = useState('n0-4');
-  const [ready, setReady] = useState(false);
-  const [scale, setScale] = useState(70);
-  const [showLabels, setShowLabels] = useState(true);
-  useEffect(() => { const v=stored();setProgress(v.progress);setEdits(v.edits);setMode(v.mode);setReady(true); },[]);
-  useEffect(() => { if(ready)try{localStorage.setItem(KEY,JSON.stringify({progress,edits,mode}));}catch{} },[progress,edits,mode,ready]);
-  const nodes = useMemo(()=>baseNodes.map(n=>({...n,...(edits[n.id] || {})})),[edits]);
-  const index = useMemo(()=>new Map(nodes.map(n=>[n.id,n])),[nodes]);
-  const node = index.get(selected) || nodes[0];
-  const level = (id: string) => Math.max(0,Math.min(3,normalize(progress[id])));
-  const missing = node.parents.filter(id=>level(id)===0);
-  const amount = { red:0,blue:0,yellow:0 };
-  let unknown = 0;
-  let connected = 0;
-  nodes.forEach(n=>{
-    const lv = level(n.id);
-    if(lv){connected++;if(n.cost){const sum=add(amount,{red:n.cost.red*lv,blue:n.cost.blue*lv,yellow:n.cost.yellow*lv});Object.assign(amount,sum)}else unknown++;}
-  });
-  function changeLevel(next: number) {
-    const safe = Math.max(0,Math.min(node.maxLevel,next));
-    if(safe>0 && missing.length){window.alert('선행 노드를 먼저 연결해야 해요: '+missing.map(id=>index.get(id)?.title).join(', '));return;}
-    if(safe===0 && nodes.some(n=>level(n.id)>0 && n.parents.includes(node.id))){window.alert('이 노드를 필요로 하는 연결된 후속 노드를 먼저 해제해 주세요.');return;}
-    setProgress(p=>({...p,[node.id]:safe}));
-  }
-  function editTitle(v:string){setEdits(e=>({...e,[node.id]:{title:v,cost:node.cost,category:node.category}}));}
-  function editCategory(v:NodeData['category']){setEdits(e=>({...e,[node.id]:{title:node.title,cost:node.cost,category:v}}));}
-  function editCost(k:keyof ColorCost,v:string){setEdits(e=>({...e,[node.id]:{title:node.title,category:node.category,cost:{...(node.cost||EMPTY),[k]:normalize(v)}}}));}
-  const relevance=(n:NodeData)=>n.category===mode?'important':n.category==='공통'||n.category==='생산'?'normal':'muted';
-  return <main className={styles.wrap}>
-    <header className={styles.heading}>
-      <div><h1>소울스트림 지도</h1><p>노드를 선택해 연결·강화 상태를 기록하고, 강타/연타 관심 노드를 구분할 수 있어요.</p></div>
-    </header>
-    <div className={styles.notice}><strong>지도 데이터 입력 단계</strong> · 원본의 방사형 위치를 참고한 편집형 초안입니다. 실제 노드 좌표·연결선·비용은 미검증이며, 확인된 항성 외에는 비용을 직접 입력해야 정확한 합산이 가능합니다.</div>
-    <section className={styles.toolbar}>
-      <div className={styles.mode}><b>전투 유형</b><button type="button" aria-pressed={mode==='강타'} className={mode==='강타'?styles.on:''} onClick={()=>setMode('강타')}>강타</button><button type="button" aria-pressed={mode==='연타'} className={mode==='연타'?styles.on:''} onClick={()=>setMode('연타')}>연타</button></div>
-      <div className={styles.zoom}><b>지도 크기</b><button onClick={()=>setScale(s=>Math.max(45,s-10))}>−</button><span>{scale}%</span><button onClick={()=>setScale(s=>Math.min(150,s+10))}>+</button></div>
-      <label className={styles.labelToggle}><input type="checkbox" checked={showLabels} onChange={e=>setShowLabels(e.target.checked)}/> 이름 표시</label>
-    </section>
-    <section className={styles.stats}>
-      <div><small>연결한 노드</small><strong>{connected} / {nodes.length}</strong></div>
-      {colors.map(k=><div key={k}><small><i className={styles[k]}/> {labels[k]} 사용량</small><strong>{amount[k].toLocaleString()}개</strong></div>)}
-    </section>
-    {unknown>0 && <p className={styles.warn}>연결한 노드 중 {unknown}개의 소울 비용이 미입력 상태예요. 위 합계에는 해당 비용이 제외돼 있어요.</p>}
-    <div className={styles.layout}>
-      <section className={styles.mapOuter} aria-label="소울스트림 노드 지도">
-        <div className={styles.mapScroller}>
-          <div className={styles.mapCanvas} style={{width:1200*scale/100,height:1040*scale/100}}>
-            <div className={styles.mapInner} style={{width:1200,height:1040,transform:`scale(${scale/100})`}}>
-              <svg className={styles.lines} width="1200" height="1040" viewBox="0 0 1200 1040" aria-hidden="true">
-                {nodes.map(n=>n.parents.map(pid=>{const p=index.get(pid);return p?<line key={pid+'-'+n.id} x1={p.x} y1={p.y} x2={n.x} y2={n.y} stroke={level(pid)>0 && level(n.id)>0?'#68dfbd':'#607392'} strokeWidth={level(pid)>0&&level(n.id)>0?2.6:1.15}/>:null}))}
-                {nodes.filter(n=>n.parents.length===0).map(n=><line key={'root-'+n.id} x1={600} y1={520} x2={n.x} y2={n.y} stroke="#607392" strokeWidth="1.15"/>)}
-              </svg>
-              <div className={styles.root} style={{left:600,top:520}}>✦</div>
-              {nodes.map(n=><button type="button" key={n.id} title={n.title} className={[styles.mapNode,n.kind==='star'?styles.star:styles.dwarf,selected===n.id?styles.selected:'',level(n.id)?styles.active:'',relevance(n)==='important'?styles.important:relevance(n)==='muted'?styles.dim:''].join(' ')} style={{left:n.x,top:n.y}} onClick={()=>setSelected(n.id)} aria-label={n.title+' '+(level(n.id)?'레벨 '+level(n.id):'미연결')}>
-                <span className={styles.dot}>{n.kind==='star'?'✧':''}</span>
-                {showLabels&&<span className={styles.nodeName}>{n.title}{level(n.id)>0&&n.kind==='star'?' Lv.'+level(n.id):''}</span>}
-              </button>)}
-            </div>
-          </div>
-        </div>
-      </section>
-      <aside className={styles.inspector}>
-        <div className={styles.inspectorTop}><span className={styles.kind}>{node.kind==='star'?'항성':'왜성'}</span><span>{node.confirmed?'소울 비용 확인됨':'지도 위치·비용 검증 필요'}</span></div>
-        <label className={styles.field}>노드 이름<input value={node.title} onChange={e=>editTitle(e.target.value)}/></label>
-        <label className={styles.field}>분류<select value={node.category} onChange={e=>editCategory(e.target.value as NodeData['category'])}>{['공통','강타','연타','생산'].map(x=><option key={x}>{x}</option>)}</select></label>
-        <div className={styles.costTitle}><b>단계당 소울 비용</b><small>{node.cost?'항성은 레벨마다 동일 비용':'미입력 (합산 제외)'}</small></div>
-        <div className={styles.costGrid}>{colors.map(k=><label key={k}><span><i className={styles[k]}/>{labels[k]}</span><input inputMode="numeric" type="number" min="0" placeholder="미확인" value={node.cost?.[k]??''} onChange={e=>editCost(k,e.target.value)}/></label>)}</div>
-        <div className={styles.levelTitle}><b>연결·강화</b><span>Lv.{level(node.id)} / {node.maxLevel}</span></div>
-        <div className={styles.levelButtons}>{Array.from({length:node.maxLevel+1},(_,i)=><button key={i} className={level(node.id)===i?styles.current:''} onClick={()=>changeLevel(i)}>{i===0?'미연결':'Lv.'+i}</button>)}</div>
-        <div className={styles.dep}><strong>선행 노드</strong>{node.parents.length?node.parents.map(id=><button key={id} onClick={()=>setSelected(id)} className={level(id)?styles.done:''}>{level(id)?'✓ ':'○ '}{index.get(id)?.title}</button>):<p>시작 지점에서 연결되는 첫 노드</p>}</div>
-        {node.cost&&<p className={styles.detail}>현재 이 노드에 투자한 소울: 빨강 {node.cost.red*level(node.id)} · 파랑 {node.cost.blue*level(node.id)} · 노랑 {node.cost.yellow*level(node.id)}</p>}
-        <button className={styles.reset} onClick={()=>{if(window.confirm('소울스트림 연결 상태를 모두 초기화할까요? 노드 이름/비용 편집은 유지됩니다.'))setProgress({});}}>연결 상태 초기화</button>
-      </aside>
-    </div>
-    <p className={styles.footerNote}>추천 기준 안내: 강타/연타 선택은 관련 노드 강조에만 적용됩니다. 직업별 DPS 효율 및 실제 최단 소울 경로는 검증된 전체 지도 데이터가 입력된 뒤 계산할 수 있습니다.</p>
-  </main>;
+export default function SoulstreamMap(){
+ const [data,setData]=useState<Data|null>(null),[raw,setRaw]=useState(''),[error,setError]=useState('');
+ const [selected,setSelected]=useState<number|null>(null),[query,setQuery]=useState(''),[filter,setFilter]=useState<'all'|'강타'|'연타'>('all');
+ const [levels,setLevels]=useState<Record<number,number>>({}),[zoom,setZoom]=useState(1),[importOpen,setImportOpen]=useState(true);
+ useEffect(()=>{try{const s=localStorage.getItem(DATA_KEY);if(s){setData(parse(s));setImportOpen(false)}const p=localStorage.getItem(STATE_KEY);if(p)setLevels(JSON.parse(p));}catch{}},[]);
+ const nodes=useMemo(()=>data?.nodes||[],[data]),byId=useMemo(()=>new Map(nodes.map(n=>[n.sheet_id,n])),[nodes]);
+ const picked=selected===null?null:byId.get(selected)||null;
+ const active=nodes.filter(n=>(levels[n.sheet_id]||0)>0);
+ const totals=active.reduce((s,n)=>{const level=levels[n.sheet_id]||0;return{r:s.r+n.red_soul_cost*level,b:s.b+n.blue_soul_cost*level,y:s.y+n.yellow_soul_cost*level,t:s.t+n.activating_time_minute}}, {r:0,b:0,y:0,t:0});
+ const shown=nodes.filter(n=>(!query||(n.name+' '+n.effect_summary+' '+n.node_number).toLowerCase().includes(query.toLowerCase()))&&(filter==='all'||n.effect_summary.includes(filter)));
+ const limits=useMemo(()=>{if(!nodes.length)return{x:-33,y:-33,w:66,h:66};const xs=nodes.map(n=>n.x),ys=nodes.map(n=>n.y);const x=Math.min(...xs)-3,y=Math.min(...ys)-3;return{x,y,w:Math.max(...xs)-x+3,h:Math.max(...ys)-y+3};},[nodes]);
+ const w=limits.w/zoom,h=limits.h/zoom,box=[limits.x+(limits.w-w)/2,-limits.y-limits.h+(limits.h-h)/2,w,h].join(' ');
+ function load(text:string){try{const parsed=parse(text);localStorage.setItem(DATA_KEY,text);setData(parsed);setImportOpen(false);setError('');setRaw('');setSelected(null)}catch(e){setError(e instanceof Error?e.message:'JSON 형식 오류');}}
+ async function onFile(e:ChangeEvent<HTMLInputElement>){const file=e.target.files?.[0];if(file)load(await file.text());e.target.value='';}
+ function setLevel(n:Node,next:number){
+  if(next>0&&n.previous_nodes.some(id=>(levels[id]||0)===0)){setError('이전 노드를 먼저 연결해야 합니다.');return;}
+  if(next===0&&n.next_nodes.some(id=>(levels[id]||0)>0)){setError('연결된 다음 노드를 먼저 해제해야 합니다.');return;}
+  const update={...levels,[n.sheet_id]:next};setLevels(update);localStorage.setItem(STATE_KEY,JSON.stringify(update));setError('');
+ }
+ function save(){const s=localStorage.getItem(DATA_KEY);if(!s)return;const u=URL.createObjectURL(new Blob([s],{type:'application/json'}));const a=document.createElement('a');a.href=u;a.download='soulstream-original.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
+ const fmt=(n:number)=>n.toLocaleString('ko-KR');
+ return <main className={styles.wrap}>
+ <header className={styles.heading}><h1>소울스트림 지도</h1><p>283개 노드의 실제 좌표와 연결 관계 · 강타/연타 검색 · 소울 및 시간 계산</p></header>
+ <section className={styles.toolbar}>
+ <button onClick={()=>setImportOpen(v=>!v)}>{importOpen?'데이터 창 닫기':'원본 JSON 관리'}</button>
+ {data&&<button onClick={save}>원본 JSON 저장</button>}
+ </section>
+ {importOpen&&<section className={styles.notice}>
+ <strong>원본 JSON 불러오기</strong><p>283개 전체 노드의 필드를 확인해 불완전한 자료를 차단합니다. 가져온 정보는 이 기기의 브라우저에만 저장됩니다.</p>
+ <label>JSON 파일 선택 <input type="file" accept=".json,application/json" onChange={onFile}/></label>
+ <textarea style={{display:'block',width:'100%',minHeight:95,margin:'10px 0',padding:9,borderRadius:8}} value={raw} onChange={e=>setRaw(e.target.value)} placeholder="폰에서는 대화에 올렸던 원본 JSON 전체를 복사해 붙여넣을 수 있습니다."/>
+ <button disabled={!raw.trim()} onClick={()=>load(raw)}>붙여넣은 JSON 적용</button></section>}
+ {error&&<p className={styles.notice} role="alert">{error}</p>}
+ {!data?<section className={styles.notice}><strong>정확한 원본 데이터가 아직 연결되지 않았습니다.</strong><p>기존 방사형 가상 지도와 불완전한 JSON을 대신 표시하지 않습니다.</p></section>:<>
+ <section className={styles.stats}>
+ <div><small>전체 / 연결</small><strong>{nodes.length} / {active.length}</strong></div>
+ <div><small><i className={styles.red}/>붉은 소울</small><strong>{fmt(totals.r)}</strong></div>
+ <div><small><i className={styles.blue}/>푸른 소울</small><strong>{fmt(totals.b)}</strong></div>
+ <div><small><i className={styles.yellow}/>노란 소울</small><strong>{fmt(totals.y)}</strong></div>
+ <div><small>연결 시간 합계</small><strong>{fmt(totals.t)}분</strong></div>
+ </section>
+ <section className={styles.toolbar}>
+ <input aria-label="노드 검색" placeholder="별 이름·효과 검색" value={query} onChange={e=>setQuery(e.target.value)}/>
+ <button className={filter==='all'?styles.on:''} onClick={()=>setFilter('all')}>전체</button>
+ <button className={filter==='강타'?styles.on:''} onClick={()=>setFilter('강타')}>강타</button>
+ <button className={filter==='연타'?styles.on:''} onClick={()=>setFilter('연타')}>연타</button>
+ <button onClick={()=>setZoom(z=>Math.min(3,z*1.25))}>＋</button><button onClick={()=>setZoom(z=>Math.max(.8,z/1.25))}>－</button><button onClick={()=>setZoom(1)}>전체 보기</button>
+ </section>
+ <div className={styles.layout}>
+ <section className={styles.mapOuter}>
+ <svg viewBox={box} style={{width:'100%',height:'min(75vh,720px)',minHeight:420,background:'radial-gradient(ellipse,#24385a,#061020)'}} aria-label="실제 좌표 기반 소울스트림 지도">
+ {nodes.flatMap(n=>n.next_nodes.map(id=>{const t=byId.get(id);return t?<line key={n.sheet_id+'-'+id} x1={n.x} y1={-n.y} x2={t.x} y2={-t.y} stroke={levels[n.sheet_id]&&levels[id]?'#e7c27b':'#8494b1'} strokeWidth=".09" opacity=".8"/>:null;}))}
+ {nodes.map(n=><g key={n.sheet_id} role="button" tabIndex={0} onClick={()=>setSelected(n.sheet_id)} onKeyDown={e=>{if(e.key==='Enter')setSelected(n.sheet_id)}} aria-label={n.name}>
+ <circle cx={n.x} cy={-n.y} r={n.node_type==='Star'?.46:.3} stroke={selected===n.sheet_id?'#fff':'#28384e'} strokeWidth=".13" fill={levels[n.sheet_id]?'#e7bb6c':n.node_type==='Star'?'#bd93d9':'#a8c7e9'} opacity={filter==='all'||n.effect_summary.includes(filter)?1:.2}/>
+ </g>)}
+ </svg><p style={{color:'#c8d5ef',textAlign:'center',fontSize:12}}>노드를 터치해 선택하세요 · 전체 좌표는 원본 JSON 기준</p>
+ </section>
+ <aside className={styles.inspector}>
+ {picked?<><div className={styles.inspectorTop}><span className={styles.kind}>{picked.node_type==='Star'?'항성':'왜성'}</span><span>#{picked.node_number}</span></div>
+ <h2 style={{fontSize:19,margin:0}}>{picked.name||'에린'}</h2>
+ <p style={{whiteSpace:'pre-line',fontSize:13,lineHeight:1.7}}>{picked.effect_summary||'시작 지점'}</p>
+ {picked.effect_data?.tiers?.map((tier,i)=><div key={i} className={styles.detail}><b>{i+1}단계</b> · {tier}</div>)}
+ <div className={styles.costGrid}><div>🔴 {picked.red_soul_cost}</div><div>🔵 {picked.blue_soul_cost}</div><div>🟡 {picked.yellow_soul_cost}</div></div>
+ <p>활성화 시간: {picked.activating_time_minute}분</p>
+ <div className={styles.levelTitle}><b>연결 상태</b><span>현재 Lv.{levels[picked.sheet_id]||0}</span></div>
+ <div className={styles.levelButtons}>{Array.from({length:picked.node_type==='Star'?4:2},(_,i)=><button key={i} className={(levels[picked.sheet_id]||0)===i?styles.current:''} onClick={()=>setLevel(picked,i)}>{i===0?'미연결': 'Lv.'+i}</button>)}</div>
+ <div className={styles.dep}><strong>선행 노드</strong>{picked.previous_nodes.map(id=><button key={id} onClick={()=>setSelected(id)}>{byId.get(id)?.name||'에린'}</button>)}</div>
+ </>:<p>지도에서 별을 선택하세요.</p>}
+ <h3 style={{fontSize:14}}>노드 목록 ({shown.length})</h3>
+ <div style={{maxHeight:280,overflowY:'auto',display:'grid',gap:5}}>{shown.map(n=><button key={n.sheet_id} onClick={()=>setSelected(n.sheet_id)} style={{textAlign:'left',padding:'7px 9px',background:selected===n.sheet_id?'#e1ebf7':'#f6f8fd',border:'1px solid #dce4f2',borderRadius:8,color:'#223653'}}>{levels[n.sheet_id]?'✓ ':''}{n.name||'에린'} <small>· {n.effect_summary.split('\n')[0]}</small></button>)}</div>
+ </aside></div></>}
+ </main>;
 }
