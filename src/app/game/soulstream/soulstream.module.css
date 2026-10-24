@@ -16,3 +16,11 @@
 .recommendItemMain{display:grid;min-width:0;gap:4px;flex:1}.recommendItemMain strong{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.recommendItemMain small{font-size:10px;color:#708097;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .recommendItemCost{display:grid;gap:4px;text-align:right;flex:none}.recommendItemCost strong{font-size:12px}.recommendItemCost small{font-size:10px;color:#647994}
 @media(max-width:700px){.recommendControls,.recommendList{grid-template-columns:1fr}.recommendPanel{padding:12px}.recommendItemCost{max-width:120px}}
+
+.recommendControls select{width:100%;border:1px solid #cbd6e3;border-radius:8px;padding:9px;background:#fff;color:#263b56;font:inherit}
+.statsToggle{margin-top:12px;border:1px solid #9bbace;background:#eef6fb;color:#244f67;border-radius:8px;padding:9px 12px;cursor:pointer;font-weight:700}
+.combatStats{margin:10px 0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.combatStats label{display:grid;gap:4px;font-size:11px;color:#4b5c72}
+.combatStats input{width:100%;min-width:0;padding:9px 6px;border-radius:7px;border:1px solid #cbd6e3;background:#fff;color:#233654}
+.combatStats>button{border:1px solid #cbd6e3;border-radius:8px;background:#f4f7fb;color:#334c62;cursor:pointer}
+@media(max-width:800px){.combatStats{grid-template-columns:repeat(2,minmax(0,1fr))}}
