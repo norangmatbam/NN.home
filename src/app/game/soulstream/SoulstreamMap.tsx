@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './soulstream.module.css';
 import bundled from './soulstream-data.json';
-import {initialStats,percentGain,tierEffects,type CombatStats,type CombatClass,type SoulEffect} from './damage-model';
+import {initialStats,percentGain,tierEffects,type CombatStats,type CombatClass,type SoulEffect} from '../combat-damage';
 
 type Node = {sheet_id:number;node_number:number;name:string;node_type:string;x:number;y:number;previous_nodes:number[];next_nodes:number[];effect_summary:string;effect_data?:{tiers?:string[]};activating_time_minute:number;red_soul_cost:number;blue_soul_cost:number;yellow_soul_cost:number;recommend_sequence:number|null};
 type Data = {meta?:{version?:string;node_count?:number};nodes:Node[];star_effects?:Record<string,unknown>;recommendations?:number[]};
