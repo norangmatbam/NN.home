@@ -19,6 +19,8 @@ function readStats():CombatStats{
   for(const key of keys){
    if(typeof data[key]==='number'&&Number.isFinite(data[key])&&data[key]>=0)stats[key]=data[key];
   }
+  // The old editor silently seeded +25% crit chance; it was never user-editable.
+  if(data.critChance===25)stats.critChance=0;
   return stats;
  }catch{return initialStats;}
 }
