@@ -204,7 +204,6 @@ export default function SoulstreamMap(){
  const recommendations=useMemo(()=>{
   const allEffects=(n:Node,level:number)=>tierEffects(n.effect_data?.tiers,level);
   const unitCost=(n:Node)=>n.red_soul_cost+n.blue_soul_cost+n.yellow_soul_cost;
-  const currentEffects: SoulEffect[]=nodes.flatMap(n=>allEffects(n,levels[n.sheet_id]||0));
   const current=percentGain; // Reference the same model for both ranking methods.
   // The user's entered stats are treated as the current baseline (do not double-count saved nodes).
   const collectMissing=(n:Node)=>{
