@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './soulstream.module.css';
 import bundled from './soulstream-data.json';
-import {initialStats,percentGain,tierEffects,type CombatStats,type CombatClass,type SoulEffect} from '../combat-damage';
+import {initialStats,percentGain,tierEffects,type CombatStats,type CombatClass,type SoulEffect,type DamageUptime} from '../combat-damage';
 
 type Node = {sheet_id:number;node_number:number;name:string;node_type:string;x:number;y:number;previous_nodes:number[];next_nodes:number[];effect_summary:string;effect_data?:{tiers?:string[]};activating_time_minute:number;red_soul_cost:number;blue_soul_cost:number;yellow_soul_cost:number;recommend_sequence:number|null};
 type Data = {meta?:{version?:string;node_count?:number};nodes:Node[];star_effects?:Record<string,unknown>;recommendations?:number[]};
@@ -185,9 +185,11 @@ export default function SoulstreamMap(){
   }catch(e){setError(e instanceof Error?e.message:'자동 연결 중 오류가 발생했습니다.');}
  }
 
- type CombatType='강타'|'연타';
+ type CombatType='전체'|'강타 중심'|'연타 중심';
  type RecommendationMode='single'|'route';
- const [combatType,setCombatType]=useState<CombatType>('연타');
+ const [combatType,setCombatType]=useState<CombatType>('전체');
+ const [customUptime,setCustomUptime]=useState<Record<CombatType,DamageUptime>>({'전체':{strike:95,multi:100},'강타 중심':{strike:100,multi:70},'연타 중심':{strike:70,multi:100}});
+ const uptime=customUptime[combatType];
  const [combatClass,setCombatClass]=useState<CombatClass>('화염술사');
  const [recommendMode,setRecommendMode]=useState<RecommendationMode>('route');
  const [showRecommendations,setShowRecommendations]=useState(true);
@@ -234,14 +236,14 @@ export default function SoulstreamMap(){
    try{missing=lv===0?collectMissing(n):[];}catch{return [];}
    const routeCost=cost+missing.reduce((sum,v)=>sum+unitCost(v),0);
    const routeEffects=[...diff,...missing.flatMap(v=>allEffects(v,1))];
-   const gain=current(baseStats,diff,combatClass,combatType);
-   const routeGain=current(baseStats,routeEffects,combatClass,combatType);
+   const gain=current(baseStats,diff,combatClass,uptime);
+   const routeGain=current(baseStats,routeEffects,combatClass,uptime);
    const positive=diff.some(x=>/공격력|스킬위력|치명타|추가타|강타강화|연타강화|강타피해|연타피해|무방비피해|피해증가|힘|솜씨|지력|행운|모든능력치/.test(x.label));
    if(!positive||gain<=0)return [];
    return [{node:n,next,gain,routeGain,cost,routeCost,additional:missing.length,
     efficiency:gain/cost,routeEfficiency:routeGain/routeCost}];
   }).sort((a,b)=>(recommendMode==='single'?b.efficiency-a.efficiency:b.routeEfficiency-a.routeEfficiency)||a.routeCost-b.routeCost).slice(0,12);
- },[nodes,byId,levels,combatType,combatClass,recommendMode,baseStats]);
+ },[nodes,byId,levels,uptime,combatClass,recommendMode,baseStats]);
 
  const fmt=(n:number)=>n.toLocaleString('ko-KR');
  return <main className={styles.wrap}>
@@ -270,9 +272,15 @@ export default function SoulstreamMap(){
   </div>
   {showRecommendations&&<>
    <div className={styles.recommendControls}>
-    <div><b>직군</b><button className={combatType==='강타'?styles.recommendActive:''} onClick={()=>setCombatType('강타')}>강타 직군</button><button className={combatType==='연타'?styles.recommendActive:''} onClick={()=>setCombatType('연타')}>연타 직군</button></div>
+    <div><b>추천 모드</b>{(['전체','강타 중심','연타 중심'] as CombatType[]).map(mode=><button key={mode} className={combatType===mode?styles.recommendActive:''} onClick={()=>setCombatType(mode)}>{mode}</button>)}</div>
     <div><b>추천 방식</b><button className={recommendMode==='single'?styles.recommendActive:''} onClick={()=>setRecommendMode('single')}>단일 노드 효율</button><button className={recommendMode==='route'?styles.recommendActive:''} onClick={()=>setRecommendMode('route')}>선행 경로 포함 효율</button></div>
     <div><b>무기 스탯 환산</b><select aria-label="클래스" value={combatClass} onChange={e=>setCombatClass(e.target.value as CombatClass)}><option value="화염술사">화염술사 (지력×3·행운×2.5)</option><option value="전사">전사 (힘×5.5)</option><option value="기타 강타">기타 강타 (무기 계수 미반영)</option><option value="기타 연타">기타 연타 (무기 계수 미반영)</option></select></div>
+   </div>
+   <div className={styles.recommendInfo} style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+    <span>{combatType} 가동률 (강타 {uptime.strike}% · 연타 {uptime.multi}%)</span>
+    <label>강타 <input aria-label="강타 가동률" type="number" min="0" max="100" value={uptime.strike} style={{width:60}} onChange={e=>setCustomUptime(v=>({...v,[combatType]:{...v[combatType],strike:Math.min(100,Math.max(0,Number(e.target.value)||0))}}))}/>%</label>
+    <label>연타 <input aria-label="연타 가동률" type="number" min="0" max="100" value={uptime.multi} style={{width:60}} onChange={e=>setCustomUptime(v=>({...v,[combatType]:{...v[combatType],multi:Math.min(100,Math.max(0,Number(e.target.value)||0))}}))}/>%</label>
+    <small>전체 95/100은 엑셀 예시값, 중심 모드 100/70·70/100은 조정 가능한 가정값입니다. 두 가동률은 독립 적용됩니다.</small>
    </div>
    <button className={styles.statsToggle} onClick={()=>setShowStats(v=>!v)}>{showStats?'현재 스탯 입력 닫기':'현재 스탯 입력 / 변경'}</button>
    {showStats&&<div className={styles.combatStats}>
