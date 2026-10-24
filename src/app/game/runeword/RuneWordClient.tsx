@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import styles from './runeword.module.css';
+import {initialStats, percentGain, isSupportedDamageEffect, type CombatClass, type CombatStats, type SoulEffect} from '../combat-damage';
 import { SEASON2_RUNE_CATALOG, SEASON2_MYTHIC_RUNES } from './season2Catalog';
 
 type Effect = { name: string; value: number };
@@ -102,24 +103,12 @@ function singleTypeBadge(runes: string[], season: Season): string | null {
   return type && runes.every(rune => typeFor(rune) === type) ? type : null;
 }
 
-const WEIGHTS: Record<string, number> = {
-  '치명타': .5 / 70,
-  '추가타': .45 / 70,
-  '강타 강화': .45 / 70,
-  '연타 강화': .45 / 70,
-  '스킬 위력': .45 / 70,
-};
-function estimate(word: RuneWord, baseAttack: number) {
-  let factor = 1;
-  const omitted: string[] = [];
-  for (const effect of word.effects) {
-    const rate = effect.name === '공격력'
-      ? effect.value / (baseAttack + effect.value) / 100 * 100
-      : WEIGHTS[effect.name] == null ? null : WEIGHTS[effect.name] * effect.value / 100;
-    if (rate == null) { omitted.push(effect.name); continue; }
-    factor *= (1 + rate);
-  }
-  return { percent: (factor - 1) * 100, omitted };
+function estimate(word: RuneWord, stats: CombatStats, combatClass: CombatClass, combat: '강타'|'연타') {
+  const omitted=word.effects.filter(e=>!isSupportedDamageEffect(e.name)).map(e=>e.name);
+  const effects: SoulEffect[]=word.effects.filter(e=>isSupportedDamageEffect(e.name)).map(e=>({
+    label:e.name.replace(/\\s/g,''),value:e.value,percent:false
+  }));
+  return {percent:percentGain(stats,effects,combatClass,combat),omitted};
 }
 function signed(n: number) { return (n > 0 ? '+' : '') + n.toLocaleString('ko-KR'); }
 function fmt(n: number) { return (n > 0 ? '+' : '') + n.toFixed(2) + '%'; }
@@ -137,7 +126,9 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const [search, setSearch] = useState('');
   const [runeSearch, setRuneSearch] = useState('');
   const [sort, setSort] = useState<'dps' | 'name' | 'missing'>('dps');
-  const baseAttack = 26500;
+  const [combatClass,setCombatClass]=useState<CombatClass>('화염술사');
+  const [combat,setCombat]=useState<'강타'|'연타'>('연타');
+  const [stats,setStats]=useState<CombatStats>(initialStats);
 
   useEffect(() => {
     try {
@@ -181,7 +172,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const items = useMemo(() => currentWords
     .map(word => ({
       ...word,
-      ...estimate(word, baseAttack),
+      ...estimate(word, stats, combatClass, combat),
       typeBadge: singleTypeBadge(word.runes, season),
       missing: word.runes.filter(r => !currentOwned.has(r)),
     }))
@@ -191,7 +182,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
       if (sort === 'name') return a.name.localeCompare(b.name, 'ko');
       if (sort === 'missing') return a.missing.length - b.missing.length || b.percent - a.percent;
       return b.percent - a.percent || a.name.localeCompare(b.name, 'ko');
-    }), [currentWords, baseAttack, currentOwned, filterAvailable, search, sort, season]);
+    }), [currentWords, stats, combatClass, combat, currentOwned, filterAvailable, search, sort, season]);
 
   const selectedWords = currentWords.filter(w => currentSelected.has(w.name));
   const totalEffect = useMemo(() => {
@@ -199,7 +190,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
     for (const w of selectedWords) for (const e of w.effects) totals.set(e.name, (totals.get(e.name) || 0) + e.value);
     return [...totals.entries()];
   }, [selectedWords]);
-  const combined = (selectedWords.reduce((factor, w) => factor * (1 + estimate(w, baseAttack).percent / 100), 1) - 1) * 100;
+  const combined = percentGain(stats, selectedWords.flatMap(w=>w.effects.filter(e=>isSupportedDamageEffect(e.name)).map(e=>({label:e.name.replace(/\\s/g,''),value:e.value,percent:false}))), combatClass, combat);
 
   const toggleRune = (name: string) => setOwned(prev => ({
     ...prev, [season]: prev[season].includes(name)
@@ -257,6 +248,31 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
     </section>
 
     <section className={styles.panel}>
+      <div className={styles.sectionTitle}><h2>DPS 계산 기준</h2></div>
+      <p className={styles.sub}>소울스트림과 동일한 계산식으로 상대 피해 증가량을 추정합니다. 입력값은 현재 캐릭터 스탯이며, 기본값은 예시입니다.</p>
+      <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:10}}>
+        <select className={styles.input} aria-label="전투 직군" value={combat} onChange={e=>setCombat(e.target.value as '강타'|'연타')}>
+          <option value="강타">강타 중심</option><option value="연타">연타 중심</option>
+        </select>
+        <select className={styles.input} aria-label="무기 스탯 환산 클래스" value={combatClass} onChange={e=>setCombatClass(e.target.value as CombatClass)}>
+          <option value="화염술사">화염술사 (지력×3·행운×2.5)</option><option value="전사">전사 (힘×5.5)</option><option value="기타 강타">기타 강타 (무기 계수 미반영)</option><option value="기타 연타">기타 연타 (무기 계수 미반영)</option>
+        </select>
+      </div>
+      <details><summary style={{cursor:'pointer',fontWeight:700}}>현재 스탯 입력 / 변경</summary>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:8,marginTop:10}}>
+          {([
+            ['attack','공격력'],['skill','스킬 위력'],['crit','치명타'],['extra','추가타'],
+            ['strike','강타 강화'],['multi','연타 강화'],
+            ['skillDamage','스킬 피해 (%)'],['damageIncrease','피해 증가 (%)'],
+            ['critChance','추가 치확 (%)'],['critDamage','치피 옵션 (%)'],['extraChance','추확 옵션 (%)'],
+            ['strikeDamage','강타 피해 (%)'],['multiDamage','연타 피해 (%)'],
+            ['unprotectedDamage','무방비 피해 (%)'],['unprotectedShare','무방비 적용 비중 (%)']
+          ] as [keyof CombatStats,string][]).map(([key,label])=><label key={key} style={{display:'grid',gap:4,fontSize:12}}>{label}<input className={styles.input} type="number" min="0" step="any" value={stats[key]} onChange={e=>setStats(v=>({...v,[key]:Math.max(0,Number(e.target.value)||0)}))}/></label>)}
+        </div>
+        <button className={styles.secondary} style={{marginTop:8}} onClick={()=>setStats(initialStats)}>예시 스탯 초기화</button>
+      </details>
+    </section>
+    <section className={styles.panel}>
       <div className={styles.sectionTitle}><h2>선택한 룬워드</h2><span>{selectedWords.length} / 5개</span></div>
       {selectedWords.length ? <div className={styles.pills}>{selectedWords.map(w => <button key={w.name} onClick={() => toggleWord(w.name)} title="선택 해제">{w.name} ×</button>)}</div> : <p className={styles.sub}>아래 목록에서 최대 5개까지 선택할 수 있어요.</p>}
       {!!selectedWords.length && <>
@@ -274,7 +290,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
         </select>
         <label className={styles.switch}><input type="checkbox" checked={filterAvailable} onChange={e => setFilterAvailable(e.target.checked)} /> 사용 가능만 보기</label>
       </div>
-      <p className={styles.warning}>DPS는 특정 직업 가중치 없는 참고 추정치입니다. 공격력·치명타·추가타·강타·연타·스킬 위력만 환산하며 나머지 옵션은 제외하므로, 완전한 실전 DPS 순위가 아닙니다.</p>
+      <p className={styles.warning}>DPS는 소울스트림과 동일한 상대 피해 계산 모델을 사용합니다. 직업·현재 스탯에 따라 달라지며, 공속·빠른 스킬·궁극기·브레이크 발생 속도 등 미검증 효과는 제외합니다. 게임 실측 DPS가 아닙니다.</p>
       <p className={styles.sub}>검색 결과 {items.length}개</p>
       <div className={styles.cards}>
         {items.map(w => <article key={w.name} className={styles.word}>
