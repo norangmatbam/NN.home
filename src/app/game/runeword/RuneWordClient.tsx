@@ -113,7 +113,7 @@ function estimate(word: RuneWord, stats: CombatStats, combatClass: CombatClass,e
   const effects: SoulEffect[]=word.effects.filter(e=>isSupportedDamageEffect(e.name)).map(e=>({
     label:e.name.replace(/\s/g,''),value:e.value,percent:false
   }));
-  return {percent:percentGain(stats,effects,combatClass,DEFAULT_UPTIME,equipped),omitted};
+  return {percent:percentGain(stats,effects,combatClass,DEFAULT_UPTIME,equipped),omitted,coverage:word.effects.length?effects.length/word.effects.length:0};
 }
 function signed(n: number) { return (n > 0 ? '+' : '') + n.toLocaleString('ko-KR'); }
 function fmt(n: number) { return (n > 0 ? '+' : '') + n.toFixed(2) + '%'; }
@@ -186,7 +186,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
     .sort((a, b) => {
       if (sort === 'name') return a.name.localeCompare(b.name, 'ko');
       if (sort === 'missing') return a.missing.length - b.missing.length || b.percent - a.percent;
-      return b.percent - a.percent || a.name.localeCompare(b.name, 'ko');
+      return b.coverage - a.coverage || b.percent - a.percent || a.name.localeCompare(b.name, 'ko');
     }), [currentWords, stats, combatClass,equipped, currentOwned, filterAvailable, search, sort, season]);
 
   const selectedWords = currentWords.filter(w => currentSelected.has(w.name));
@@ -281,17 +281,17 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
       <div className={styles.controls}>
         <input className={styles.input} placeholder="룬워드·옵션·필요 룬 검색" aria-label="룬워드 검색" value={search} onChange={e => setSearch(e.target.value)} />
         <select className={styles.input} aria-label="정렬" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
-          <option value="dps">추정 DPS 높은 순</option><option value="missing">부족한 룬 적은 순</option><option value="name">이름순</option>
+          <option value="dps">계산 가능 효과 우선 · 부분 DPS순</option><option value="missing">부족한 룬 적은 순</option><option value="name">이름순</option>
         </select>
         <label className={styles.switch}><input type="checkbox" checked={filterAvailable} onChange={e => setFilterAvailable(e.target.checked)} /> 사용 가능만 보기</label>
       </div>
-      <p className={styles.warning}>DPS는 소울스트림과 동일한 상대 피해 계산 모델을 사용합니다. 직업·현재 스탯에 따라 달라지며, 공속·빠른 스킬·궁극기·브레이크 발생 속도 등 미검증 효과는 제외합니다. 게임 실측 DPS가 아닙니다.</p>
+      <p className={styles.warning}>계산할 수 없는 효과가 있는 룬워드는 완전 비교가 불가능하므로, 기본 정렬에서 계산 가능한 효과 비율을 먼저 고려합니다. 일부 능력치는 여전히 누락되므로 추천 순위가 실제 전투 효율 순위는 아닙니다. DPS는 소울스트림과 동일한 상대 피해 계산 모델을 사용합니다. 직업·현재 스탯에 따라 달라지며, 공속·빠른 스킬·궁극기·브레이크 발생 속도 등 미검증 효과는 제외합니다. 게임 실측 DPS가 아닙니다.</p>
       <p className={styles.sub}>검색 결과 {items.length}개</p>
       <div className={styles.cards}>
         {items.map(w => <article key={w.name} className={styles.word}>
           <div className={styles.wordTop}>
             <div><div className={styles.wordNameRow}><h3>{w.name}</h3>{w.typeBadge && <span className={styles.typeBadge}>{w.typeBadge}</span>}</div><span className={w.missing.length ? styles.notReady : styles.ready}>{w.missing.length ? '부족한 룬 ' + w.missing.length + '개' : '사용 가능'}</span></div>
-            <div className={styles.score}><b>{fmt(w.percent)}</b><small>부분 DPS 추정</small></div>
+            <div className={styles.score}><b>{fmt(w.percent)}</b><small>{w.omitted.length?`일부 효과만 계산 (${w.effects.length-w.omitted.length}/${w.effects.length})`:"표시 효과 계산 완료 · 추정치"}</small></div>
           </div>
           <div className={styles.stats}>{w.effects.map((e, i) => <span key={i}>{e.name} <b>{signed(e.value)}</b></span>)}</div>
           {w.omitted.length > 0 && <p className={styles.omitted}>미반영: {w.omitted.join(', ')}</p>}
