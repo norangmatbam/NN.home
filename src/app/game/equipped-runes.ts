@@ -95,36 +95,55 @@ export const RUNE_CATALOG:RuneRecord[]=[
 {slot:"엠블럼",name:"영원한 밤",rarity:"전설",tiers:[null,null,null],bonus:"damageIncrease",description:"공격력이 7.0/9.0/?%, 강타 피해, 연타 피해, 치명타 확률, 추가타 확률이 7.0% 증가한다. 오염의 지속 시간이 33% 감소한다. #오염"},
 {slot:"엠블럼",name:"원정대",rarity:"전설",tiers:[null,null,null],bonus:"damageIncrease",description:"공격력이 34/34/34% 증가한다."},
 ];
+
+export type PeakBonus={key:RuneBonusKey;tiers:[number|null,number|null,number|null];multiplier?:number};
+export const RUNE_PEAK_EFFECTS:Record<string,{label:string;bonuses:PeakBonus[];caveat:string}>={
+ '무너진 경계':{label:'침식 100 이상',bonuses:[{key:'extraChance',tiers:[16.5,17.8,19.1],multiplier:2}],caveat:'오염 15초간 효과 소멸 구간 제외'},
+ '금 간 봉인':{label:'침식 100 이상',bonuses:[{key:'critChance',tiers:[16.5,17.8,19.1],multiplier:2}],caveat:'오염 15초간 효과 소멸 구간 제외'},
+ '잿빛 장막':{label:'침식 100 이상',bonuses:[{key:'multiDamage',tiers:[18,19.5,21],multiplier:2}],caveat:'오염 구간 제외'},
+ '흐릿한 형상':{label:'침식 100 이상',bonuses:[{key:'strikeDamage',tiers:[18,19.5,21],multiplier:2}],caveat:'오염 구간 제외'},
+ '끓는 피':{label:'저주 스킬 사용 후',bonuses:[{key:'skillDamage',tiers:[24,26,27]}],caveat:'체력 30% 이상 및 5초 지속을 상시로 가정'},
+ '첫 번째 서약':{label:'밤의 축복',bonuses:[{key:'strikeDamage',tiers:[11,11,11]},{key:'critChance',tiers:[11,11,11]}],caveat:'조건부 공격력 +11%는 스탯 중복 방지를 위해 제외'},
+ '교차하는 사슬':{label:'밤의 축복',bonuses:[{key:'multiDamage',tiers:[11,11,11]},{key:'extraChance',tiers:[11,11,11]}],caveat:'조건부 공격력 +11% 제외'},
+ '고결함':{label:'밤의 축복',bonuses:[{key:'damageIncrease',tiers:[48,56,64]}],caveat:'15초 지속시간과 재사용 대기 가동률 무시'},
+ '거두는 손길':{label:'전투 시작',bonuses:[{key:'damageIncrease',tiers:[26,28,30]}],caveat:'첫 15초간 효과를 전투 내내 유지한다고 가정'},
+ '공세+':{label:'5중첩',bonuses:[{key:'damageIncrease',tiers:[5.5,6,6.4],multiplier:5}],caveat:'공세 스킬로 각 중첩을 계속 유지한다고 가정'},
+ '맹세+':{label:'5중첩',bonuses:[{key:'damageIncrease',tiers:[3,3,3],multiplier:5}],caveat:'남은 체력과 중첩 유지 조건, 공격력 옵션은 제외'},
+ '숲 길잡이':{label:'공격 또는 이동 조건',bonuses:[{key:'damageIncrease',tiers:[21,23,25]}],caveat:'10초 효과를 상시로 가정'},
+ '돌 심장':{label:'용의 문장 활성화',bonuses:[{key:'multiDamage',tiers:[18,18,18]}],caveat:'용의 문장 유지율 미반영'},
+ '번개 숨결':{label:'용의 문장 활성화',bonuses:[{key:'strikeDamage',tiers:[18,18,18]}],caveat:'용의 문장 유지율 미반영'},
+ '얼음 발톱':{label:'용의 문장 활성화',bonuses:[{key:'extraChance',tiers:[12.5,12.5,12.5]}],caveat:'용의 문장 유지율 미반영'},
+ '잠들지 않는 불':{label:'용의 문장 활성화',bonuses:[{key:'critChance',tiers:[12.5,12.5,12.5]}],caveat:'용의 문장 유지율 미반영'},
+ '황동 날개':{label:'용의 문장 활성화',bonuses:[{key:'damageIncrease',tiers:[14,14,14]}],caveat:'용의 문장 유지율 미반영'},
+ '백금 천칭':{label:'두 효과 동시 활성',bonuses:[{key:'damageIncrease',tiers:[21,22.5,null],multiplier:1.5}],caveat:'2초월 수치 미확인, 기본 공격 전용 효과 가동률 무시'},
+ '초월':{label:'추가타 5회 적중',bonuses:[{key:'damageIncrease',tiers:[15,15,15]},{key:'critDamage',tiers:[15,17,null]}],caveat:'치명타 피해 2초월 수치 미확인, 10초 효과 상시 가정'},
+ '용 사냥꾼':{label:'퀵슬롯 발동',bonuses:[{key:'damageIncrease',tiers:[5,5,5]}],caveat:'발동 후 60초 지속 가정; 기본 치명타 확률·피해 효과는 별도 상시 적용'},
+ '무형':{label:'저주 룬 장착',bonuses:[{key:'damageIncrease',tiers:[30,30,30]}],caveat:'저주 룬 조건 충족 가정, 다른 계열 발동 효과 미반영'},
+ '사슬로 묶은 법전':{label:'비활성 상태',bonuses:[{key:'damageIncrease',tiers:[29,29,29]}],caveat:'도발·치유 발동 없는 상태를 가정'},
+};
+export function peakBonusSummary(item:EquippedRune){
+ const profile=RUNE_PEAK_EFFECTS[item.name];if(!profile)return null;
+ const parts=profile.bonuses.flatMap(b=>b.tiers[item.tier]==null?[]:[{key:b.key,value:(b.tiers[item.tier] as number)*(b.multiplier||1)}]);
+ return {profile,parts,complete:parts.length===profile.bonuses.length};
+}
+
 export type EquippedRune={slot:RuneSlot;name:string;tier:number;maxEffect?:boolean};
 export function getRuneBonuses(selected:EquippedRune[]):Partial<Record<RuneBonusKey,number>>{
  const totals:Partial<Record<RuneBonusKey,number>>={};
+ const add=(key:RuneBonusKey,value:number)=>{totals[key]=(totals[key]||0)+value;};
  for(const item of selected){
-  // Optional theoretical maximum for explicitly known conditional effects.
-  // Corruption at 100+ doubles the chance buff; does not model downtime at corruption 300.
-  if(item.maxEffect&&item.name==='무너진 경계'){
-   totals.extraChance=(totals.extraChance||0)+[16.5,17.8,19.1][item.tier]*2;
-   continue;
-  }
-  if(item.maxEffect&&item.name==='금 간 봉인'){
-   totals.critChance=(totals.critChance||0)+[16.5,17.8,19.1][item.tier]*2;
-   continue;
-  }
-  if(item.maxEffect&&item.name==='첫 번째 서약'){
-   // Night's Blessing: strike damage and critical chance +11% each.
-   // Conditional attack +11% is omitted to avoid double-counting character-sheet attack.
-   totals.strikeDamage=(totals.strikeDamage||0)+11;
-   totals.critChance=(totals.critChance||0)+11;
-   continue;
-  }
-  if(item.maxEffect&&item.name==='끓는 피'){
-   totals.skillDamage=(totals.skillDamage||0)+[24,26,27][item.tier];
-   continue;
-  }
   const rune=RUNE_CATALOG.find(r=>r.slot===item.slot&&r.name===item.name);
-  const value=rune?.tiers[item.tier];
-  if(value==null||!rune)continue;
-  totals[rune.bonus]=(totals[rune.bonus]||0)+value;
-  if(rune.name==='잠든 땅')totals.strikeDamage=(totals.strikeDamage||0)+value;
+  if(!rune)continue;
+  // Always use source-verified, unconditional off-sheet bonuses only.
+  // Peak effects are additive to the baseline ONLY if explicitly opted in.
+  const value=rune.tiers[item.tier];
+  if(value!=null)add(rune.bonus,value);
+  if(rune.name==='잠든 땅'&&value!=null)add('strikeDamage',value);
+  // Avoid adding same rune's peak and default damageIncrease twice.
+  if(item.maxEffect){
+   const peak=peakBonusSummary(item);
+   if(peak)for(const {key,value:extra} of peak.parts)add(key,extra);
+  }
  }
  return totals;
 }
