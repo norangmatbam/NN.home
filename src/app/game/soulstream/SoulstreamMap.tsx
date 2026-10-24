@@ -164,24 +164,24 @@ export default function SoulstreamMap(){
   const score=(n:Node,lv:number)=>{
    const t=n.effect_summary;
    const detail=n.effect_data?.tiers?.[Math.max(0,lv-1)]||t;
-   const first=detail.split('\\n')[0];
+   const first=detail.split('\n')[0];
    const effect=t+' '+first;
    const isMajor=n.node_type==='Star';
    let score=0;
-   if(/공격력\\s*\\+/.test(effect))score=attackWeight;
-   else if(/모든 능력치\\s*\\+/.test(effect))score=allStatWeight;
-   else if(/강타 강화\\s*\\+/.test(effect))score=combatType==='강타'?.72:.09;
-   else if(/연타 강화\\s*\\+/.test(effect))score=combatType==='연타'?.72:.09;
-   else if(/브레이크\\s*\\+/.test(effect))score=.61;
-   else if(/치명타\\s*\\+/.test(effect))score=.55;
-   else if(/스킬 위력\\s*\\+/.test(effect))score=.53;
-   else if(/빠른 스킬\\s*\\+/.test(effect))score=.45;
+   if(/공격력\s*\+/.test(effect))score=attackWeight;
+   else if(/모든 능력치\s*\+/.test(effect))score=allStatWeight;
+   else if(/강타 강화\s*\+/.test(effect))score=combatType==='강타'?.72:.09;
+   else if(/연타 강화\s*\+/.test(effect))score=combatType==='연타'?.72:.09;
+   else if(/브레이크\s*\+/.test(effect))score=.61;
+   else if(/치명타\s*\+/.test(effect))score=.55;
+   else if(/스킬 위력\s*\+/.test(effect))score=.53;
+   else if(/빠른 스킬\s*\+/.test(effect))score=.45;
    else if(/강타 피해/.test(effect))score=combatType==='강타'?.52:.04;
    else if(/연타 피해/.test(effect))score=combatType==='연타'?.52:.04;
    else if(/무방비 피해/.test(effect))score=.4;
-   else if(/추가타\\s*\\+/.test(effect))score=.38;
+   else if(/추가타\s*\+/.test(effect))score=.38;
    else if(/궁극기/.test(effect))score=.32;
-   else if(/힘\\s*\\+|솜씨\\s*\\+|지력\\s*\\+|행운\\s*\\+|의지\\s*\\+/.test(effect))score=.29;
+   else if(/힘\s*\+|솜씨\s*\+|지력\s*\+|행운\s*\+|의지\s*\+/.test(effect))score=.29;
    else return 0;
    // Tier progression is diminishing returns; Lv.1 is usually more efficient.
    if(isMajor)score*=lv===1?1:lv===2?.46:.35;
