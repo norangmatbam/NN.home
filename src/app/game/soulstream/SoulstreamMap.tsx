@@ -21,28 +21,22 @@ export default function SoulstreamMap(){
  useEffect(()=>{try{const p=localStorage.getItem(STATE_KEY);if(p)setLevels(JSON.parse(p));}catch{}; void refresh();},[]);
  async function refresh(){
   setLoading(true);setError('');
-  const sources=[
-   {name:'원본 직접 연결',url:'https://mabimobi.life/d/api/v1/soulstream/catalog'},
-   {name:'NN.home 서버 연결',url:'/api/game/soulstream/catalog'},
-  ];
-  const failures:string[]=[];
   try{
-   for(const source of sources){
-    try{
-     const response=await fetch(source.url,{cache:'no-store',headers:{accept:'application/json'}});
-     if(!response.ok){
-      let detail='';
-      try{const d=await response.json();detail=typeof d.upstreamStatus==='number'?' (원본 응답 '+d.upstreamStatus+')':'';}catch{}
-      throw Error('HTTP '+response.status+detail);
-     }
-     const parsed=parse(await response.text());
-     setData(parsed);setError('');return;
-    }catch(e){failures.push(source.name+': '+(e instanceof Error?e.message:'요청 실패'));}
-   }
-   setData(null);
-   setError('전체 노드 API 연결 실패 — '+failures.join(' / '));
-  }finally{setLoading(false);}
+   let raw='';
+   const response=await fetch('/game/soulstream.json',{cache:'force-cache'});
+   if(response.ok)raw=await response.text();
+   if(!raw)raw=localStorage.getItem(DATA_KEY)||'';
+   if(!raw)throw Error('자체 저장소의 전체 원본 JSON이 아직 등록되지 않았습니다. 아래 입력란에 원본을 붙여넣어 저장할 수 있습니다.');
+   setData(parse(raw));
+  }catch(e){setData(null);setError(e instanceof Error?e.message:'데이터 로드 실패');}
+  finally{setLoading(false);}
  }
+ function saveOriginal(raw:string){
+  try{const parsed=parse(raw);localStorage.setItem(DATA_KEY,raw);setData(parsed);setError('');setSourceText('');}
+  catch(e){setError(e instanceof Error?e.message:'원본 JSON 확인 실패');}
+ }
+ const [sourceText,setSourceText]=useState('');
+
  const nodes=useMemo(()=>data?.nodes||[],[data]),byId=useMemo(()=>new Map(nodes.map(n=>[n.sheet_id,n])),[nodes]);
  const picked=selected===null?null:byId.get(selected)||null;
  const active=nodes.filter(n=>(levels[n.sheet_id]||0)>0);
@@ -58,9 +52,9 @@ export default function SoulstreamMap(){
  const fmt=(n:number)=>n.toLocaleString('ko-KR');
  return <main className={styles.wrap}>
  <header className={styles.heading}><h1>소울스트림 지도</h1><p>283개 노드의 실제 좌표와 연결 관계 · 강타/연타 검색 · 소울 및 시간 계산</p></header>
- <section className={styles.toolbar}><button onClick={()=>void refresh()} disabled={loading}>{loading?'원본 불러오는 중':'원본 데이터 새로고침'}</button></section>
+ <section className={styles.toolbar}><button onClick={()=>void refresh()} disabled={loading}>{loading?'자체 데이터 불러오는 중':'자체 데이터 새로고침'}</button></section>
  {error&&<p className={styles.notice} role="alert">{error}</p>}
- {!data?<section className={styles.notice}><strong>{loading?'283개 노드의 원본 데이터를 불러오는 중입니다.':'원본 API 연결을 확인해 주세요.'}</strong><p>사용자 입력은 필요하지 않습니다. 원본 데이터를 수신하면 지도가 자동 표시됩니다.</p></section>:<>
+ {!data?<section className={styles.notice}><strong>{loading?'자체 원본 데이터를 불러오는 중입니다.':'자체 원본 JSON이 아직 없습니다.'}</strong><p>외부 사이트에 데이터를 요청하지 않습니다. 사이트에 JSON이 등록되면 자동으로 지도가 표시됩니다.</p><textarea aria-label="소울스트림 원본 JSON 붙여넣기" value={sourceText} onChange={e=>setSourceText(e.target.value)} placeholder="전체 JSON을 여기에 붙여넣으세요" style={{width:'100%',minHeight:120,marginTop:12}}/><button onClick={()=>saveOriginal(sourceText)} disabled={!sourceText.trim()}>이 기기에 원본 저장</button></section>:<>
  <section className={styles.stats}>
  <div><small>전체 / 연결</small><strong>{nodes.length} / {active.length}</strong></div>
  <div><small><i className={styles.red}/>붉은 소울</small><strong>{fmt(totals.r)}</strong></div>
