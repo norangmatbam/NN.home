@@ -30,8 +30,12 @@ export default function EquippedRunesEditor({equipped,onChange}:{equipped:Equipp
         {[0,1,2].map(t=><option key={t} value={t}>{t}초월</option>)}
        </select>}
       </div>
+      {(data.name==='무너진 경계'||data.name==='금 간 봉인')&&<label style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#465a72',cursor:'pointer'}}>
+       <input type="checkbox" checked={Boolean(r.maxEffect)} onChange={e=>onChange(equipped.map(x=>x===r?{...x,maxEffect:e.target.checked}:x))}/>
+       침식 100 이상 최대치로 계산 (오염 공백 제외)
+      </label>}
       <div className={ui.runeMeta}>
-       <span className={ui.pill}>{data.name==='뼈 인장'?'3번 슬롯 피해 +'+[53,58,63][r.tier]+'% · DPS 미반영':data.name==='무너진 경계'?'침식 중 추가타 확률 +'+[16.5,17.8,19.1][r.tier]+'% · 조건부 미반영':data.name==='금 간 봉인'?'침식 중 치명타 확률 +'+[16.5,17.8,19.1][r.tier]+'% · 조건부 미반영':data.tiers[r.tier]==null?'상세 효과 확인 · DPS 미반영':BONUS_LABELS[data.bonus]+' +'+data.tiers[r.tier]+'% 적용'}</span>
+       <span className={ui.pill}>{data.name==='뼈 인장'?'3번 슬롯 피해 +'+[53,58,63][r.tier]+'% · DPS 미반영':data.name==='무너진 경계'?'침식 중 추가타 확률 +'+([16.5,17.8,19.1][r.tier]*(r.maxEffect?2:1)).toFixed(1)+'% · '+(r.maxEffect?'최대치 가정 적용':'조건부 미반영'):data.name==='금 간 봉인'?'침식 중 치명타 확률 +'+([16.5,17.8,19.1][r.tier]*(r.maxEffect?2:1)).toFixed(1)+'% · '+(r.maxEffect?'최대치 가정 적용':'조건부 미반영'):data.tiers[r.tier]==null?'상세 효과 확인 · DPS 미반영':BONUS_LABELS[data.bonus]+' +'+data.tiers[r.tier]+'% 적용'}</span>
        <button type="button" className={ui.button+' '+ui.danger} onClick={()=>onChange(equipped.filter(x=>x!==r))}>삭제</button>
       </div>
       {(data.description||data.note)&&<details className={ui.detail}><summary>룬 효과 자세히 보기</summary><p>{data.description||data.note}</p></details>}
