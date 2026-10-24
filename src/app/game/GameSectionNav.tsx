@@ -11,6 +11,7 @@ const ITEMS = [
   { label: '보석 스왑', href: '/game/gem-swap' },
   { label: '룬워드', href: '/game/runeword' },
   { label: '숙제 체크', href: '/game/chores' },
+  { label: '소울스트림', href: '/game/soulstream' },
 ];
 
 export default function GameSectionNav() {
