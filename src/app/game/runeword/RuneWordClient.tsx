@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import styles from './runeword.module.css';
-import {initialStats, percentGain, isSupportedDamageEffect, type CombatClass, type CombatStats, type SoulEffect} from '../combat-damage';
+import {initialStats, percentGain, isSupportedDamageEffect, type CombatClass, type CombatStats, type SoulEffect, JOB_OPTIONS, weaponStatLabel} from '../combat-damage';
 import { SEASON2_RUNE_CATALOG, SEASON2_MYTHIC_RUNES } from './season2Catalog';
 
 type Effect = { name: string; value: number };
@@ -251,7 +251,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
       <p className={styles.sub}>강타·연타 증가분을 합산하여 계산합니다(엑셀 예시 가동률 강타 95%, 연타 100%). 입력값은 현재 캐릭터 스탯이며, 기본값은 예시입니다.</p>
       <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:10}}>
         <select className={styles.input} aria-label="무기 스탯 환산 클래스" value={combatClass} onChange={e=>setCombatClass(e.target.value as CombatClass)}>
-          <option value="화염술사">화염술사 (지력×3·행운×2.5)</option><option value="전사">전사 (힘×5.5)</option><option value="기타 강타">기타 강타 (무기 계수 미반영)</option><option value="기타 연타">기타 연타 (무기 계수 미반영)</option>
+          {JOB_OPTIONS.map(group=><optgroup label={group.label} key={group.label}>{group.jobs.map(job=><option value={job} key={job}>{job} ({weaponStatLabel(job)})</option>)}</optgroup>)}
         </select>
       </div>
       <details><summary style={{cursor:'pointer',fontWeight:700}}>현재 스탯 입력 / 변경</summary>
