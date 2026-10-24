@@ -198,7 +198,9 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
     for (const w of selectedWords) for (const e of w.effects) totals.set(e.name, (totals.get(e.name) || 0) + e.value);
     return [...totals.entries()];
   }, [selectedWords]);
-  const combined = percentGain(stats, selectedWords.flatMap(w=>w.effects.filter(e=>isSupportedDamageEffect(e.name)).map(e=>({label:e.name.replace(/\s/g,''),value:e.value,percent:false}))), combatClass,DEFAULT_UPTIME,equipped);
+  const combined = season===1&&communityMode
+    ? communityEfficiency({name:'선택 조합',effects:selectedWords.flatMap(w=>w.effects),runes:[]},combatClass,rawAttack).percent
+    : percentGain(stats, selectedWords.flatMap(w=>w.effects.filter(e=>isSupportedDamageEffect(e.name)).map(e=>({label:e.name.replace(/\\s/g,''),value:e.value,percent:false}))), combatClass,DEFAULT_UPTIME,equipped);
 
   const toggleRune = (name: string) => setOwned(prev => ({
     ...prev, [season]: prev[season].includes(name)
@@ -275,7 +277,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
       {selectedWords.length ? <div className={styles.pills}>{selectedWords.map(w => <button key={w.name} onClick={() => toggleWord(w.name)} title="선택 해제">{w.name} ×</button>)}</div> : <p className={styles.sub}>아래 목록에서 최대 5개까지 선택할 수 있어요.</p>}
       {!!selectedWords.length && <>
         <div className={styles.stats}>{totalEffect.map(([name, value]) => <span key={name}>{name} <b>{signed(value)}</b></span>)}</div>
-        <p className={styles.result}>계산 가능한 옵션의 합산 추정 DPS <b>{fmt(combined)}</b></p>
+        <p className={styles.result}>선택 룬워드 합산 추정 DPS <b>{fmt(combined)}</b></p>
       </>}
     </section>
 
