@@ -15,7 +15,7 @@ export default function EquippedRunesEditor({equipped,onChange}:{equipped:Equipp
  return <details className={ui.accordion}>
   <summary className={ui.header}><span>현재 장착 룬 ({equipped.length}개)</span><span className={ui.chevron} aria-hidden="true"/></summary>
   <div className={ui.body}>
-   <p className={ui.help}>상시 피해 배율만 자동 적용합니다. 조건부 효과와 미확인 수치는 상세 설명에서 확인할 수 있어요.</p>
+   <p className={ui.help}>상시 피해 배율만 자동 적용합니다. 특정 스킬 전용 효과·침식 등 조건부 효과는 수치가 알려져 있어도 DPS 비중을 알 수 없어 제외합니다.</p>
    {slots.map(slot=><section className={ui.group} key={slot}>
     <div className={ui.groupHeader}><strong>{slot}</strong><span>{equipped.filter(x=>x.slot===slot).length}개 선택</span></div>
     {equipped.filter(x=>x.slot===slot).map((r,i)=>{
@@ -31,7 +31,7 @@ export default function EquippedRunesEditor({equipped,onChange}:{equipped:Equipp
        </select>}
       </div>
       <div className={ui.runeMeta}>
-       <span className={ui.pill}>{data.tiers[r.tier]==null?'자동 환산 보류':BONUS_LABELS[data.bonus]+' +'+data.tiers[r.tier]+'%'}</span>
+       <span className={ui.pill}>{data.name==='뼈 인장'?'3번 슬롯 피해 +'+[53,58,63][r.tier]+'% · DPS 미반영':data.name==='무너진 경계'?'침식 중 추가타 확률 +'+[16.5,17.8,19.1][r.tier]+'% · 조건부 미반영':data.name==='금 간 봉인'?'침식 중 치명타 확률 +'+[16.5,17.8,19.1][r.tier]+'% · 조건부 미반영':data.tiers[r.tier]==null?'상세 효과 확인 · DPS 미반영':BONUS_LABELS[data.bonus]+' +'+data.tiers[r.tier]+'% 적용'}</span>
        <button type="button" className={ui.button+' '+ui.danger} onClick={()=>onChange(equipped.filter(x=>x!==r))}>삭제</button>
       </div>
       {(data.description||data.note)&&<details className={ui.detail}><summary>룬 효과 자세히 보기</summary><p>{data.description||data.note}</p></details>}
