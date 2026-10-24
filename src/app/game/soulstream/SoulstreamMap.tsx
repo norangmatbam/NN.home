@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import styles from './soulstream.module.css';
+import bundled from './soulstream-data.json';
 
 type Node = {sheet_id:number;node_number:number;name:string;node_type:string;x:number;y:number;previous_nodes:number[];next_nodes:number[];effect_summary:string;effect_data?:{tiers?:string[]};activating_time_minute:number;red_soul_cost:number;blue_soul_cost:number;yellow_soul_cost:number;recommend_sequence:number|null};
 type Data = {meta?:{version?:string;node_count?:number};nodes:Node[];star_effects?:Record<string,unknown>;recommendations?:number[]};
@@ -23,8 +24,7 @@ export default function SoulstreamMap(){
   setLoading(true);setError('');
   try{
    let raw='';
-   const response=await fetch('/game/soulstream.json',{cache:'force-cache'});
-   if(response.ok)raw=await response.text();
+   raw=JSON.stringify(bundled);
    if(!raw)raw=localStorage.getItem(DATA_KEY)||'';
    if(!raw)throw Error('자체 저장소의 전체 원본 JSON이 아직 등록되지 않았습니다. 아래 입력란에 원본을 붙여넣어 저장할 수 있습니다.');
    setData(parse(raw));
