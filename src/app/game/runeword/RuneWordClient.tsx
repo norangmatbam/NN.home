@@ -200,7 +200,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   }, [selectedWords]);
   const combined = season===1&&communityMode
     ? communityEfficiency({name:'선택 조합',effects:selectedWords.flatMap(w=>w.effects),runes:[]},combatClass,rawAttack).percent
-    : percentGain(stats, selectedWords.flatMap(w=>w.effects.filter(e=>isSupportedDamageEffect(e.name)).map(e=>({label:e.name.replace(/\\s/g,''),value:e.value,percent:false}))), combatClass,DEFAULT_UPTIME,equipped);
+    : percentGain(stats, selectedWords.flatMap(w=>w.effects.filter(e=>isSupportedDamageEffect(e.name)).map(e=>({label:e.name.replace(/\s/g,''),value:e.value,percent:false}))), combatClass,DEFAULT_UPTIME,equipped);
 
   const toggleRune = (name: string) => setOwned(prev => ({
     ...prev, [season]: prev[season].includes(name)
