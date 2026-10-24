@@ -19,3 +19,15 @@
 .wordNameRow{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin-bottom:4px}
 .wordNameRow h3{margin:0}
 .typeBadge{display:inline-flex;align-items:center;max-width:100%;border:1px solid #cddbf0;border-radius:999px;padding:2px 8px;background:#eef4ff;color:#345b90;font-size:11px;font-weight:700;line-height:1.5;white-space:nowrap}
+
+/* Top-level owned-rune card accordion; category accordions remain independent. */
+.ownedAccordion{min-width:0}
+.ownedSummary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;cursor:pointer;list-style:none}
+.ownedSummary::-webkit-details-marker{display:none}
+.ownedTitle{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.ownedTitle strong{font-size:19px;color:#1a2845}
+.ownedTitle span{font-size:13px;color:#65748c}
+.ownedChevron{flex:none;width:9px;height:9px;border-right:2px solid #66768d;border-bottom:2px solid #66768d;transform:rotate(45deg);transition:transform .15s;margin-right:5px}
+.ownedAccordion[open] .ownedChevron{transform:rotate(225deg)}
+.ownedBody{padding-top:12px;border-top:1px solid #e5eaf1}
+.ownedBody>.input{display:block;width:100%;margin-bottom:12px}
