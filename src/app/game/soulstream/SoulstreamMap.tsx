@@ -126,6 +126,29 @@ export default function SoulstreamMap(){
   if(next===0&&n.next_nodes.some(id=>(levels[id]||0)>0)){setError('연결된 다음 노드를 먼저 해제해야 합니다.');return;}
   const update={...levels,[n.sheet_id]:next};setLevels(update);localStorage.setItem(STATE_KEY,JSON.stringify(update));setError('');
  }
+ function connectPrerequisites(target:Node){
+  const update={...levels};
+  const visited=new Set<number>();
+  const visiting=new Set<number>();
+  let added=0;
+  const visit=(id:number)=>{
+   if(visited.has(id))return;
+   if(visiting.has(id))throw Error('선행 노드 연결에 순환이 있습니다.');
+   const node=byId.get(id);
+   if(!node)throw Error('선행 노드 정보를 찾을 수 없습니다.');
+   visiting.add(id);
+   node.previous_nodes.forEach(visit);
+   visiting.delete(id);
+   visited.add(id);
+   if((update[id]||0)===0){update[id]=1;added++;}
+  };
+  try{
+   visit(target.sheet_id);
+   setLevels(update);
+   localStorage.setItem(STATE_KEY,JSON.stringify(update));
+   setError(added>0?`선행 경로와 선택한 별을 포함해 ${added}개 노드를 연결했습니다. (항성 Lv.1)`:'이미 필요한 선행 노드가 모두 연결되어 있습니다.');
+  }catch(e){setError(e instanceof Error?e.message:'자동 연결 중 오류가 발생했습니다.');}
+ }
  const fmt=(n:number)=>n.toLocaleString('ko-KR');
  return <main className={styles.wrap}>
  <header className={styles.heading}><h1>소울스트림 지도</h1><p>283개 노드의 실제 좌표와 연결 관계 · 강타/연타 검색 · 소울 및 시간 계산</p></header>
@@ -157,6 +180,8 @@ export default function SoulstreamMap(){
  <div className={styles.costGrid}><div>🔴 {picked.red_soul_cost}</div><div>🔵 {picked.blue_soul_cost}</div><div>🟡 {picked.yellow_soul_cost}</div></div>
  <p>활성화 시간: {picked.activating_time_minute}분</p>
  <div className={styles.levelTitle}><b>연결 상태</b><span>현재 Lv.{levels[picked.sheet_id]||0}</span></div>
+ <button type="button" onClick={()=>connectPrerequisites(picked)} style={{width:'100%',padding:'11px 12px',margin:'10px 0 8px',borderRadius:8,border:'1px solid #87b6d4',background:'#e8f3fa',color:'#194b69',fontWeight:700,cursor:'pointer'}}>선행 노드 모두 연결</button>
+ <p style={{fontSize:12,color:'#66758b',margin:'0 0 10px'}}>시작 지점부터 이 별까지 필요한 노드를 자동 연결합니다. 기존 연결 단계는 유지하고, 새로 연결하는 항성은 Lv.1로 설정합니다.</p>
  <div className={styles.levelButtons}>{Array.from({length:picked.node_type==='Star'?4:2},(_,i)=><button key={i} className={(levels[picked.sheet_id]||0)===i?styles.current:''} onClick={()=>setLevel(picked,i)}>{i===0?'미연결': 'Lv.'+i}</button>)}</div>
  <div className={styles.dep}><strong>선행 노드</strong>{picked.previous_nodes.map(id=><button key={id} onClick={()=>setSelected(id)}>{byId.get(id)?.name||'에린'}</button>)}</div>
  </>:<p>지도에서 별을 선택하세요.</p>}
