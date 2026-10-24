@@ -10,7 +10,6 @@ export async function GET() {
       cache: 'no-store',
       headers: {
         accept: 'application/json',
-        'user-agent': 'NN.home-Soulstream/1.0',
       },
       signal: AbortSignal.timeout(15000),
     });
@@ -30,7 +29,7 @@ export async function GET() {
 
     const ids = new Set(catalog.nodes.map((node: { sheet_id?: unknown }) => node.sheet_id));
     if (ids.size !== 283 || !catalog.nodes.every((node: { sheet_id?: unknown; x?: unknown; y?: unknown; previous_nodes?: unknown; next_nodes?: unknown; effect_data?: unknown }) =>
-      Number.isSafeInteger(node.sheet_id) && Number.isFinite(node.x) && Number.isFinite(node.y)
+      typeof node.sheet_id === 'number' && Number.isSafeInteger(node.sheet_id) && typeof node.x === 'number' && Number.isFinite(node.x) && typeof node.y === 'number' && Number.isFinite(node.y)
       && Array.isArray(node.previous_nodes) && Array.isArray(node.next_nodes) && node.effect_data)) {
       return NextResponse.json({ error: 'Catalog validation failed' }, { status: 502 });
     }
