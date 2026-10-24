@@ -74,7 +74,7 @@ export default function SoulstreamMap(){
  <svg viewBox={box} style={{width:'100%',height:'min(75vh,720px)',minHeight:420,background:'radial-gradient(ellipse,#24385a,#061020)'}} aria-label="실제 좌표 기반 소울스트림 지도">
  {nodes.flatMap(n=>n.next_nodes.map(id=>{const t=byId.get(id);return t?<line key={n.sheet_id+'-'+id} x1={n.x} y1={-n.y} x2={t.x} y2={-t.y} stroke={levels[n.sheet_id]&&levels[id]?'#e7c27b':'#8494b1'} strokeWidth=".09" opacity=".8"/>:null;}))}
  {nodes.map(n=><g key={n.sheet_id} role="button" tabIndex={0} onClick={()=>setSelected(n.sheet_id)} onKeyDown={e=>{if(e.key==='Enter')setSelected(n.sheet_id)}} aria-label={n.name}>
- <circle cx={n.x} cy={-n.y} r={n.node_type==='Star'?.46:.3} stroke={selected===n.sheet_id?'#fff':'#28384e'} strokeWidth=".13" fill={levels[n.sheet_id]?'#e7bb6c':n.node_type==='Star'?'#bd93d9':'#a8c7e9'} opacity={filter==='all'||n.effect_summary.includes(filter)?1:.2}/>
+ <path d={`M ${n.x-(n.node_type==='Star'?.46:.3)} ${-n.y} a ${n.node_type==='Star'?.46:.3} ${n.node_type==='Star'?.46:.3} 0 1 0 ${(n.node_type==='Star'?.46:.3)*2} 0 a ${n.node_type==='Star'?.46:.3} ${n.node_type==='Star'?.46:.3} 0 1 0 -${(n.node_type==='Star'?.46:.3)*2} 0`} stroke={selected===n.sheet_id?'#fff':'#28384e'} strokeWidth=".13" fill={levels[n.sheet_id]?'#e7bb6c':n.node_type==='Star'?'#bd93d9':'#a8c7e9'} opacity={filter==='all'||n.effect_summary.includes(filter)?1:.2}/>
  </g>)}
  </svg><p style={{color:'#c8d5ef',textAlign:'center',fontSize:12}}>노드를 터치해 선택하세요 · 전체 좌표는 원본 JSON 기준</p>
  </section>
