@@ -44,8 +44,7 @@ export default function SoulstreamMap(){
    canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);
    const ctx=canvas.getContext('2d');if(!ctx)return;
    ctx.setTransform(dpr,0,0,dpr,0,0);
-   const bg=ctx.createRadialGradient(width*.5,height*.5,15,width*.5,height*.5,Math.max(width,height)*.73);
-   bg.addColorStop(0,'#24385a');bg.addColorStop(1,'#081326');ctx.fillStyle=bg;ctx.fillRect(0,0,width,height);
+   ctx.clearRect(0,0,width,height); // Transparent canvas: CSS paints the navy gradient.
    for(const n of nodes){const p=mapPosition(n,width,height);
     for(const id of n.next_nodes){const t=byId.get(id);if(!t)continue;const q=mapPosition(t,width,height);
      ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle=levels[n.sheet_id]&&levels[id]?'#eac67c':'#8295b4';ctx.lineWidth=1.25;ctx.globalAlpha=.75;ctx.stroke();
