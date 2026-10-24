@@ -23,7 +23,7 @@ export const RUNE_CATALOG:RuneRecord[]=[
 {slot:'엠블럼',name:'빛바랜 별',tiers:[31,33,null],bonus:'damageIncrease',note:'무방비 피해 증가 별도 미적용'}
 ,
 {slot:"무기",name:"불꽃으로 새긴 문장",rarity:"신화",tiers:[null,null,null],bonus:"damageIncrease",description:"전투 시작 시, 3분 동안 불의 인장을 활성화해 적에게 주는 피해가 20%, 재사용 대기 시간 회복 속도가 15% 증가한다. 밤의 흔적이 45레벨 이상일 경우, 불의 인장이 사라지는 대신 강화되어 공격 적중 시 전방의 적들에게 (공격력×16%)의 피해를 주는 불길을 내뿜는다. (재사용 대기 시간: 3초)"},
-{slot:"무기",name:"죽음",rarity:"신화",tiers:[null,null,null],bonus:"damageIncrease",description:"공격력이 20%, 치명타 피해가 20% 증가한다. 행동 불능을 방지하는 룬의 효과를 받을 수 없게 된다. 행동 불능 상태가 될 경우, 30초 동안 공격력이 10% 감소한다."},
+{slot:"무기",name:"죽음",rarity:"신화",tiers:[20,20,20],bonus:"critDamage",description:"공격력이 20%, 치명타 피해가 20% 증가한다. 행동 불능을 방지하는 룬의 효과를 받을 수 없게 된다. 행동 불능 상태가 될 경우, 30초 동안 공격력이 10% 감소한다."},
 {slot:"무기",name:"계시",rarity:"전설",tiers:[null,null,null],bonus:"damageIncrease",description:"공격력이 24/26/?% 증가하고, 캐스팅 및 차지 속도가 25% 증가한다."},
 {slot:"무기",name:"눈부신 잔영",rarity:"전설",tiers:[null,null,null],bonus:"damageIncrease",description:"스킬 사용 시, 다음 기본 공격 적중 시 타겟 주변 3m 범위 내의 적들에게 (공격력×147/?/?%)의 피해를 추가로 입히고, 다음 1회의 공격 속도가 10% 증가한다."},
 {slot:"무기",name:"타오르는 영광",rarity:"전설",tiers:[null,null,null],bonus:"damageIncrease",description:"공격력이 23.5/25.5/?% 증가한다. 전투 시, 5초마다 불씨를 얻는다. 이 효과는 최대 12회까지 중첩된다. 궁극기 사용 시, 모든 불씨를 소모하여 15초 동안 공격력이 소모한 중첩 당 3.5% 증가한다. 최대 추가 42%"},
