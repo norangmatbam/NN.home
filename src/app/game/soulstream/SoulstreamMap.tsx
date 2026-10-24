@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './soulstream.module.css';
 import bundled from './soulstream-data.json';
 import CombatStatsEditor from '../CombatStatsEditor';
+import NightTraceLevel from '../NightTraceLevel';
 import EquippedRunesEditor,{useEquippedRunes} from '../EquippedRunesEditor';
 import {initialStats,percentGain,tierEffects,type CombatStats,type CombatClass,type SoulEffect,type DamageUptime,JOB_OPTIONS,weaponStatLabel} from '../combat-damage';
 
@@ -279,6 +280,7 @@ export default function SoulstreamMap(){
    </div>
    <button className={styles.statsToggle} onClick={()=>setShowStats(v=>!v)}>{showStats?'현재 스탯 입력 닫기':'현재 스탯 입력 / 변경'}</button>
    {showStats&&<CombatStatsEditor stats={baseStats} onChange={setBaseStats}/>}
+   <NightTraceLevel/>
    <EquippedRunesEditor equipped={equipped} onChange={updateEquipped}/>
    <p className={styles.recommendInfo}>{recommendMode==='single'?'대상 노드의 다음 레벨에서 증가하는 능력치만 계산합니다.':'대상 노드와 미연결 선행 노드 Lv.1의 능력치·비용을 모두 계산합니다.'} 엑셀 기반 상대 피해 배율 증가율을 소울 합계로 나눈 추정 효율입니다. 입력값은 소울 효과가 반영된 현재 스탯 기준이며, 기본값은 예시입니다. 조건부 보너스·빠른 스킬·궁극기·브레이크 속도 등 환산 근거가 부족한 효과는 순위에서 제외합니다. 결과는 실측 DPS가 아닙니다.</p>
    <div className={styles.recommendList}>
