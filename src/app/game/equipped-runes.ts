@@ -98,6 +98,13 @@ export const RUNE_CATALOG:RuneRecord[]=[
 
 export type PeakBonus={key:RuneBonusKey;tiers:[number|null,number|null,number|null];multiplier?:number};
 export const RUNE_PEAK_EFFECTS:Record<string,{label:string;bonuses:PeakBonus[];caveat:string}>={
+ '삼키는 모래':{label:'침식 룬 장착 · 연타 강화 충분',bonuses:[{key:'multiDamage',tiers:[27,27,27]},{key:'damageIncrease',tiers:[8,8,8]}],caveat:'연타 강화 2,000 이상, 침식 100 미만 또는 오염 구간의 연타 피해를 가정'},
+ '신기루':{label:'피격 없이 10중첩',bonuses:[{key:'damageIncrease',tiers:[20,20,20]},{key:'strikeDamage',tiers:[10,10,10]}],caveat:'강타 강화 2,000 이상, 버프 10중첩 유지 가정'},
+ '부서진 왕관':{label:'마력의 원 3중첩',bonuses:[{key:'strikeDamage',tiers:[13.5,14.1,15]}],caveat:'마력의 원에 머물며 3중첩, 공격력 증가 효과는 제외'},
+ '서광':{label:'브레이크 익스텐드 이후',bonuses:[{key:'damageIncrease',tiers:[20,20,20]}],caveat:'10초 효과 상시 유지 가정'},
+ '무한한 탐욕':{label:'자원 소모 스킬 위주',bonuses:[{key:'skillDamage',tiers:[38,40,42]}],caveat:'대미지 전부가 자원 소모 스킬이라는 과대 상한 가정'},
+ '바다뱀+':{label:'채널링 스킬 위주',bonuses:[{key:'skillDamage',tiers:[31,34,37]}],caveat:'채널링 스킬 피해 보너스를 전체 스킬 피해에 근사 적용한 상한'},
+ '봉인술사':{label:'캐스팅·차지 스킬 위주',bonuses:[{key:'skillDamage',tiers:[25,28,31]}],caveat:'캐스팅·차지 스킬 전용 피해 보너스를 전체 스킬 피해에 근사 적용한 상한'},
  '무너진 경계':{label:'침식 100 이상',bonuses:[{key:'extraChance',tiers:[16.5,17.8,19.1],multiplier:2}],caveat:'오염 15초간 효과 소멸 구간 제외'},
  '금 간 봉인':{label:'침식 100 이상',bonuses:[{key:'critChance',tiers:[16.5,17.8,19.1],multiplier:2}],caveat:'오염 15초간 효과 소멸 구간 제외'},
  '잿빛 장막':{label:'침식 100 이상',bonuses:[{key:'multiDamage',tiers:[18,19.5,21],multiplier:2}],caveat:'오염 구간 제외'},
@@ -139,6 +146,16 @@ export function getRuneBonuses(selected:EquippedRune[]):Partial<Record<RuneBonus
   const value=rune.tiers[item.tier];
   if(value!=null)add(rune.bonus,value);
   if(rune.name==='잠든 땅'&&value!=null)add('strikeDamage',value);
+  if(rune.name==='승전')add('critDamage',10);
+  if(rune.name==='용 사냥꾼')add('critChance',10);
+  if(rune.name==='날 선 적의'){add('damageIncrease',6);add('critChance',6);add('extraChance',6);}
+  if(rune.name==='영원한 밤'){add('strikeDamage',7);add('multiDamage',7);add('critChance',7);add('extraChance',7);}
+  if(['돌 심장','번개 숨결','별바라기','용암 비늘','황동 날개','얼음 발톱','잠들지 않는 불'].includes(rune.name)){
+   add('damageIncrease',[10,12,14][item.tier]);
+  }
+  if(rune.name==='기사단장')add('damageIncrease',[5,7,9][item.tier]);
+  if(rune.name==='창백한 기수'&&item.tier<2)add('damageIncrease',[17,18][item.tier]);
+
   // Avoid adding same rune's peak and default damageIncrease twice.
   if(item.maxEffect){
    const peak=peakBonusSummary(item);
