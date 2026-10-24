@@ -72,7 +72,7 @@ export function damageFactor(v:CombatStats,combat:'강타'|'연타'){
 export function percentGain(base:CombatStats,effects:SoulEffect[],cls:CombatClass,combat:'강타'|'연타'){
  const initial=damageFactor(base,combat);
  const after=damageFactor(applyEffects(base,effects,cls),combat);
- return initial>0?Math.max(0,(after/initial-1)*100):0;
+ return initial>0?(after/initial-1)*100:0;
 }
 
 // Used by rune-word scoring to distinguish supported and unsupported effects.
