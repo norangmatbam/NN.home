@@ -36,11 +36,11 @@ export function tierEffects(tiers:string[]|undefined,level:number):SoulEffect[]{
 }
 export function applyEffects(base:CombatStats,effects:SoulEffect[],combatClass:CombatClass){
  const v={...base};
- for(const {label,value,percent} of effects){
+ for(const {label,value} of effects){
   if(label==='모든능력치'){
    v.strength+=value;v.dexterity+=value;v.intelligence+=value;v.luck+=value;v.will+=value;
   }else{
-   const k=direct[label];if(k)(v[k] as number)+=value;
+   const k=direct[label];if(k)v[k]+=value;
   }
  }
  const intelligence=v.intelligence-base.intelligence;
