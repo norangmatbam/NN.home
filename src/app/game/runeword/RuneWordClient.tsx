@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import styles from './runeword.module.css';
 import CombatStatsEditor from '../CombatStatsEditor';
+import EquippedRunesEditor,{useEquippedRunes} from '../EquippedRunesEditor';
+import {DEFAULT_UPTIME} from '../combat-damage';
+import type {EquippedRune} from '../equipped-runes';
 import {initialStats, percentGain, isSupportedDamageEffect, type CombatClass, type CombatStats, type SoulEffect, JOB_OPTIONS, weaponStatLabel} from '../combat-damage';
 import { SEASON2_RUNE_CATALOG, SEASON2_MYTHIC_RUNES } from './season2Catalog';
 
@@ -104,12 +107,12 @@ function singleTypeBadge(runes: string[], season: Season): string | null {
   return type && runes.every(rune => typeFor(rune) === type) ? type : null;
 }
 
-function estimate(word: RuneWord, stats: CombatStats, combatClass: CombatClass) {
+function estimate(word: RuneWord, stats: CombatStats, combatClass: CombatClass,equipped:EquippedRune[]) {
   const omitted=word.effects.filter(e=>!isSupportedDamageEffect(e.name)).map(e=>e.name);
   const effects: SoulEffect[]=word.effects.filter(e=>isSupportedDamageEffect(e.name)).map(e=>({
     label:e.name.replace(/\s/g,''),value:e.value,percent:false
   }));
-  return {percent:percentGain(stats,effects,combatClass),omitted};
+  return {percent:percentGain(stats,effects,combatClass,DEFAULT_UPTIME,equipped),omitted};
 }
 function signed(n: number) { return (n > 0 ? '+' : '') + n.toLocaleString('ko-KR'); }
 function fmt(n: number) { return (n > 0 ? '+' : '') + n.toFixed(2) + '%'; }
@@ -129,6 +132,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const [sort, setSort] = useState<'dps' | 'name' | 'missing'>('dps');
   const [combatClass,setCombatClass]=useState<CombatClass>('화염술사');
   const [stats,setStats]=useState<CombatStats>(initialStats);
+  const {equipped,update:updateEquipped}=useEquippedRunes();
 
   useEffect(() => {
     try {
@@ -172,7 +176,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const items = useMemo(() => currentWords
     .map(word => ({
       ...word,
-      ...estimate(word, stats, combatClass),
+      ...estimate(word, stats, combatClass,equipped),
       typeBadge: singleTypeBadge(word.runes, season),
       missing: word.runes.filter(r => !currentOwned.has(r)),
     }))
@@ -182,7 +186,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
       if (sort === 'name') return a.name.localeCompare(b.name, 'ko');
       if (sort === 'missing') return a.missing.length - b.missing.length || b.percent - a.percent;
       return b.percent - a.percent || a.name.localeCompare(b.name, 'ko');
-    }), [currentWords, stats, combatClass, currentOwned, filterAvailable, search, sort, season]);
+    }), [currentWords, stats, combatClass,equipped, currentOwned, filterAvailable, search, sort, season]);
 
   const selectedWords = currentWords.filter(w => currentSelected.has(w.name));
   const totalEffect = useMemo(() => {
@@ -190,7 +194,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
     for (const w of selectedWords) for (const e of w.effects) totals.set(e.name, (totals.get(e.name) || 0) + e.value);
     return [...totals.entries()];
   }, [selectedWords]);
-  const combined = percentGain(stats, selectedWords.flatMap(w=>w.effects.filter(e=>isSupportedDamageEffect(e.name)).map(e=>({label:e.name.replace(/\s/g,''),value:e.value,percent:false}))), combatClass);
+  const combined = percentGain(stats, selectedWords.flatMap(w=>w.effects.filter(e=>isSupportedDamageEffect(e.name)).map(e=>({label:e.name.replace(/\s/g,''),value:e.value,percent:false}))), combatClass,DEFAULT_UPTIME,equipped);
 
   const toggleRune = (name: string) => setOwned(prev => ({
     ...prev, [season]: prev[season].includes(name)
@@ -258,6 +262,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
       <details><summary style={{cursor:'pointer',fontWeight:700}}>현재 스탯 입력 / 변경 (게임 화면 기준)</summary>
         <div style={{marginTop:10}}><CombatStatsEditor stats={stats} onChange={setStats}/></div>
       </details>
+      <EquippedRunesEditor equipped={equipped} onChange={updateEquipped}/>
     </section>
     <section className={styles.panel}>
       <div className={styles.sectionTitle}><h2>선택한 룬워드</h2><span>{selectedWords.length} / 5개</span></div>
