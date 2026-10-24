@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import styles from './runeword.module.css';
 import CombatStatsEditor from '../CombatStatsEditor';
+import {useSavedCombatStats} from '../useSavedCombatStats';
 import EquippedRunesEditor,{useEquippedRunes} from '../EquippedRunesEditor';
 import {DEFAULT_UPTIME} from '../combat-damage';
 import type {EquippedRune} from '../equipped-runes';
@@ -131,7 +132,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const [runeSearch, setRuneSearch] = useState('');
   const [sort, setSort] = useState<'dps' | 'name' | 'missing'>('dps');
   const [combatClass,setCombatClass]=useState<CombatClass>('화염술사');
-  const [stats,setStats]=useState<CombatStats>(initialStats);
+  const [stats,setStats]=useSavedCombatStats();
   const {equipped,update:updateEquipped}=useEquippedRunes();
 
   useEffect(() => {
