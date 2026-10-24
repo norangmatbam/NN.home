@@ -121,9 +121,27 @@ export default function SoulstreamMap(){
   if(g.points.size===0)g.distance=0;
  }
   function setLevel(n:Node,next:number){
-  if(next>0&&n.previous_nodes.some(id=>(levels[id]||0)===0)){setError('이전 노드를 먼저 연결해야 합니다.');return;}
   if(next===0&&n.next_nodes.some(id=>(levels[id]||0)>0)){setError('연결된 다음 노드를 먼저 해제해야 합니다.');return;}
-  const update={...levels,[n.sheet_id]:next};setLevels(update);localStorage.setItem(STATE_KEY,JSON.stringify(update));setError('');
+  const update={...levels};
+  let added=0;
+  if(next>0){
+   // Select a star level directly; connect only missing prerequisites at Lv.1.
+   const visited=new Set<number>(),visiting=new Set<number>();
+   const visit=(id:number)=>{
+    if(visited.has(id))return;
+    if(visiting.has(id))throw Error('선행 노드 연결에 순환이 있습니다.');
+    const node=byId.get(id);if(!node)throw Error('선행 노드 정보를 찾을 수 없습니다.');
+    visiting.add(id);
+    node.previous_nodes.forEach(visit);
+    visiting.delete(id);visited.add(id);
+    if((update[id]||0)===0){update[id]=1;added++;}
+   };
+   try{n.previous_nodes.forEach(visit);}catch(e){setError(e instanceof Error?e.message:'선행 노드 연결에 실패했습니다.');return;}
+  }
+  update[n.sheet_id]=next;
+  setLevels(update);
+  localStorage.setItem(STATE_KEY,JSON.stringify(update));
+  setError(added? `선행 노드 ${added}개를 Lv.1로 자동 연결했습니다. 기존 레벨은 유지됩니다.`:'');
  }
  function connectPrerequisites(target:Node){
   // Only activate missing ancestors. Never change the selected star's level.
