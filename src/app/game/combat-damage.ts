@@ -1,5 +1,22 @@
 // Excel-based relative damage model; estimates are not an official game DPS formula.
-export type CombatClass='화염술사'|'전사'|'기타 강타'|'기타 연타';
+import { JOB_GROUPS } from './simulator/marketData';
+
+export type CombatClass=(typeof JOB_GROUPS)[number]['jobs'][number];
+type PrimaryStat='strength'|'dexterity'|'intelligence'|'luck'|'will';
+const CLASS_PRIMARY:Record<CombatClass,readonly [PrimaryStat,PrimaryStat?]>={
+ '전사':['strength'],'대검전사':['strength','luck'],'검술사':['strength','will'],'기사':['strength','will'],
+ '궁수':['dexterity'],'석궁사수':['dexterity','luck'],'장궁병':['dexterity','will'],
+ '마법사':['intelligence'],'화염술사':['intelligence','luck'],'빙결술사':['intelligence','will'],'전격술사':['intelligence','luck'],
+ '힐러':['intelligence'],'사제':['intelligence','will'],'수도사':['intelligence','will'],'암흑술사':['intelligence','luck'],
+ '음유시인':['dexterity'],'댄서':['dexterity','luck'],'악사':['dexterity','will'],
+ '도적':['dexterity'],'격투가':['dexterity','will'],'듀얼블레이드':['dexterity','luck']
+};
+export const JOB_OPTIONS=JOB_GROUPS;
+export function weaponStatLabel(job:CombatClass){
+ const [primary,secondary]=CLASS_PRIMARY[job];
+ const label:Record<PrimaryStat,string>={strength:'힘',dexterity:'솜씨',intelligence:'지력',luck:'행운',will:'의지'};
+ return secondary?`${label[primary]}×3 · ${label[secondary]}×2.5`:`${label[primary]}×5.5`;
+}
 export type CombatStats={
  attack:number;skill:number;crit:number;extra:number;strike:number;multi:number;
  skillDamage:number;damageIncrease:number;critChance:number;critDamage:number;extraChance:number;
@@ -52,9 +69,10 @@ export function applyEffects(base:CombatStats,effects:SoulEffect[],combatClass:C
  v.crit+=luck/4;v.extra+=luck/4;
  v.strike+=strength/4;
  v.multi+=dex/4;
- // Weapon coefficients supplied by player, not universally applicable across subclasses.
- if(combatClass==='화염술사')v.attack+=intelligence*3+luck*2.5;
- if(combatClass==='전사')v.attack+=strength*5.5;
+ // Requested unified weapon stat coefficients for every class.
+ const [primary,secondary]=CLASS_PRIMARY[combatClass];
+ const changes:Record<PrimaryStat,number>={strength,dexterity:dex,intelligence,luck,will:v.will-base.will};
+ v.attack+=secondary?changes[primary]*3+changes[secondary]*2.5:changes[primary]*5.5;
  return v;
 }
 const capped=(x:number,min:number,max:number)=>Math.min(max,Math.max(min,x));
