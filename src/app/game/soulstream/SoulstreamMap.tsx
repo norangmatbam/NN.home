@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './soulstream.module.css';
 import bundled from './soulstream-data.json';
 import CombatStatsEditor from '../CombatStatsEditor';
+import {useSavedCombatStats} from '../useSavedCombatStats';
 import EquippedRunesEditor,{useEquippedRunes} from '../EquippedRunesEditor';
 import {initialStats,percentGain,tierEffects,type CombatStats,type CombatClass,type SoulEffect,type DamageUptime,JOB_OPTIONS,weaponStatLabel} from '../combat-damage';
 
@@ -195,7 +196,7 @@ export default function SoulstreamMap(){
  const [combatClass,setCombatClass]=useState<CombatClass>('화염술사');
  const [recommendMode,setRecommendMode]=useState<RecommendationMode>('route');
  const [showRecommendations,setShowRecommendations]=useState(true);
- const [baseStats,setBaseStats]=useState<CombatStats>(initialStats);
+ const [baseStats,setBaseStats]=useSavedCombatStats();
  const {equipped,update:updateEquipped}=useEquippedRunes();
  const recommendations=useMemo(()=>{
   const allEffects=(n:Node,level:number)=>tierEffects(n.effect_data?.tiers,level);
