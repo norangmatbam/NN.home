@@ -259,9 +259,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
           {JOB_OPTIONS.map(group=><optgroup label={group.label} key={group.label}>{group.jobs.map(job=><option value={job} key={job}>{job} ({weaponStatLabel(job)})</option>)}</optgroup>)}
         </select>
       </div>
-      <details><summary style={{cursor:'pointer',fontWeight:700}}>현재 스탯 입력 / 변경 (게임 화면 기준)</summary>
-        <div style={{marginTop:10}}><CombatStatsEditor stats={stats} onChange={setStats}/></div>
-      </details>
+      <CombatStatsEditor stats={stats} onChange={setStats}/>
       <EquippedRunesEditor equipped={equipped} onChange={updateEquipped}/>
     </section>
     <section className={styles.panel}>
