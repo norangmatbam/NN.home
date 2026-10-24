@@ -109,6 +109,13 @@ export function getRuneBonuses(selected:EquippedRune[]):Partial<Record<RuneBonus
    totals.critChance=(totals.critChance||0)+[16.5,17.8,19.1][item.tier]*2;
    continue;
   }
+  if(item.maxEffect&&item.name==='첫 번째 서약'){
+   // Night's Blessing: strike damage and critical chance +11% each.
+   // Conditional attack +11% is omitted to avoid double-counting character-sheet attack.
+   totals.strikeDamage=(totals.strikeDamage||0)+11;
+   totals.critChance=(totals.critChance||0)+11;
+   continue;
+  }
   if(item.maxEffect&&item.name==='끓는 피'){
    totals.skillDamage=(totals.skillDamage||0)+[24,26,27][item.tier];
    continue;
