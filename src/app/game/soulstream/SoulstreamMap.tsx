@@ -152,6 +152,69 @@ export default function SoulstreamMap(){
    setError(added>0?`선행 노드 ${added}개를 Lv.1로 연결했습니다. 기존 노드 레벨은 유지됩니다.`:'모든 선행 노드가 이미 연결되어 있습니다. 기존 레벨을 유지했습니다.');
   }catch(e){setError(e instanceof Error?e.message:'자동 연결 중 오류가 발생했습니다.');}
  }
+
+ type CombatType='강타'|'연타';
+ type RecommendationMode='single'|'route';
+ const [combatType,setCombatType]=useState<CombatType>('강타');
+ const [recommendMode,setRecommendMode]=useState<RecommendationMode>('route');
+ const [showRecommendations,setShowRecommendations]=useState(false);
+ const recommendations=useMemo(()=>{
+  // Heuristic relative scores (not measured DPS). Same weights across both views.
+  const attackWeight=1.0,allStatWeight=.88;
+  const score=(n:Node,lv:number)=>{
+   const t=n.effect_summary;
+   const detail=n.effect_data?.tiers?.[Math.max(0,lv-1)]||t;
+   const first=detail.split('\\n')[0];
+   const effect=t+' '+first;
+   const isMajor=n.node_type==='Star';
+   let score=0;
+   if(/공격력\\s*\\+/.test(effect))score=attackWeight;
+   else if(/모든 능력치\\s*\\+/.test(effect))score=allStatWeight;
+   else if(/강타 강화\\s*\\+/.test(effect))score=combatType==='강타'?.72:.09;
+   else if(/연타 강화\\s*\\+/.test(effect))score=combatType==='연타'?.72:.09;
+   else if(/브레이크\\s*\\+/.test(effect))score=.61;
+   else if(/치명타\\s*\\+/.test(effect))score=.55;
+   else if(/스킬 위력\\s*\\+/.test(effect))score=.53;
+   else if(/빠른 스킬\\s*\\+/.test(effect))score=.45;
+   else if(/강타 피해/.test(effect))score=combatType==='강타'?.52:.04;
+   else if(/연타 피해/.test(effect))score=combatType==='연타'?.52:.04;
+   else if(/무방비 피해/.test(effect))score=.4;
+   else if(/추가타\\s*\\+/.test(effect))score=.38;
+   else if(/궁극기/.test(effect))score=.32;
+   else if(/힘\\s*\\+|솜씨\\s*\\+|지력\\s*\\+|행운\\s*\\+|의지\\s*\\+/.test(effect))score=.29;
+   else return 0;
+   // Tier progression is diminishing returns; Lv.1 is usually more efficient.
+   if(isMajor)score*=lv===1?1:lv===2?.46:.35;
+   return score;
+  };
+  const unitCost=(n:Node)=>n.red_soul_cost+n.blue_soul_cost+n.yellow_soul_cost;
+  const collectMissing=(n:Node)=>{
+   const seen=new Set<number>(),stack=new Set<number>(),missing:Node[]=[];
+   const visit=(id:number)=>{
+    if(seen.has(id))return;
+    if(stack.has(id))throw Error('선행 경로에 순환이 있습니다.');
+    const v=byId.get(id);if(!v)return;
+    stack.add(id);v.previous_nodes.forEach(visit);stack.delete(id);seen.add(id);
+    if((levels[id]||0)===0)missing.push(v);
+   };
+   n.previous_nodes.forEach(visit);
+   return missing;
+  };
+  return nodes.flatMap(n=>{
+   if(n.node_type==='Erinn')return [];
+   const lv=levels[n.sheet_id]||0,next=lv+1,max=n.node_type==='Star'?3:1;
+   if(next>max)return [];
+   const gain=score(n,next);
+   if(gain<=0)return [];
+   const cost=unitCost(n);
+   if(!cost)return [];
+   let missing:Node[]=[];
+   try{missing=lv===0?collectMissing(n):[];}catch{return [];}
+   const routeCost=cost+missing.reduce((sum,v)=>sum+unitCost(v),0);
+   return [{node:n,next,gain,cost,routeCost,additional:missing.length,singleEfficiency:gain/cost,routeEfficiency:gain/routeCost}];
+  }).sort((a,b)=>(recommendMode==='single'?b.singleEfficiency-a.singleEfficiency:b.routeEfficiency-a.routeEfficiency)||a.routeCost-b.routeCost).slice(0,12);
+ },[nodes,byId,levels,combatType,recommendMode]);
+
  const fmt=(n:number)=>n.toLocaleString('ko-KR');
  return <main className={styles.wrap}>
  <header className={styles.heading}><h1>소울스트림 지도</h1><p>283개 노드의 실제 좌표와 연결 관계 · 강타/연타 검색 · 소울 및 시간 계산</p></header>
@@ -170,6 +233,27 @@ export default function SoulstreamMap(){
  <button className={filter==='강타'?styles.on:''} onClick={()=>setFilter('강타')}>강타</button>
  <button className={filter==='연타'?styles.on:''} onClick={()=>setFilter('연타')}>연타</button>
  <button onClick={()=>setZoom(z=>Math.min(3,z*1.25))}>＋</button><button onClick={()=>setZoom(z=>Math.max(.8,z/1.25))}>－</button><button onClick={()=>{setZoom(1);setPan({x:0,y:0});}}>전체 보기</button>
+ </section>
+
+ <section className={styles.recommendPanel}>
+  <div className={styles.recommendHeading}>
+   <div><h2>전투 소울 추천</h2><p>현재 연결 상태 기준 · 직군별 상대 점수 · DPS 실측값이 아닌 참고용 우선순위</p></div>
+   <button onClick={()=>setShowRecommendations(v=>!v)}>{showRecommendations?'접기':'추천 보기'}</button>
+  </div>
+  {showRecommendations&&<>
+   <div className={styles.recommendControls}>
+    <div><b>직군</b><button className={combatType==='강타'?styles.recommendActive:''} onClick={()=>setCombatType('강타')}>강타 직군</button><button className={combatType==='연타'?styles.recommendActive:''} onClick={()=>setCombatType('연타')}>연타 직군</button></div>
+    <div><b>추천 방식</b><button className={recommendMode==='single'?styles.recommendActive:''} onClick={()=>setRecommendMode('single')}>단일 노드 효율</button><button className={recommendMode==='route'?styles.recommendActive:''} onClick={()=>setRecommendMode('route')}>선행 경로 포함 효율</button></div>
+   </div>
+   <p className={styles.recommendInfo}>{recommendMode==='single'?'대상 노드의 다음 1단계 투자 비용만 반영합니다. 실제 이동 경로 비용은 제외합니다.':'미연결 선행 노드를 모두 Lv.1로 연결하는 비용과 대상 노드의 다음 1단계 비용을 합산합니다.'} 붉은·푸른·노란 소울은 동일한 1개 단위로 합산합니다. 효과별 가중치는 참고용이며 직업별 실제 DPS·속성 차이와 소울 수급 편차는 미반영입니다.</p>
+   <div className={styles.recommendList}>
+    {recommendations.map((item,index)=><button key={item.node.sheet_id} onClick={()=>setSelected(item.node.sheet_id)} className={styles.recommendItem}>
+     <span className={styles.recommendRank}>{index+1}</span>
+     <span className={styles.recommendItemMain}><strong>{item.node.name}</strong><small>{item.node.effect_summary.split('\\n')[0]} · Lv.{item.next} {item.additional>0?`· 선행 미연결 ${item.additional}개`:''}</small></span>
+     <span className={styles.recommendItemCost}><strong>{recommendMode==='single'?item.cost:item.routeCost} 소울</strong><small>상대점수/소울 {((recommendMode==='single'?item.singleEfficiency:item.routeEfficiency)*100).toFixed(2)}</small></span>
+    </button>)}
+   </div>
+  </>}
  </section>
  <div className={styles.layout}>
  <section className={styles.mapOuter}>
