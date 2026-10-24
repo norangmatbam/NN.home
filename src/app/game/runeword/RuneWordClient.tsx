@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import styles from './runeword.module.css';
 import CombatStatsEditor from '../CombatStatsEditor';
+import {communityEfficiency} from './community-efficiency';
 import {useSavedCombatStats} from '../useSavedCombatStats';
 import EquippedRunesEditor,{useEquippedRunes} from '../EquippedRunesEditor';
 import {DEFAULT_UPTIME} from '../combat-damage';
@@ -132,6 +133,8 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const [runeSearch, setRuneSearch] = useState('');
   const [sort, setSort] = useState<'dps' | 'name' | 'missing'>('dps');
   const [combatClass,setCombatClass]=useState<CombatClass>('화염술사');
+  const [communityMode,setCommunityMode]=useState(true);
+  const [rawAttack,setRawAttack]=useState(26500);
   const [stats,setStats]=useSavedCombatStats();
   const {equipped,update:updateEquipped}=useEquippedRunes();
 
@@ -177,7 +180,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const items = useMemo(() => currentWords
     .map(word => ({
       ...word,
-      ...estimate(word, stats, combatClass,equipped),
+      ...(season===1&&communityMode?communityEfficiency(word,combatClass,rawAttack):estimate(word, stats, combatClass,equipped)),
       typeBadge: singleTypeBadge(word.runes, season),
       missing: word.runes.filter(r => !currentOwned.has(r)),
     }))
@@ -186,8 +189,8 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
     .sort((a, b) => {
       if (sort === 'name') return a.name.localeCompare(b.name, 'ko');
       if (sort === 'missing') return a.missing.length - b.missing.length || b.percent - a.percent;
-      return b.coverage - a.coverage || b.percent - a.percent || a.name.localeCompare(b.name, 'ko');
-    }), [currentWords, stats, combatClass,equipped, currentOwned, filterAvailable, search, sort, season]);
+      return season===1&&communityMode?b.percent-a.percent||a.name.localeCompare(b.name,'ko'):b.coverage-a.coverage||b.percent-a.percent||a.name.localeCompare(b.name,'ko');
+    }), [currentWords, stats, combatClass,equipped, currentOwned, filterAvailable, search, sort, season,communityMode,rawAttack]);
 
   const selectedWords = currentWords.filter(w => currentSelected.has(w.name));
   const totalEffect = useMemo(() => {
@@ -278,6 +281,13 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
 
     <section className={styles.panel}>
       <div className={styles.sectionTitle}><h2>시즌 {season} 룬워드</h2><span>사용 가능 {availableCount} / {currentWords.length}개</span></div>
+      {season===1&&<div style={{display:'grid',gap:8,margin:'12px 0'}}>
+        <label className={styles.switch}><input type="checkbox" checked={communityMode} onChange={e=>setCommunityMode(e.target.checked)}/> 2026.03 커뮤니티 효율 기준으로 비교</label>
+        {communityMode&&<label style={{fontSize:12,color:'#61708b'}}>공증 제외 공격력 (원글 기준 26,500)
+         <input className={styles.input} aria-label="공격력 증가 적용 전 공격력" type="number" min="1" value={rawAttack} onChange={e=>setRawAttack(Math.max(1,Number(e.target.value)||1))} style={{display:'block',marginTop:5,width:140}}/>
+        </label>}
+        <p className={styles.sub}>원글 기준: 치명타 70≈0.50%, 강타·연타·추가타·스킬 위력 70≈0.45%, 공격력은 공증 제외 원스탯 기준. 빠른 스킬·콤보 등 미포함. 직업·세팅별 실측 결과와 다를 수 있습니다.</p>
+       </div>}
       <div className={styles.controls}>
         <input className={styles.input} placeholder="룬워드·옵션·필요 룬 검색" aria-label="룬워드 검색" value={search} onChange={e => setSearch(e.target.value)} />
         <select className={styles.input} aria-label="정렬" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
@@ -285,13 +295,13 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
         </select>
         <label className={styles.switch}><input type="checkbox" checked={filterAvailable} onChange={e => setFilterAvailable(e.target.checked)} /> 사용 가능만 보기</label>
       </div>
-      <p className={styles.warning}>계산할 수 없는 효과가 있는 룬워드는 완전 비교가 불가능하므로, 기본 정렬에서 계산 가능한 효과 비율을 먼저 고려합니다. 일부 능력치는 여전히 누락되므로 추천 순위가 실제 전투 효율 순위는 아닙니다. DPS는 소울스트림과 동일한 상대 피해 계산 모델을 사용합니다. 직업·현재 스탯에 따라 달라지며, 공속·빠른 스킬·궁극기·브레이크 발생 속도 등 미검증 효과는 제외합니다. 게임 실측 DPS가 아닙니다.</p>
+      <p className={styles.warning}>개인 스탯 모드에서는 계산할 수 없는 효과가 있는 룬워드를 완전히 비교할 수 없으므로, 기본 정렬에서 계산 가능한 효과 비율을 먼저 고려합니다. 시즌1 커뮤니티 기준 모드에서는 해당 작성자의 환산 계수로 정렬합니다. 일부 능력치는 여전히 누락되므로 추천 순위가 실제 전투 효율 순위는 아닙니다. DPS는 소울스트림과 동일한 상대 피해 계산 모델을 사용합니다. 직업·현재 스탯에 따라 달라지며, 공속·빠른 스킬·궁극기·브레이크 발생 속도 등 미검증 효과는 제외합니다. 게임 실측 DPS가 아닙니다.</p>
       <p className={styles.sub}>검색 결과 {items.length}개</p>
       <div className={styles.cards}>
         {items.map(w => <article key={w.name} className={styles.word}>
           <div className={styles.wordTop}>
             <div><div className={styles.wordNameRow}><h3>{w.name}</h3>{w.typeBadge && <span className={styles.typeBadge}>{w.typeBadge}</span>}</div><span className={w.missing.length ? styles.notReady : styles.ready}>{w.missing.length ? '부족한 룬 ' + w.missing.length + '개' : '사용 가능'}</span></div>
-            <div className={styles.score}><b>{fmt(w.percent)}</b><small>{w.omitted.length?`일부 효과만 계산 (${w.effects.length-w.omitted.length}/${w.effects.length})`:"표시 효과 계산 완료 · 추정치"}</small></div>
+            <div className={styles.score}><b>{fmt(w.percent)}</b><small>{season===1&&communityMode?"커뮤니티 계수 기반 추정":w.omitted.length?`일부 효과만 계산 (${w.effects.length-w.omitted.length}/${w.effects.length})`:"표시 효과 계산 완료 · 추정치"}</small></div>
           </div>
           <div className={styles.stats}>{w.effects.map((e, i) => <span key={i}>{e.name} <b>{signed(e.value)}</b></span>)}</div>
           {w.omitted.length > 0 && <p className={styles.omitted}>미반영: {w.omitted.join(', ')}</p>}
