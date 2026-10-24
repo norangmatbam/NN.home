@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './soulstream.module.css';
 import bundled from './soulstream-data.json';
 import CombatStatsEditor from '../CombatStatsEditor';
+import {communityEfficiency} from '../runeword/community-efficiency';
 import {useSavedCombatStats} from '../useSavedCombatStats';
 import EquippedRunesEditor,{useEquippedRunes} from '../EquippedRunesEditor';
 import {initialStats,percentGain,tierEffects,type CombatStats,type CombatClass,type SoulEffect,type DamageUptime,JOB_OPTIONS,weaponStatLabel} from '../combat-damage';
@@ -195,13 +196,21 @@ export default function SoulstreamMap(){
  const uptime=customUptime[combatType];
  const [combatClass,setCombatClass]=useState<CombatClass>('화염술사');
  const [recommendMode,setRecommendMode]=useState<RecommendationMode>('route');
+ const [rankingModel,setRankingModel]=useState<'community'|'personal'>('community');
  const [showRecommendations,setShowRecommendations]=useState(true);
  const [baseStats,setBaseStats]=useSavedCombatStats();
  const {equipped,update:updateEquipped}=useEquippedRunes();
  const recommendations=useMemo(()=>{
   const allEffects=(n:Node,level:number)=>tierEffects(n.effect_data?.tiers,level);
   const unitCost=(n:Node)=>n.red_soul_cost+n.blue_soul_cost+n.yellow_soul_cost;
-  const current=percentGain; // Reference the same model for both ranking methods.
+  // Apply the SAME stat weights used by season-one rune-word recommendations.
+  // Source benchmark is 26,500 attack before percentage attack bonuses.
+  const current=(stats:CombatStats,effects:SoulEffect[],cls:CombatClass,modeUptime:DamageUptime,worn:typeof equipped)=>{
+   if(rankingModel==='personal')return percentGain(stats,effects,cls,modeUptime,worn);
+   const names:Record<string,string>={'스킬위력':'스킬 위력','강타강화':'강타 강화','연타강화':'연타 강화'};
+   const statsOnly=effects.filter(e=>!e.percent).map(e=>({name:names[e.label.replace(/\\s/g,'')]||e.label.replace(/\\s/g,''),value:e.value}));
+   return communityEfficiency({name:'소울 노드',effects:statsOnly,runes:[]},cls,26500).percent;
+  };
   // The user's entered stats are treated as the current baseline (do not double-count saved nodes).
   const collectMissing=(n:Node)=>{
    const seen=new Set<number>(),stack=new Set<number>(),missing:Node[]=[];
@@ -234,11 +243,12 @@ export default function SoulstreamMap(){
    const gain=current(baseStats,diff,combatClass,uptime,equipped);
    const routeGain=current(baseStats,routeEffects,combatClass,uptime,equipped);
    const positive=diff.some(x=>/공격력|스킬위력|치명타|추가타|강타강화|연타강화|강타피해|연타피해|무방비피해|피해증가|힘|솜씨|지력|행운|모든능력치/.test(x.label));
-   if(!positive||gain<=0)return [];
+   if(rankingModel==='personal'&&!positive)return [];
+   if(recommendMode==='single'?gain<=0:routeGain<=0)return [];
    return [{node:n,next,gain,routeGain,cost,routeCost,additional:missing.length,
     efficiency:gain/cost,routeEfficiency:routeGain/routeCost}];
   }).sort((a,b)=>(recommendMode==='single'?b.efficiency-a.efficiency:b.routeEfficiency-a.routeEfficiency)||a.routeCost-b.routeCost).slice(0,12);
- },[nodes,byId,levels,uptime,combatClass,recommendMode,baseStats,equipped]);
+ },[nodes,byId,levels,uptime,combatClass,recommendMode,baseStats,equipped,rankingModel]);
 
  const fmt=(n:number)=>n.toLocaleString('ko-KR');
  return <main className={styles.wrap}>
@@ -262,11 +272,12 @@ export default function SoulstreamMap(){
 
  <section className={styles.recommendPanel}>
   <div className={styles.recommendHeading}>
-   <div><h2>전투 소울 추천</h2><p>엑셀 수식 기반 예상 피해 증가율 · 현재 스탯에 따라 순위 변경</p></div>
+   <div><h2>전투 소울 추천</h2><p>{rankingModel==='community'?'시즌1 룬워드와 동일한 주요 스탯 가중치 기준':'개인 스탯 기반 부분 DPS 추정'}</p></div>
    <button onClick={()=>setShowRecommendations(v=>!v)}>{showRecommendations?'접기':'추천 보기'}</button>
   </div>
   {showRecommendations&&<>
    <div className={styles.recommendControls}>
+    <div><b>효율 기준</b><button className={rankingModel==='community'?styles.recommendActive:''} onClick={()=>setRankingModel('community')}>국룰 가중치</button><button className={rankingModel==='personal'?styles.recommendActive:''} onClick={()=>setRankingModel('personal')}>개인 스탯 추정</button></div>
     <div><b>추천 모드</b>{(['전체','강타 중심','연타 중심'] as CombatType[]).map(mode=><button key={mode} className={combatType===mode?styles.recommendActive:''} onClick={()=>setCombatType(mode)}>{mode}</button>)}</div>
     <div><b>추천 방식</b><button className={recommendMode==='single'?styles.recommendActive:''} onClick={()=>setRecommendMode('single')}>단일 노드 효율</button><button className={recommendMode==='route'?styles.recommendActive:''} onClick={()=>setRecommendMode('route')}>선행 경로 포함 효율</button></div>
     <div><b>무기 스탯 환산</b><select aria-label="클래스" value={combatClass} onChange={e=>setCombatClass(e.target.value as CombatClass)}>{JOB_OPTIONS.map(group=><optgroup label={group.label} key={group.label}>{group.jobs.map(job=><option value={job} key={job}>{job} ({weaponStatLabel(job)})</option>)}</optgroup>)}</select></div>
@@ -279,12 +290,12 @@ export default function SoulstreamMap(){
    </div>
    <CombatStatsEditor stats={baseStats} onChange={setBaseStats}/>
    <EquippedRunesEditor equipped={equipped} onChange={updateEquipped}/>
-   <p className={styles.recommendInfo}>{recommendMode==='single'?'대상 노드의 다음 레벨에서 증가하는 능력치만 계산합니다.':'대상 노드와 미연결 선행 노드 Lv.1의 능력치·비용을 모두 계산합니다.'} 엑셀 기반 상대 피해 배율 증가율을 소울 합계로 나눈 추정 효율입니다. 입력값은 소울 효과가 반영된 현재 스탯 기준이며, 기본값은 예시입니다. 조건부 보너스·빠른 스킬·궁극기·브레이크 속도 등 환산 근거가 부족한 효과는 순위에서 제외합니다. 결과는 실측 DPS가 아닙니다.</p>
+   <p className={styles.recommendInfo}>{recommendMode==='single'?'대상 노드의 다음 레벨만 계산합니다.':'대상 노드와 미연결 선행 노드 Lv.1의 효과·소울 비용을 함께 계산합니다.'} {rankingModel==='community'?'시즌1 룬워드와 동일하게 공증 제외 공격력 26,500, 치명타 70당 약 0.50%, 강타·연타·추가타·스킬 위력 70당 약 0.45%를 기준으로 점수화합니다. 이 모드에서는 입력한 현재 스탯과 장착 룬 및 강타·연타 가동률을 순위에 사용하지 않습니다.':'현재 스탯 및 장착 룬을 기준으로 상대 피해 증가율을 계산합니다.'} 미반영 능력치(빠른 스킬·콤보·궁극기 등)가 있어 순위는 참고용이며, 수치는 실측 DPS가 아닙니다.</p>
    <div className={styles.recommendList}>
     {recommendations.map((item,index)=><button key={item.node.sheet_id} onClick={()=>setSelected(item.node.sheet_id)} className={styles.recommendItem}>
      <span className={styles.recommendRank}>{index+1}</span>
      <span className={styles.recommendItemMain}><strong>{item.node.name}</strong><small>{item.node.effect_summary.split('\n')[0]} · Lv.{item.next} {item.additional>0?`· 선행 미연결 ${item.additional}개`:''}</small></span>
-     <span className={styles.recommendItemCost}><strong>{recommendMode==='single'?item.cost:item.routeCost} 소울</strong><small>예상 +{(recommendMode==='single'?item.gain:item.routeGain).toFixed(3)}%</small><small>%/소울 {(recommendMode==='single'?item.efficiency:item.routeEfficiency).toFixed(4)}</small></span>
+     <span className={styles.recommendItemCost}><strong>{recommendMode==='single'?item.cost:item.routeCost} 소울</strong><small>{rankingModel==='community'?'가중치 지표':'예상'} +{(recommendMode==='single'?item.gain:item.routeGain).toFixed(3)}%</small><small>%/소울 {(recommendMode==='single'?item.efficiency:item.routeEfficiency).toFixed(4)}</small></span>
     </button>)}
    </div>
   </>}
