@@ -95,10 +95,20 @@ export const RUNE_CATALOG:RuneRecord[]=[
 {slot:"엠블럼",name:"영원한 밤",rarity:"전설",tiers:[null,null,null],bonus:"damageIncrease",description:"공격력이 7.0/9.0/?%, 강타 피해, 연타 피해, 치명타 확률, 추가타 확률이 7.0% 증가한다. 오염의 지속 시간이 33% 감소한다. #오염"},
 {slot:"엠블럼",name:"원정대",rarity:"전설",tiers:[null,null,null],bonus:"damageIncrease",description:"공격력이 34/34/34% 증가한다."},
 ];
-export type EquippedRune={slot:RuneSlot;name:string;tier:number};
+export type EquippedRune={slot:RuneSlot;name:string;tier:number;maxEffect?:boolean};
 export function getRuneBonuses(selected:EquippedRune[]):Partial<Record<RuneBonusKey,number>>{
  const totals:Partial<Record<RuneBonusKey,number>>={};
  for(const item of selected){
+  // Optional theoretical maximum for explicitly known conditional effects.
+  // Corruption at 100+ doubles the chance buff; does not model downtime at corruption 300.
+  if(item.maxEffect&&item.name==='무너진 경계'){
+   totals.extraChance=(totals.extraChance||0)+[16.5,17.8,19.1][item.tier]*2;
+   continue;
+  }
+  if(item.maxEffect&&item.name==='금 간 봉인'){
+   totals.critChance=(totals.critChance||0)+[16.5,17.8,19.1][item.tier]*2;
+   continue;
+  }
   const rune=RUNE_CATALOG.find(r=>r.slot===item.slot&&r.name===item.name);
   const value=rune?.tiers[item.tier];
   if(value==null||!rune)continue;
