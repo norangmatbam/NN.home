@@ -103,12 +103,12 @@ function singleTypeBadge(runes: string[], season: Season): string | null {
   return type && runes.every(rune => typeFor(rune) === type) ? type : null;
 }
 
-function estimate(word: RuneWord, stats: CombatStats, combatClass: CombatClass, combat: '강타'|'연타') {
+function estimate(word: RuneWord, stats: CombatStats, combatClass: CombatClass) {
   const omitted=word.effects.filter(e=>!isSupportedDamageEffect(e.name)).map(e=>e.name);
   const effects: SoulEffect[]=word.effects.filter(e=>isSupportedDamageEffect(e.name)).map(e=>({
     label:e.name.replace(/\s/g,''),value:e.value,percent:false
   }));
-  return {percent:percentGain(stats,effects,combatClass,combat),omitted};
+  return {percent:percentGain(stats,effects,combatClass),omitted};
 }
 function signed(n: number) { return (n > 0 ? '+' : '') + n.toLocaleString('ko-KR'); }
 function fmt(n: number) { return (n > 0 ? '+' : '') + n.toFixed(2) + '%'; }
@@ -127,7 +127,6 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const [runeSearch, setRuneSearch] = useState('');
   const [sort, setSort] = useState<'dps' | 'name' | 'missing'>('dps');
   const [combatClass,setCombatClass]=useState<CombatClass>('화염술사');
-  const [combat,setCombat]=useState<'강타'|'연타'>('연타');
   const [stats,setStats]=useState<CombatStats>(initialStats);
 
   useEffect(() => {
@@ -172,7 +171,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
   const items = useMemo(() => currentWords
     .map(word => ({
       ...word,
-      ...estimate(word, stats, combatClass, combat),
+      ...estimate(word, stats, combatClass),
       typeBadge: singleTypeBadge(word.runes, season),
       missing: word.runes.filter(r => !currentOwned.has(r)),
     }))
@@ -182,7 +181,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
       if (sort === 'name') return a.name.localeCompare(b.name, 'ko');
       if (sort === 'missing') return a.missing.length - b.missing.length || b.percent - a.percent;
       return b.percent - a.percent || a.name.localeCompare(b.name, 'ko');
-    }), [currentWords, stats, combatClass, combat, currentOwned, filterAvailable, search, sort, season]);
+    }), [currentWords, stats, combatClass, currentOwned, filterAvailable, search, sort, season]);
 
   const selectedWords = currentWords.filter(w => currentSelected.has(w.name));
   const totalEffect = useMemo(() => {
@@ -190,7 +189,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
     for (const w of selectedWords) for (const e of w.effects) totals.set(e.name, (totals.get(e.name) || 0) + e.value);
     return [...totals.entries()];
   }, [selectedWords]);
-  const combined = percentGain(stats, selectedWords.flatMap(w=>w.effects.filter(e=>isSupportedDamageEffect(e.name)).map(e=>({label:e.name.replace(/\s/g,''),value:e.value,percent:false}))), combatClass, combat);
+  const combined = percentGain(stats, selectedWords.flatMap(w=>w.effects.filter(e=>isSupportedDamageEffect(e.name)).map(e=>({label:e.name.replace(/\s/g,''),value:e.value,percent:false}))), combatClass);
 
   const toggleRune = (name: string) => setOwned(prev => ({
     ...prev, [season]: prev[season].includes(name)
@@ -249,11 +248,8 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
 
     <section className={styles.panel}>
       <div className={styles.sectionTitle}><h2>DPS 계산 기준</h2></div>
-      <p className={styles.sub}>소울스트림과 동일한 계산식으로 상대 피해 증가량을 추정합니다. 입력값은 현재 캐릭터 스탯이며, 기본값은 예시입니다.</p>
+      <p className={styles.sub}>강타·연타 증가분을 합산하여 계산합니다(엑셀 예시 가동률 강타 95%, 연타 100%). 입력값은 현재 캐릭터 스탯이며, 기본값은 예시입니다.</p>
       <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:10}}>
-        <select className={styles.input} aria-label="전투 직군" value={combat} onChange={e=>setCombat(e.target.value as '강타'|'연타')}>
-          <option value="강타">강타 중심</option><option value="연타">연타 중심</option>
-        </select>
         <select className={styles.input} aria-label="무기 스탯 환산 클래스" value={combatClass} onChange={e=>setCombatClass(e.target.value as CombatClass)}>
           <option value="화염술사">화염술사 (지력×3·행운×2.5)</option><option value="전사">전사 (힘×5.5)</option><option value="기타 강타">기타 강타 (무기 계수 미반영)</option><option value="기타 연타">기타 연타 (무기 계수 미반영)</option>
         </select>
