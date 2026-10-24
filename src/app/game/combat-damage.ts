@@ -58,10 +58,15 @@ export function applyEffects(base:CombatStats,effects:SoulEffect[],combatClass:C
  return v;
 }
 const capped=(x:number,min:number,max:number)=>Math.min(max,Math.max(min,x));
-export function damageFactor(v:CombatStats,combat:'강타'|'연타'){
+export type DamageUptime={strike:number;multi:number};
+export const DEFAULT_UPTIME:DamageUptime={strike:95,multi:100};
+export function damageFactor(v:CombatStats,uptime:DamageUptime=DEFAULT_UPTIME){
  const a=Math.max(1,v.attack);
  const p=(1+v.skill/8500)*(1+v.skillDamage/100)+v.damageIncrease/100;
- const specialized=combat==='강타'?(1+v.strike/8500)*(1+v.strikeDamage/100):(1+v.multi/8500)*(1+v.multiDamage/100);
+ // D is additive across simultaneous strike and multi procs; uptimes are independent.
+ const specialized=1+
+   ((1+v.strike/8500)*(1+v.strikeDamage/100)-1)*capped(uptime.strike/100,0,1)+
+   ((1+v.multi/8500)*(1+v.multiDamage/100)-1)*capped(uptime.multi/100,0,1);
  const critP=capped(.5-1/(2+Math.max(0,v.crit)/1000)+v.critChance/100,0,1);
  const critM=(1.4+Math.max(0,v.crit)/5000)*(1+v.critDamage/100);
  const crit=1+critP*(critM-1);
@@ -69,9 +74,9 @@ export function damageFactor(v:CombatStats,combat:'강타'|'연타'){
  const breakMultiplier=1+(v.unprotectedDamage/100)*capped(v.unprotectedShare/100,0,1);
  return a*Math.max(.01,p)*Math.max(.01,specialized)*Math.max(.01,crit)*extra*breakMultiplier;
 }
-export function percentGain(base:CombatStats,effects:SoulEffect[],cls:CombatClass,combat:'강타'|'연타'){
- const initial=damageFactor(base,combat);
- const after=damageFactor(applyEffects(base,effects,cls),combat);
+export function percentGain(base:CombatStats,effects:SoulEffect[],cls:CombatClass,uptime:DamageUptime=DEFAULT_UPTIME){
+ const initial=damageFactor(base,uptime);
+ const after=damageFactor(applyEffects(base,effects,cls),uptime);
  return initial>0?(after/initial-1)*100:0;
 }
 
