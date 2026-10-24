@@ -129,3 +129,12 @@ export const EXTRA_STAT_FIELDS:{key:keyof CombatStats;label:string}[]=[
  {key:'multiDamage',label:'연타 피해 (%)'},{key:'unprotectedDamage',label:'무방비 피해 (%)'},
  {key:'unprotectedShare',label:'무방비 적용 비중 (%)'}
 ];
+
+/** 밤의 흔적 레벨에 의한 '깊어지는 어둠' 추정 배율.
+ * 공유된 화염술사 스킬 시트는 Lv.66→6.6%, 최대 Lv.150만 명시하며
+ * Lv.65 활성화 조건은 사용자가 제안한 설정이므로 가정으로 표시한다.
+ */
+export function darkeningFinalDamage(level:number){
+ const lv=Math.min(150,Math.max(0,Math.floor(level)||0));
+ return lv>=65?lv*.1:0;
+}
