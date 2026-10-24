@@ -5,7 +5,7 @@ import ui from './combat-inputs.module.css';
 const KEY='nn-combat-equipped-runes-v1';
 export function useEquippedRunes(){
  const [equipped,setEquipped]=useState<EquippedRune[]>([]);
- useEffect(()=>{try{const v=JSON.parse(localStorage.getItem(KEY)||'[]');if(Array.isArray(v))setEquipped(v.filter(x=>RUNE_CATALOG.some(r=>r.name===x.name&&r.slot===x.slot)&&x.tier>=0&&x.tier<=2));}catch{}},[]);
+ useEffect(()=>{try{const v=JSON.parse(localStorage.getItem(KEY)||'[]');if(Array.isArray(v))setEquipped(v.filter(x=>RUNE_CATALOG.some(r=>r.name===x.name&&r.slot===x.slot)&&x.tier>=0&&x.tier<=2).map(x=>RUNE_CATALOG.find(r=>r.name===x.name&&r.slot===x.slot)?.rarity==='신화'?{...x,tier:0}:x));}catch{}},[]);
  const update=(v:EquippedRune[])=>{setEquipped(v);localStorage.setItem(KEY,JSON.stringify(v));};
  return {equipped,update};
 }
@@ -26,9 +26,9 @@ export default function EquippedRunesEditor({equipped,onChange}:{equipped:Equipp
        <select className={ui.control} aria-label={slot+' 룬 선택'} value={r.name} onChange={e=>onChange(equipped.map(x=>x===r?{...x,name:e.target.value,tier:0}:x))}>
         {RUNE_CATALOG.filter(x=>x.slot===slot).map(x=><option key={x.name} value={x.name}>{x.name}</option>)}
        </select>
-       <select className={ui.control} aria-label={r.name+' 초월 단계'} value={r.tier} onChange={e=>onChange(equipped.map(x=>x===r?{...x,tier:Number(e.target.value)}:x))}>
+       {data.rarity==='신화'?<span className={ui.pill} style={{alignSelf:'center',textAlign:'center'}}>신화 · 초월 불가</span>:<select className={ui.control} aria-label={r.name+' 초월 단계'} value={r.tier} onChange={e=>onChange(equipped.map(x=>x===r?{...x,tier:Number(e.target.value)}:x))}>
         {[0,1,2].map(t=><option key={t} value={t}>{t}초월</option>)}
-       </select>
+       </select>}
       </div>
       <div className={ui.runeMeta}>
        <span className={ui.pill}>{data.tiers[r.tier]==null?'자동 환산 보류':BONUS_LABELS[data.bonus]+' +'+data.tiers[r.tier]+'%'}</span>
