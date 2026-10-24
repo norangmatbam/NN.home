@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './soulstream.module.css';
 import bundled from './soulstream-data.json';
 
@@ -19,6 +19,9 @@ export default function SoulstreamMap(){
  const [data]=useState<Data|null>(()=>parse(JSON.stringify(bundled))),[error,setError]=useState('');
  const [selected,setSelected]=useState<number|null>(null),[query,setQuery]=useState(''),[filter,setFilter]=useState<'all'|'강타'|'연타'>('all');
  const [levels,setLevels]=useState<Record<number,number>>({}),[zoom,setZoom]=useState(1);
+ const canvasRef=useRef<HTMLCanvasElement|null>(null);
+ const panRef=useRef({x:0,y:0,startX:0,startY:0,downX:0,downY:0,moved:false});
+ const [pan,setPan]=useState({x:0,y:0});
  useEffect(()=>{try{const p=localStorage.getItem(STATE_KEY);if(p)setLevels(JSON.parse(p));}catch{}},[]);
  const nodes=useMemo(()=>data?.nodes||[],[data]),byId=useMemo(()=>new Map(nodes.map(n=>[n.sheet_id,n])),[nodes]);
  const picked=selected===null?null:byId.get(selected)||null;
@@ -26,8 +29,57 @@ export default function SoulstreamMap(){
  const totals=active.reduce((s,n)=>{const level=levels[n.sheet_id]||0;return{r:s.r+n.red_soul_cost*level,b:s.b+n.blue_soul_cost*level,y:s.y+n.yellow_soul_cost*level,t:s.t+n.activating_time_minute}}, {r:0,b:0,y:0,t:0});
  const shown=nodes.filter(n=>(!query||(n.name+' '+n.effect_summary+' '+n.node_number).toLowerCase().includes(query.toLowerCase()))&&(filter==='all'||n.effect_summary.includes(filter)));
  const limits=useMemo(()=>{if(!nodes.length)return{x:-33,y:-33,w:66,h:66};const xs=nodes.map(n=>n.x),ys=nodes.map(n=>n.y);const x=Math.min(...xs)-3,y=Math.min(...ys)-3;return{x,y,w:Math.max(...xs)-x+3,h:Math.max(...ys)-y+3};},[nodes]);
- const w=limits.w/zoom,h=limits.h/zoom,box=[limits.x+(limits.w-w)/2,-limits.y-limits.h+(limits.h-h)/2,w,h].join(' ');
- function setLevel(n:Node,next:number){
+
+ const mapPosition=(n:Node,width:number,height:number)=>{
+  const scale=Math.min((width-32)/limits.w,(height-32)/limits.h)*zoom;
+  return {x:width/2+((n.x-limits.x)-limits.w/2)*scale+pan.x,y:height/2-((n.y-limits.y)-limits.h/2)*scale+pan.y,scale};
+ };
+ useEffect(()=>{
+  const canvas=canvasRef.current;if(!canvas)return;
+  const paint=()=>{
+   const bounds=canvas.getBoundingClientRect();const width=bounds.width,height=bounds.height;if(!width||!height)return;
+   const dpr=Math.min(window.devicePixelRatio||1,2);
+   canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);
+   const ctx=canvas.getContext('2d');if(!ctx)return;
+   ctx.setTransform(dpr,0,0,dpr,0,0);
+   const bg=ctx.createRadialGradient(width*.5,height*.5,15,width*.5,height*.5,Math.max(width,height)*.73);
+   bg.addColorStop(0,'#24385a');bg.addColorStop(1,'#081326');ctx.fillStyle=bg;ctx.fillRect(0,0,width,height);
+   for(const n of nodes){const p=mapPosition(n,width,height);
+    for(const id of n.next_nodes){const t=byId.get(id);if(!t)continue;const q=mapPosition(t,width,height);
+     ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle=levels[n.sheet_id]&&levels[id]?'#eac67c':'#8295b4';ctx.lineWidth=1.25;ctx.globalAlpha=.75;ctx.stroke();
+    }
+   }
+   ctx.globalAlpha=1;
+   for(const n of nodes){const p=mapPosition(n,width,height);const major=n.node_type==='Star';const root=n.node_type==='Erinn';
+    const radius=root?5:major?5.7:3.1;ctx.globalAlpha=filter==='all'||n.effect_summary.includes(filter)?1:.24;
+    ctx.beginPath();ctx.arc(p.x,p.y,radius,0,Math.PI*2);
+    ctx.fillStyle=levels[n.sheet_id]?'#e7bb6c':root?'#8fd4bc':major?'#bd93d9':'#a8c7e9';ctx.fill();
+    ctx.strokeStyle=selected===n.sheet_id?'#ffdc73':'#273b58';ctx.lineWidth=selected===n.sheet_id?2.7:1.5;ctx.stroke();
+    if(selected===n.sheet_id){ctx.beginPath();ctx.arc(p.x,p.y,radius+4.5,0,Math.PI*2);ctx.strokeStyle='#ffdc73';ctx.lineWidth=1;ctx.stroke();}
+   }
+   ctx.globalAlpha=1;
+  };
+  paint();const resize=new ResizeObserver(paint);resize.observe(canvas);return()=>resize.disconnect();
+ },[nodes,byId,limits,zoom,pan,levels,filter,selected]);
+ function onCanvasClick(e:React.MouseEvent<HTMLCanvasElement>){
+  if(panRef.current.moved){panRef.current.moved=false;return;}
+  const el=canvasRef.current;if(!el)return;const rect=el.getBoundingClientRect();
+  const x=e.clientX-rect.left,y=e.clientY-rect.top;
+  let best:Node|null=null,dist=Infinity;
+  for(const n of nodes){const p=mapPosition(n,rect.width,rect.height);const d=Math.hypot(x-p.x,y-p.y);if(d<dist){dist=d;best=n;}}
+  if(best&&dist<22)setSelected(best.sheet_id);
+ }
+ function onPointerDown(e:React.PointerEvent<HTMLCanvasElement>){
+  e.currentTarget.setPointerCapture(e.pointerId);
+  panRef.current={...panRef.current,startX:pan.x,startY:pan.y,downX:e.clientX,downY:e.clientY,moved:false};
+ }
+ function onPointerMove(e:React.PointerEvent<HTMLCanvasElement>){
+  if(!e.currentTarget.hasPointerCapture(e.pointerId))return;
+  const dx=e.clientX-panRef.current.downX,dy=e.clientY-panRef.current.downY;
+  if(Math.abs(dx)+Math.abs(dy)>5)panRef.current.moved=true;
+  if(panRef.current.moved)setPan({x:panRef.current.startX+dx,y:panRef.current.startY+dy});
+ }
+  function setLevel(n:Node,next:number){
   if(next>0&&n.previous_nodes.some(id=>(levels[id]||0)===0)){setError('이전 노드를 먼저 연결해야 합니다.');return;}
   if(next===0&&n.next_nodes.some(id=>(levels[id]||0)>0)){setError('연결된 다음 노드를 먼저 해제해야 합니다.');return;}
   const update={...levels,[n.sheet_id]:next};setLevels(update);localStorage.setItem(STATE_KEY,JSON.stringify(update));setError('');
@@ -49,16 +101,11 @@ export default function SoulstreamMap(){
  <button className={filter==='all'?styles.on:''} onClick={()=>setFilter('all')}>전체</button>
  <button className={filter==='강타'?styles.on:''} onClick={()=>setFilter('강타')}>강타</button>
  <button className={filter==='연타'?styles.on:''} onClick={()=>setFilter('연타')}>연타</button>
- <button onClick={()=>setZoom(z=>Math.min(3,z*1.25))}>＋</button><button onClick={()=>setZoom(z=>Math.max(.8,z/1.25))}>－</button><button onClick={()=>setZoom(1)}>전체 보기</button>
+ <button onClick={()=>setZoom(z=>Math.min(3,z*1.25))}>＋</button><button onClick={()=>setZoom(z=>Math.max(.8,z/1.25))}>－</button><button onClick={()=>{setZoom(1);setPan({x:0,y:0});}}>전체 보기</button>
  </section>
  <div className={styles.layout}>
  <section className={styles.mapOuter}>
- <svg viewBox={box} preserveAspectRatio="xMidYMid meet" style={{width:'100%',height:'auto',display:'block',aspectRatio:`${limits.w} / ${limits.h}`,background:'radial-gradient(ellipse,#24385a,#061020)'}} aria-label="실제 좌표 기반 소울스트림 지도">
- {nodes.flatMap(n=>n.next_nodes.map(id=>{const t=byId.get(id);return t?<line key={n.sheet_id+'-'+id} x1={n.x} y1={-n.y} x2={t.x} y2={-t.y} stroke={levels[n.sheet_id]&&levels[id]?'#e7c27b':'#8494b1'} strokeWidth=".09" opacity=".8"/>:null;}))}
- {nodes.map(n=><g key={n.sheet_id} role="button" tabIndex={0} onClick={()=>setSelected(n.sheet_id)} onKeyDown={e=>{if(e.key==='Enter')setSelected(n.sheet_id)}} aria-label={n.name}>
- <rect x={n.x-(n.node_type==='Star'?.46:.3)} y={-n.y-(n.node_type==='Star'?.46:.3)} width={(n.node_type==='Star'?.46:.3)*2} height={(n.node_type==='Star'?.46:.3)*2} rx={n.node_type==='Star'?.46:.3} stroke={selected===n.sheet_id?'#fff':'#28384e'} strokeWidth=".13" fill={levels[n.sheet_id]?'#e7bb6c':n.node_type==='Star'?'#bd93d9':'#a8c7e9'} opacity={filter==='all'||n.effect_summary.includes(filter)?1:.2}/>
- </g>)}
- </svg><p style={{color:'#c8d5ef',textAlign:'center',fontSize:12}}>노드를 터치해 선택하세요 · 전체 좌표는 원본 JSON 기준</p>
+ <canvas ref={canvasRef} onClick={onCanvasClick} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId)}} aria-label="소울스트림 노드 지도" style={{width:'100%',height:560,display:'block',touchAction:'none',cursor:'grab'}}/><p style={{color:'#c8d5ef',textAlign:'center',fontSize:12}}>노드를 터치해 선택하세요 · 전체 좌표는 원본 JSON 기준</p>
  </section>
  <aside className={styles.inspector}>
  {picked?<><div className={styles.inspectorTop}><span className={styles.kind}>{picked.node_type==='Star'?'항성':'왜성'}</span><span>#{picked.node_number}</span></div>
