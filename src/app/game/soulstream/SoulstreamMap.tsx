@@ -126,26 +126,30 @@ export default function SoulstreamMap(){
   const update={...levels,[n.sheet_id]:next};setLevels(update);localStorage.setItem(STATE_KEY,JSON.stringify(update));setError('');
  }
  function connectPrerequisites(target:Node){
-  const update={...levels};
-  const visited=new Set<number>();
+  // Only activate missing ancestors. Never change the selected star's level.
+  const ancestors=new Set<number>();
   const visiting=new Set<number>();
-  let added=0;
-  const visit=(id:number)=>{
-   if(visited.has(id))return;
+  const collect=(id:number)=>{
+   if(ancestors.has(id))return;
    if(visiting.has(id))throw Error('선행 노드 연결에 순환이 있습니다.');
    const node=byId.get(id);
    if(!node)throw Error('선행 노드 정보를 찾을 수 없습니다.');
    visiting.add(id);
-   node.previous_nodes.forEach(visit);
+   node.previous_nodes.forEach(collect);
    visiting.delete(id);
-   visited.add(id);
-   if((update[id]||0)===0){update[id]=1;added++;}
+   if(id!==target.sheet_id)ancestors.add(id);
   };
   try{
-   visit(target.sheet_id);
+   target.previous_nodes.forEach(collect);
+   const update={...levels};
+   let added=0;
+   for(const id of ancestors){
+    if((update[id]||0)===0){update[id]=1;added++;}
+   }
+   // Preserve the target's current level (including Lv.0) and any upgraded ancestors.
    setLevels(update);
    localStorage.setItem(STATE_KEY,JSON.stringify(update));
-   setError(added>0?`선행 경로와 선택한 별을 포함해 ${added}개 노드를 연결했습니다. (항성 Lv.1)`:'이미 필요한 선행 노드가 모두 연결되어 있습니다.');
+   setError(added>0?`선행 노드 ${added}개를 Lv.1로 연결했습니다. 기존 노드 레벨은 유지됩니다.`:'모든 선행 노드가 이미 연결되어 있습니다. 기존 레벨을 유지했습니다.');
   }catch(e){setError(e instanceof Error?e.message:'자동 연결 중 오류가 발생했습니다.');}
  }
  const fmt=(n:number)=>n.toLocaleString('ko-KR');
