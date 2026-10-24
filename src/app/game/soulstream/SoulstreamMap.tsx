@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './soulstream.module.css';
 import bundled from './soulstream-data.json';
-import {initialStats,percentGain,tierEffects,type CombatStats,type CombatClass,type SoulEffect,type DamageUptime} from '../combat-damage';
+import {initialStats,percentGain,tierEffects,type CombatStats,type CombatClass,type SoulEffect,type DamageUptime,JOB_OPTIONS,weaponStatLabel} from '../combat-damage';
 
 type Node = {sheet_id:number;node_number:number;name:string;node_type:string;x:number;y:number;previous_nodes:number[];next_nodes:number[];effect_summary:string;effect_data?:{tiers?:string[]};activating_time_minute:number;red_soul_cost:number;blue_soul_cost:number;yellow_soul_cost:number;recommend_sequence:number|null};
 type Data = {meta?:{version?:string;node_count?:number};nodes:Node[];star_effects?:Record<string,unknown>;recommendations?:number[]};
@@ -274,7 +274,7 @@ export default function SoulstreamMap(){
    <div className={styles.recommendControls}>
     <div><b>추천 모드</b>{(['전체','강타 중심','연타 중심'] as CombatType[]).map(mode=><button key={mode} className={combatType===mode?styles.recommendActive:''} onClick={()=>setCombatType(mode)}>{mode}</button>)}</div>
     <div><b>추천 방식</b><button className={recommendMode==='single'?styles.recommendActive:''} onClick={()=>setRecommendMode('single')}>단일 노드 효율</button><button className={recommendMode==='route'?styles.recommendActive:''} onClick={()=>setRecommendMode('route')}>선행 경로 포함 효율</button></div>
-    <div><b>무기 스탯 환산</b><select aria-label="클래스" value={combatClass} onChange={e=>setCombatClass(e.target.value as CombatClass)}><option value="화염술사">화염술사 (지력×3·행운×2.5)</option><option value="전사">전사 (힘×5.5)</option><option value="기타 강타">기타 강타 (무기 계수 미반영)</option><option value="기타 연타">기타 연타 (무기 계수 미반영)</option></select></div>
+    <div><b>무기 스탯 환산</b><select aria-label="클래스" value={combatClass} onChange={e=>setCombatClass(e.target.value as CombatClass)}>{JOB_OPTIONS.map(group=><optgroup label={group.label} key={group.label}>{group.jobs.map(job=><option value={job} key={job}>{job} ({weaponStatLabel(job)})</option>)}</optgroup>)}</select></div>
    </div>
    <div className={styles.recommendInfo} style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
     <span>{combatType} 가동률 (강타 {uptime.strike}% · 연타 {uptime.multi}%)</span>
