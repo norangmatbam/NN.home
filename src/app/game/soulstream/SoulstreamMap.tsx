@@ -157,7 +157,7 @@ export default function SoulstreamMap(){
  type RecommendationMode='single'|'route';
  const [combatType,setCombatType]=useState<CombatType>('강타');
  const [recommendMode,setRecommendMode]=useState<RecommendationMode>('route');
- const [showRecommendations,setShowRecommendations]=useState(false);
+ const [showRecommendations,setShowRecommendations]=useState(true);
  const recommendations=useMemo(()=>{
   // Heuristic relative scores (not measured DPS). Same weights across both views.
   const attackWeight=1.0,allStatWeight=.88;
