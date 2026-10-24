@@ -28,10 +28,10 @@ export default function SoulstreamMap(){
  const active=nodes.filter(n=>(levels[n.sheet_id]||0)>0);
  const totals=active.reduce((s,n)=>{const level=levels[n.sheet_id]||0;return{r:s.r+n.red_soul_cost*level,b:s.b+n.blue_soul_cost*level,y:s.y+n.yellow_soul_cost*level,t:s.t+n.activating_time_minute}}, {r:0,b:0,y:0,t:0});
  const shown=nodes.filter(n=>(!query||(n.name+' '+n.effect_summary+' '+n.node_number).toLowerCase().includes(query.toLowerCase()))&&(filter==='all'||n.effect_summary.includes(filter)));
- const limits=useMemo(()=>{if(!nodes.length)return{x:-33,y:-33,w:66,h:66};const xs=nodes.map(n=>n.x),ys=nodes.map(n=>n.y);const x=Math.min(...xs)-3,y=Math.min(...ys)-3;return{x,y,w:Math.max(...xs)-x+3,h:Math.max(...ys)-y+3};},[nodes]);
+ const limits=useMemo(()=>{if(!nodes.length)return{x:-33,y:-33,w:66,h:66};const xs=nodes.map(n=>n.x),ys=nodes.map(n=>n.y);const x=Math.min(...xs),y=Math.min(...ys);return{x,y,w:Math.max(...xs)-x,h:Math.max(...ys)-y};},[nodes]);
 
  const mapPosition=(n:Node,width:number,height:number)=>{
-  const scale=Math.min((width-32)/limits.w,(height-32)/limits.h)*zoom;
+  const padding=12;const scale=Math.min((width-padding*2)/limits.w,(height-padding*2)/limits.h)*zoom;
   return {x:width/2+((n.x-limits.x)-limits.w/2)*scale+pan.x,y:height/2-((n.y-limits.y)-limits.h/2)*scale+pan.y,scale};
  };
  useEffect(()=>{
@@ -51,11 +51,11 @@ export default function SoulstreamMap(){
    }
    ctx.globalAlpha=1;
    for(const n of nodes){const p=mapPosition(n,width,height);const major=n.node_type==='Star';const root=n.node_type==='Erinn';
-    const radius=root?5:major?5.7:3.1;ctx.globalAlpha=filter==='all'||n.effect_summary.includes(filter)?1:.24;
+    const radius=root?3.6:major?4.3:2.35;ctx.globalAlpha=filter==='all'||n.effect_summary.includes(filter)?1:.24;
     ctx.beginPath();ctx.arc(p.x,p.y,radius,0,Math.PI*2);
     ctx.fillStyle=levels[n.sheet_id]?'#e7bb6c':root?'#8fd4bc':major?'#bd93d9':'#a8c7e9';ctx.fill();
     ctx.strokeStyle=selected===n.sheet_id?'#ffdc73':'#273b58';ctx.lineWidth=selected===n.sheet_id?2.7:1.5;ctx.stroke();
-    if(selected===n.sheet_id){ctx.beginPath();ctx.arc(p.x,p.y,radius+4.5,0,Math.PI*2);ctx.strokeStyle='#ffdc73';ctx.lineWidth=1;ctx.stroke();}
+    if(selected===n.sheet_id){ctx.beginPath();ctx.arc(p.x,p.y,radius+2.8,0,Math.PI*2);ctx.strokeStyle='#ffdc73';ctx.lineWidth=1;ctx.stroke();}
    }
    ctx.globalAlpha=1;
   };
@@ -105,7 +105,7 @@ export default function SoulstreamMap(){
  </section>
  <div className={styles.layout}>
  <section className={styles.mapOuter}>
- <canvas ref={canvasRef} onClick={onCanvasClick} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId)}} aria-label="소울스트림 노드 지도" style={{width:'100%',height:560,display:'block',touchAction:'none',cursor:'grab'}}/><p style={{color:'#c8d5ef',textAlign:'center',fontSize:12}}>노드를 터치해 선택하세요 · 전체 좌표는 원본 JSON 기준</p>
+ <canvas ref={canvasRef} onClick={onCanvasClick} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={e=>{if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId)}} aria-label="소울스트림 노드 지도" className={styles.liveCanvas}/><p style={{color:'#c8d5ef',textAlign:'center',fontSize:12}}>노드를 터치해 선택하세요 · 전체 좌표는 원본 JSON 기준</p>
  </section>
  <aside className={styles.inspector}>
  {picked?<><div className={styles.inspectorTop}><span className={styles.kind}>{picked.node_type==='Star'?'항성':'왜성'}</span><span>#{picked.node_number}</span></div>
