@@ -53,9 +53,22 @@ export default function SoulstreamMap(){
    ctx.globalAlpha=1;
    for(const n of nodes){const p=mapPosition(n,width,height);const major=n.node_type==='Star';const root=n.node_type==='Erinn';
     const radius=root?3.6:major?4.3:2.35;ctx.globalAlpha=filter==='all'||n.effect_summary.includes(filter)?1:.24;
-    ctx.beginPath();ctx.arc(p.x,p.y,radius,0,Math.PI*2);
-    ctx.fillStyle=levels[n.sheet_id]?'#e7bb6c':root?'#8fd4bc':major?'#bd93d9':'#a8c7e9';ctx.fill();
-    ctx.strokeStyle=selected===n.sheet_id?'#ffdc73':'#273b58';ctx.lineWidth=selected===n.sheet_id?2.7:1.5;ctx.stroke();
+    // Major stars show their selected tier as a shape; inactive stars stay circular.
+    const level=levels[n.sheet_id]||0;
+    ctx.beginPath();
+    if(major&&level>=2){
+     const tips=level===2?3:5;
+     const outer=radius*1.38,inner=level===2?radius*.53:radius*.60;
+     for(let i=0;i<tips*2;i++){
+      const angle=-Math.PI/2+i*Math.PI/tips;
+      const r=i%2===0?outer:inner;
+      const px=p.x+Math.cos(angle)*r,py=p.y+Math.sin(angle)*r;
+      if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+     }
+     ctx.closePath();
+    }else ctx.arc(p.x,p.y,radius,0,Math.PI*2);
+    ctx.fillStyle=level?'#e7bb6c':root?'#8fd4bc':major?'#bd93d9':'#a8c7e9';ctx.fill();
+    ctx.strokeStyle=selected===n.sheet_id?'#ffdc73':'#273b58';ctx.lineWidth=selected===n.sheet_id?2.7:1.5;ctx.lineJoin='round';ctx.stroke();
     if(selected===n.sheet_id){ctx.beginPath();ctx.arc(p.x,p.y,radius+2.8,0,Math.PI*2);ctx.strokeStyle='#ffdc73';ctx.lineWidth=1;ctx.stroke();}
    }
    ctx.globalAlpha=1;
