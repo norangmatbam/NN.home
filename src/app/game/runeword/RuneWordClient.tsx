@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import styles from './runeword.module.css';
+import CombatStatsEditor from '../CombatStatsEditor';
 import {initialStats, percentGain, isSupportedDamageEffect, type CombatClass, type CombatStats, type SoulEffect, JOB_OPTIONS, weaponStatLabel} from '../combat-damage';
 import { SEASON2_RUNE_CATALOG, SEASON2_MYTHIC_RUNES } from './season2Catalog';
 
@@ -254,18 +255,8 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
           {JOB_OPTIONS.map(group=><optgroup label={group.label} key={group.label}>{group.jobs.map(job=><option value={job} key={job}>{job} ({weaponStatLabel(job)})</option>)}</optgroup>)}
         </select>
       </div>
-      <details><summary style={{cursor:'pointer',fontWeight:700}}>현재 스탯 입력 / 변경</summary>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:8,marginTop:10}}>
-          {([
-            ['attack','공격력'],['skill','스킬 위력'],['crit','치명타'],['extra','추가타'],
-            ['strike','강타 강화'],['multi','연타 강화'],
-            ['skillDamage','스킬 피해 (%)'],['damageIncrease','피해 증가 (%)'],
-            ['critChance','추가 치확 (%)'],['critDamage','치피 옵션 (%)'],['extraChance','추확 옵션 (%)'],
-            ['strikeDamage','강타 피해 (%)'],['multiDamage','연타 피해 (%)'],
-            ['unprotectedDamage','무방비 피해 (%)'],['unprotectedShare','무방비 적용 비중 (%)']
-          ] as [keyof CombatStats,string][]).map(([key,label])=><label key={key} style={{display:'grid',gap:4,fontSize:12}}>{label}<input className={styles.input} type="number" min="0" step="any" value={stats[key]} onChange={e=>setStats(v=>({...v,[key]:Math.max(0,Number(e.target.value)||0)}))}/></label>)}
-        </div>
-        <button className={styles.secondary} style={{marginTop:8}} onClick={()=>setStats(initialStats)}>예시 스탯 초기화</button>
+      <details><summary style={{cursor:'pointer',fontWeight:700}}>현재 스탯 입력 / 변경 (게임 화면 기준)</summary>
+        <div style={{marginTop:10}}><CombatStatsEditor stats={stats} onChange={setStats}/></div>
       </details>
     </section>
     <section className={styles.panel}>
