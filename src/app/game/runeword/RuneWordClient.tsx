@@ -106,7 +106,7 @@ function singleTypeBadge(runes: string[], season: Season): string | null {
 function estimate(word: RuneWord, stats: CombatStats, combatClass: CombatClass, combat: '강타'|'연타') {
   const omitted=word.effects.filter(e=>!isSupportedDamageEffect(e.name)).map(e=>e.name);
   const effects: SoulEffect[]=word.effects.filter(e=>isSupportedDamageEffect(e.name)).map(e=>({
-    label:e.name.replace(/\\s/g,''),value:e.value,percent:false
+    label:e.name.replace(/\s/g,''),value:e.value,percent:false
   }));
   return {percent:percentGain(stats,effects,combatClass,combat),omitted};
 }
@@ -190,7 +190,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
     for (const w of selectedWords) for (const e of w.effects) totals.set(e.name, (totals.get(e.name) || 0) + e.value);
     return [...totals.entries()];
   }, [selectedWords]);
-  const combined = percentGain(stats, selectedWords.flatMap(w=>w.effects.filter(e=>isSupportedDamageEffect(e.name)).map(e=>({label:e.name.replace(/\\s/g,''),value:e.value,percent:false}))), combatClass, combat);
+  const combined = percentGain(stats, selectedWords.flatMap(w=>w.effects.filter(e=>isSupportedDamageEffect(e.name)).map(e=>({label:e.name.replace(/\s/g,''),value:e.value,percent:false}))), combatClass, combat);
 
   const toggleRune = (name: string) => setOwned(prev => ({
     ...prev, [season]: prev[season].includes(name)
