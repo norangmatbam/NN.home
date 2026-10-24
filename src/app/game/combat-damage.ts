@@ -1,3 +1,4 @@
+import {getRuneBonuses,type EquippedRune} from './equipped-runes';
 // Excel-based relative damage model; estimates are not an official game DPS formula.
 import { JOB_GROUPS } from './simulator/marketData';
 
@@ -92,9 +93,16 @@ export function damageFactor(v:CombatStats,uptime:DamageUptime=DEFAULT_UPTIME){
  const breakMultiplier=1+(v.unprotectedDamage/100)*capped(v.unprotectedShare/100,0,1);
  return a*Math.max(.01,p)*Math.max(.01,specialized)*Math.max(.01,crit)*extra*breakMultiplier;
 }
-export function percentGain(base:CombatStats,effects:SoulEffect[],cls:CombatClass,uptime:DamageUptime=DEFAULT_UPTIME){
- const initial=damageFactor(base,uptime);
- const after=damageFactor(applyEffects(base,effects,cls),uptime);
+export function percentGain(base:CombatStats,effects:SoulEffect[],cls:CombatClass,uptime:DamageUptime=DEFAULT_UPTIME,equipped:EquippedRune[]=[]){
+ // Character sheet attack and derived stats already include worn runes.
+ // Only off-sheet additive damage modifiers enter the baseline comparison.
+ const runeBonuses=getRuneBonuses(equipped);
+ const withRuneEffects={...base};
+ for(const [key,value] of Object.entries(runeBonuses) as [keyof CombatStats,number][]){
+  if(value!==undefined)withRuneEffects[key]+=value;
+ }
+ const initial=damageFactor(withRuneEffects,uptime);
+ const after=damageFactor(applyEffects(withRuneEffects,effects,cls),uptime);
  return initial>0?(after/initial-1)*100:0;
 }
 
