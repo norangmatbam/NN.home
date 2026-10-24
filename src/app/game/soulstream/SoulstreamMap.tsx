@@ -195,7 +195,6 @@ export default function SoulstreamMap(){
  const [combatClass,setCombatClass]=useState<CombatClass>('화염술사');
  const [recommendMode,setRecommendMode]=useState<RecommendationMode>('route');
  const [showRecommendations,setShowRecommendations]=useState(true);
- const [showStats,setShowStats]=useState(false);
  const [baseStats,setBaseStats]=useState<CombatStats>(initialStats);
  const {equipped,update:updateEquipped}=useEquippedRunes();
  const recommendations=useMemo(()=>{
@@ -277,8 +276,7 @@ export default function SoulstreamMap(){
     <label>연타 <input aria-label="연타 가동률" type="number" min="0" max="100" value={uptime.multi} style={{width:60}} onChange={e=>setCustomUptime(v=>({...v,[combatType]:{...v[combatType],multi:Math.min(100,Math.max(0,Number(e.target.value)||0))}}))}/>%</label>
     <small>전체 95/100은 엑셀 예시값, 중심 모드 100/70·70/100은 조정 가능한 가정값입니다. 두 가동률은 독립 적용됩니다.</small>
    </div>
-   <button className={styles.statsToggle} onClick={()=>setShowStats(v=>!v)}>{showStats?'현재 스탯 입력 닫기':'현재 스탯 입력 / 변경'}</button>
-   {showStats&&<CombatStatsEditor stats={baseStats} onChange={setBaseStats}/>}
+   <CombatStatsEditor stats={baseStats} onChange={setBaseStats}/>
    <EquippedRunesEditor equipped={equipped} onChange={updateEquipped}/>
    <p className={styles.recommendInfo}>{recommendMode==='single'?'대상 노드의 다음 레벨에서 증가하는 능력치만 계산합니다.':'대상 노드와 미연결 선행 노드 Lv.1의 능력치·비용을 모두 계산합니다.'} 엑셀 기반 상대 피해 배율 증가율을 소울 합계로 나눈 추정 효율입니다. 입력값은 소울 효과가 반영된 현재 스탯 기준이며, 기본값은 예시입니다. 조건부 보너스·빠른 스킬·궁극기·브레이크 속도 등 환산 근거가 부족한 효과는 순위에서 제외합니다. 결과는 실측 DPS가 아닙니다.</p>
    <div className={styles.recommendList}>
