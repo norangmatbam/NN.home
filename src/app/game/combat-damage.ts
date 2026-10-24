@@ -77,6 +77,6 @@ export function percentGain(base:CombatStats,effects:SoulEffect[],cls:CombatClas
 
 // Used by rune-word scoring to distinguish supported and unsupported effects.
 export function isSupportedDamageEffect(label:string){
- const n=label.replace(/\\s/g,'');
+ const n=label.replace(/\s/g,'');
  return n==='모든능력치'||Boolean(direct[n]);
 }
