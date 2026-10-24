@@ -24,7 +24,7 @@ export default function EquippedRunesEditor({equipped,onChange}:{equipped:Equipp
      return <div className={ui.runeCard} key={slot+r.name+i}>
       <div className={ui.runeControls}>
        <select className={ui.control} aria-label={slot+' 룬 선택'} value={r.name} onChange={e=>onChange(equipped.map(x=>x===r?{...x,name:e.target.value,tier:0}:x))}>
-        {RUNE_CATALOG.filter(x=>x.slot===slot).map(x=><option key={x.name} value={x.name}>{x.name}</option>)}
+        {RUNE_CATALOG.filter(x=>x.slot===slot).sort((a,b)=>a.name.localeCompare(b.name,'ko')).map(x=><option key={x.name} value={x.name}>{x.name}</option>)}
        </select>
        {data.rarity==='신화'?<span className={ui.pill} style={{alignSelf:'center',textAlign:'center'}}>신화 · 초월 불가</span>:<select className={ui.control} aria-label={r.name+' 초월 단계'} value={r.tier} onChange={e=>onChange(equipped.map(x=>x===r?{...x,tier:Number(e.target.value)}:x))}>
         {[0,1,2].map(t=><option key={t} value={t}>{t}초월</option>)}
