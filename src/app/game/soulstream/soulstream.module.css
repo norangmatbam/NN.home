@@ -2,3 +2,17 @@
 /* Keep the complete Soulstream constellation fitted tightly on phones. */
 .liveCanvas{display:block;width:100%;height:min(calc(100vw - 24px),680px);max-height:680px;touch-action:none;cursor:grab}
 @media(min-width:801px){.liveCanvas{height:min(62vw,680px)}}
+
+.recommendPanel{background:#fff;border:1px solid #dbe5ef;border-radius:12px;padding:15px;margin-bottom:14px;color:#233654}
+.recommendHeading{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.recommendHeading h2{font-size:17px;margin:0 0 5px}.recommendHeading p{font-size:11px;color:#697a92;margin:0;line-height:1.6}
+.recommendHeading>button,.recommendControls button{padding:9px 12px;border:1px solid #cad6e8;border-radius:8px;background:#f6f9fc;color:#253b58;font-weight:700;cursor:pointer;white-space:nowrap}
+.recommendControls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:15px}.recommendControls>div{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.recommendControls b{width:100%;font-size:12px}
+.recommendControls .recommendActive{background:#235b78;color:white;border-color:#235b78}
+.recommendInfo{font-size:11px;color:#63748e;line-height:1.7;margin:12px 0}
+.recommendList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.recommendItem{display:flex;align-items:center;text-align:left;gap:10px;width:100%;min-width:0;padding:10px;border:1px solid #dce5ef;border-radius:9px;background:#f8fafd;color:#253b58;cursor:pointer}
+.recommendRank{font-size:16px;font-weight:800;color:#277092;width:22px;text-align:center;flex:none}
+.recommendItemMain{display:grid;min-width:0;gap:4px;flex:1}.recommendItemMain strong{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.recommendItemMain small{font-size:10px;color:#708097;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recommendItemCost{display:grid;gap:4px;text-align:right;flex:none}.recommendItemCost strong{font-size:12px}.recommendItemCost small{font-size:10px;color:#647994}
+@media(max-width:700px){.recommendControls,.recommendList{grid-template-columns:1fr}.recommendPanel{padding:12px}.recommendItemCost{max-width:120px}}
