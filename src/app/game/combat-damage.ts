@@ -103,3 +103,21 @@ export function isSupportedDamageEffect(label:string){
  const n=label.replace(/\s/g,'');
  return n==='모든능력치'||Boolean(direct[n]);
 }
+
+export const screenshotStats:CombatStats={...initialStats,
+ attack:60065,skill:5399,crit:10969,extra:2498,strike:5030,multi:2149,
+ strength:7117,dexterity:7218,intelligence:7972,will:6608,luck:7528
+};
+export const SIMPLE_STAT_FIELDS:{key:keyof CombatStats;label:string}[]=[
+ {key:'attack',label:'공격력'},{key:'strike',label:'강타 강화'},{key:'multi',label:'연타 강화'},
+ {key:'skill',label:'스킬 위력'},{key:'crit',label:'치명타'},{key:'extra',label:'추가타'}
+];
+export const EXTRA_STAT_FIELDS:{key:keyof CombatStats;label:string}[]=[
+ {key:'strength',label:'힘'},{key:'dexterity',label:'솜씨'},{key:'intelligence',label:'지력'},
+ {key:'will',label:'의지'},{key:'luck',label:'행운'},
+ {key:'skillDamage',label:'스킬 피해 (%)'},{key:'damageIncrease',label:'피해 증가 (%)'},
+ {key:'critChance',label:'추가 치확 (%)'},{key:'critDamage',label:'치피 증가 (%)'},
+ {key:'extraChance',label:'추가타 확률 (%)'},{key:'strikeDamage',label:'강타 피해 (%)'},
+ {key:'multiDamage',label:'연타 피해 (%)'},{key:'unprotectedDamage',label:'무방비 피해 (%)'},
+ {key:'unprotectedShare',label:'무방비 적용 비중 (%)'}
+];
