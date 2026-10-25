@@ -187,7 +187,7 @@ export default function RuneWordClient({ words }: { words: Record<Season, RuneWo
     .sort((a, b) => {
       if (sort === 'name') return a.name.localeCompare(b.name, 'ko');
       if (sort === 'missing') return a.missing.length - b.missing.length || b.percent - a.percent;
-      return season===1 ? b.percent-a.percent||a.name.localeCompare(b.name,'ko') : b.coverage-a.coverage||b.percent-a.percent||a.name.localeCompare(b.name,'ko');
+      return b.percent-a.percent || a.name.localeCompare(b.name,'ko');
     }), [currentWords, stats, combatClass,equipped, currentOwned, filterAvailable, search, sort, season ]);
 
   const selectedWords = currentWords.filter(w => currentSelected.has(w.name));
