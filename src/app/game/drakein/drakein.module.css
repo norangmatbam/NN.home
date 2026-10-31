@@ -12,3 +12,16 @@
 
 /* Game tools: consistent 8px button corners. */
 .wrap button{border-radius:8px!important}
+
+/* Compact single-line material breakdown, including small screens. */
+.breakdownRow{grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:center;padding:7px 0;font-size:11px}
+.breakdownRow>:first-child{min-width:0}
+.breakdownCounts{white-space:nowrap;font-size:11px;color:#66758b}
+.breakdownRow b{grid-column:auto;white-space:nowrap;font-size:11px}
+@media(max-width:760px){
+.breakdown{padding:8px 9px}
+.breakdownRow{grid-template-columns:minmax(0,1fr) auto auto;gap:5px;min-height:34px}
+.breakdownRow .breakdownCounts{grid-column:auto;white-space:nowrap;font-size:10px}
+.breakdownRow b{grid-column:auto;font-size:10px}
+}
+@media(max-width:390px){.breakdownRow{gap:3px}.breakdownRow .breakdownCounts,.breakdownRow b{font-size:9px}}
