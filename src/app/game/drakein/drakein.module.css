@@ -25,3 +25,11 @@
 .breakdownRow b{grid-column:auto;font-size:10px}
 }
 @media(max-width:390px){.breakdownRow{gap:3px}.breakdownRow .breakdownCounts,.breakdownRow b{font-size:9px}}
+
+/* Two-row material detail: name / price, then full quantity labels. */
+.breakdownRow{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:9px;row-gap:2px;align-items:center;padding:7px 0;font-size:12px}
+.breakdownName{grid-column:1;grid-row:1;min-width:0}
+.breakdownRow>b{grid-column:2;grid-row:1;font-size:12px;text-align:right;white-space:nowrap}
+.breakdownRow>.breakdownCounts{grid-column:1/-1;grid-row:2;font-size:11px;white-space:normal;color:#66758b}
+@media(max-width:760px){.breakdownRow{grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto;gap:2px 8px;padding:7px 0}.breakdownRow>b{grid-column:2;grid-row:1;font-size:12px}.breakdownRow>.breakdownCounts{grid-column:1/-1;grid-row:2;font-size:11px;white-space:normal}}
+@media(max-width:390px){.breakdownRow>b{font-size:11px}.breakdownRow>.breakdownCounts{font-size:11px}}
