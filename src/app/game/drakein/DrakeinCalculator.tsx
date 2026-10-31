@@ -272,7 +272,7 @@ export default function DrakeinCalculator() {
                 {row.rows.map(material => (
                   <div className={styles.breakdownRow} key={material.name}>
                     <MaterialWithLocation name={material.name} />
-                    <span>필요 {fmt(material.need)} · 보유 {fmt(material.have)} · 부족 {fmt(material.shortage)}</span>
+                    <span className={styles.breakdownCounts} title={'필요 '+fmt(material.need)+' · 보유 '+fmt(material.have)+' · 부족 '+fmt(material.shortage)}>필 {fmt(material.need)} · 보 {fmt(material.have)} · 부 {fmt(material.shortage)}</span>
                     <b className={material.cost === null ? styles.failed : ''}>{costLabel(material.cost)}</b>
                   </div>
                 ))}
