@@ -61,17 +61,17 @@ const normalize = (v: string) => v.replace(/\s+/g, ' ').trim();
 
 const MATERIAL_ORDER: Material[] = [
   '마력 깃든 용비늘',
-  '포식의 마력석',
   '허상의 마력석',
+  '포식의 마력석',
   '심해의 마력석',
   '백금강괴',
   '특급 목재',
   '특급 가죽',
-  '망령의 영혼석',
-  '원념의 영혼석',
-  '야생의 영혼석',
-  '삼림의 영혼석',
   '공명의 영혼석',
+  '망령의 영혼석',
+  '삼림의 영혼석',
+  '야생의 영혼석',
+  '원념의 영혼석',
   '파동의 영혼석',
 ];
 function materialOrder(name: Material): number {
