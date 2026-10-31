@@ -78,10 +78,6 @@ function materialOrder(name: Material): number {
   const index = MATERIAL_ORDER.indexOf(name);
   return index < 0 ? MATERIAL_ORDER.length : index;
 }
-function sortMaterials<T extends { name: Material }>(rows: T[]): T[] {
-  return [...rows].sort((a, b) => materialOrder(a.name) - materialOrder(b.name));
-}
-
 function fullRecipe(group: keyof typeof EXTRAS): Recipe {
   return { ...COMMON, ...EXTRAS[group] };
 }
