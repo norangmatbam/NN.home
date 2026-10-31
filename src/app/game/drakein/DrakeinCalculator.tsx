@@ -185,7 +185,7 @@ export default function DrakeinCalculator() {
           <h1>드래케인 무기 제작 계산기</h1>
           <p>직접 제작과 다른 직군으로 제작한 뒤 변경하는 경로를 비교합니다.</p>
         </div>
-        <a href="/game">← 장비 재료 계산기</a>
+        
       </header>
 
       <section className={styles.panel}>
