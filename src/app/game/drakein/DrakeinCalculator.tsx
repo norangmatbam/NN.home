@@ -59,6 +59,29 @@ const MATERIAL_FOLD_KEY = 'nn-drakein-materials-open-v1';
 const fmt = (n: number) => n.toLocaleString('ko-KR');
 const normalize = (v: string) => v.replace(/\s+/g, ' ').trim();
 
+const MATERIAL_ORDER: Material[] = [
+  '마력 깃든 용비늘',
+  '포식의 마력석',
+  '허상의 마력석',
+  '심해의 마력석',
+  '백금강괴',
+  '특급 목재',
+  '특급 가죽',
+  '망령의 영혼석',
+  '원념의 영혼석',
+  '야생의 영혼석',
+  '삼림의 영혼석',
+  '공명의 영혼석',
+  '파동의 영혼석',
+];
+function materialOrder(name: Material): number {
+  const index = MATERIAL_ORDER.indexOf(name);
+  return index < 0 ? MATERIAL_ORDER.length : index;
+}
+function sortMaterials<T extends { name: Material }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => materialOrder(a.name) - materialOrder(b.name));
+}
+
 function fullRecipe(group: keyof typeof EXTRAS): Recipe {
   return { ...COMMON, ...EXTRAS[group] };
 }
@@ -137,7 +160,7 @@ export default function DrakeinCalculator() {
 
   const results = useMemo(() => JOB_WEAPONS.map(weapon => {
     const recipe = fullRecipe(weapon.group);
-    const rows = (Object.entries(recipe) as [Material, number][]).map(([name, need]) => {
+    const rows = (Object.entries(recipe) as [Material, number][]).sort(([a], [b]) => materialOrder(a) - materialOrder(b)).map(([name, need]) => {
       const have = name === '마력 깃든 용비늘' ? dragonOwned : owned[name as SharedMaterialName];
       const shortage = Math.max(0, need - (have || 0));
       const quote = prices[name];
@@ -219,7 +242,7 @@ export default function DrakeinCalculator() {
           <button type="button" className={styles.foldButton} aria-expanded={materialsOpen} aria-controls="drakein-owned-materials" onClick={toggleMaterials}>{materialsOpen ? '접기 ▲' : '펼치기 ▼'}</button>
         </div>
         {materialsOpen && <div className={styles.inventory} id="drakein-owned-materials">
-          {Array.from(new Set(results.flatMap(r => r.rows.map(row => row.name)))).map(name => {
+          {Array.from(new Set(results.flatMap(r => r.rows.map(row => row.name)))).sort((a,b) => materialOrder(a) - materialOrder(b)).map(name => {
             const value = name === '마력 깃든 용비늘' ? dragonOwned : owned[name as SharedMaterialName];
             return <label key={name} className={styles.material}>
               <MaterialWithLocation name={name} />
