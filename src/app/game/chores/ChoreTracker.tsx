@@ -13,18 +13,18 @@ const ZOOM_KEY = 'nn-game-chores-table-zoom-v1';
 const ZOOM_LEVELS = [40, 50, 60, 70, 80, 90, 100] as const;
 const SHARED_SOUL_TASK = 'weekly8';
 const VANGUARD_TASK = 'weekly4';
-const DEFAULT_VANGUARD_TARGET = 3;
 const SOUL_GROUPS = ['A','B','C'];
 const isSharedSoul = (task: Task) => task.id === SHARED_SOUL_TASK;
 const groupKey = (group: string) => SHARED_SOUL_TASK + ':group:' + group;
 const currentGroup = (c: Character) => c.soulGroup || '';
 const uid = () => Math.random().toString(36).slice(2, 11);
-const characters: Character[] = ['노랑맛밤','오천원','노랑맛군밤','노랑고구마','노랑꿀밤','던노맛','우제강'].map((name,i)=>({
-  id: 'char'+i, name, job: '', power: '', role: '', soulGroup: i<5?'A':'',
+const characters: Character[] = ['노랑맛밤','오천원','노랑맛군밤','노랑고구마','노랑꿀밤','우제강'].map((name,i)=>({
+  id: name==='우제강'?'char6':'char'+i, name, job: '', power: '', role: '', soulGroup: i<5?'A':'',
 }));
 const initialTasks: Task[] = [
-  ...['어비스','카브락','에이렐','서큐버스','뱅가드','필보','심층해어','혼돈탑','골드로 소울 사기'].map((name,i)=>({id:'weekly'+i,name,category:'주간' as const,target:i===4?DEFAULT_VANGUARD_TARGET:undefined})),
-  ...['어비스 3회','레이드 1회','종말파괴기','콕데타'].map((name,i)=>({id:'weekend'+i,name,category:'주말' as const})),
+  { id: 'weekly9', name: '스카스', category: '주간' },
+  ...['어비스','카브락','에이렐','서큐버스','뱅가드','필보','심층매어','골드알바','골드로 소울 사기'].map((name,i)=>({id:'weekly'+i,name,category:'주간' as const})),
+  ...['어비스 3회','레이드 1회','증표교환','쿠데타'].map((name,i)=>({id:'weekend'+i,name,category:'주말' as const})),
 ];
 function weekKey(date = new Date()) {
   // The weekly boundary is Monday 06:00 KST (UTC+09:00), not local midnight.
@@ -42,12 +42,31 @@ function load(): Data {
     const data=JSON.parse(raw) as Partial<Data>;
     if(!Array.isArray(data.characters)||!Array.isArray(data.tasks))return base;
     return {
-      characters:data.characters.slice(0,30).map(c=>({id:String(c.id),name:String(c.name||''),job:String(c.job||''),power:String(c.power||''),role:String(c.role||''),soulGroup: SOUL_GROUPS.includes(String(c.soulGroup))?String(c.soulGroup):['char0','char1','char2','char3','char4'].includes(String(c.id))?'A':''})),
-      tasks:data.tasks.slice(0,80).filter(t=>t.category==='주간'||t.category==='주말').map(t=>({id:String(t.id),name:String(t.name||''),category:t.category,target:t.id===VANGUARD_TASK?Math.max(1,Math.min(99,Math.floor(Number(t.target)||DEFAULT_VANGUARD_TARGET))):undefined})),
+      characters:data.characters.slice(0,30).filter(c=>!(c.id==='char5' && c.name==='던노맛')).map(c=>({id:String(c.id),name:String(c.name||''),job:String(c.job||''),power:String(c.power||''),role:String(c.role||''),soulGroup: SOUL_GROUPS.includes(String(c.soulGroup))?String(c.soulGroup):['char0','char1','char2','char3','char4'].includes(String(c.id))?'A':''})),
+      tasks:(()=>{
+        const existing=data.tasks.slice(0,80).filter(t=>t.category==='주간'||t.category==='주말').map(t=>({
+          id:String(t.id),
+          name: t.id==='weekly6'&&t.name==='심층해어'?'심층매어'
+            :t.id==='weekly7'&&t.name==='혼돈탑'?'골드알바'
+            :t.id==='weekend2'&&['종말파괴기','종표 교환','증표바꾸기'].includes(t.name)?'증표교환'
+            :t.id==='weekend3'&&t.name==='콕데타'?'쿠데타'
+            :String(t.name||''),
+          category:t.category,
+        }));
+        // Insert the new weekly default without overwriting customized task lists.
+        if(!existing.some(t=>t.id==='weekly9'||t.name==='스카스'))existing.unshift({id:'weekly9',name:'스카스',category:'주간'});
+        return existing;
+      })(),
       checks:(()=>{
         const checks=data.week===weekKey() && data.checks && typeof data.checks==='object'?{...data.checks}:{};
         if(!(groupKey('A') in checks) && (checks[SHARED_SOUL_TASK+':shared'] || ['char0','char1','char2','char3','char4'].some(id=>checks[SHARED_SOUL_TASK+':'+id])))
           checks[groupKey('A')]=true;
+        // A remaining Vanguard count of zero represented completion before checkbox migration.
+        for(const c of data.characters||[]){
+          const key=VANGUARD_TASK+':'+c.id;
+          if(!(key in checks) && data.counts && Object.prototype.hasOwnProperty.call(data.counts,key))
+            checks[key]=Number(data.counts[key])===0;
+        }
         delete checks[SHARED_SOUL_TASK+':shared'];
         for(const id of ['char0','char1','char2','char3','char4'])delete checks[SHARED_SOUL_TASK+':'+id];
         return checks;
@@ -101,12 +120,7 @@ export default function ChoreTracker(){
     };
   },[]);
   const update=(change:(data:Data)=>Data)=>setData(prev=>change(prev));
-  const vanguardTask=data.tasks.find(t=>t.id===VANGUARD_TASK);
-  const vanguardTarget=vanguardTask?.target||DEFAULT_VANGUARD_TARGET;
-  const vanguardCount=(c:string)=>Math.max(0,data.counts[VANGUARD_TASK+':'+c] ?? vanguardTarget);
-  const setVanguardCount=(c:string,count:number)=>update(d=>({...d,counts:{...d.counts,[VANGUARD_TASK+':'+c]:Math.max(0,Math.min(99,Math.floor(count)||0))}}));
   const checked=(t:string,c:string)=>{
-    if(t===VANGUARD_TASK)return vanguardCount(c)===0;
     const character=data.characters.find(v=>v.id===c);
     const group=character?.soulGroup || (c.startsWith('group:')?c.slice(6):'');
     return t===SHARED_SOUL_TASK && group
@@ -169,7 +183,6 @@ export default function ChoreTracker(){
         <button onClick={()=>{if(window.confirm(c.name+' 캐릭터를 삭제할까요?'))update(d=>({...d,characters:d.characters.filter(v=>v.id!==c.id)}))}}>삭제</button></div>)}</div>
       <h2>숙제 추가</h2><div className={styles.controls}><select value={category} onChange={e=>setCategory(e.target.value as Category)}><option>주간</option><option>주말</option></select><input placeholder="숙제 이름" value={taskName} onChange={e=>setTaskName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addTask()}/><button onClick={addTask}>추가</button></div>
       <div className={styles.editList}>{data.tasks.map(t=><div key={t.id}><select value={t.category} onChange={e=>update(d=>({...d,tasks:d.tasks.map(v=>v.id===t.id?{...v,category:e.target.value as Category}:v)}))}><option>주간</option><option>주말</option></select><input aria-label="숙제 이름" value={t.name} onChange={e=>update(d=>({...d,tasks:d.tasks.map(v=>v.id===t.id?{...v,name:e.target.value}:v)}))}/>
-        {t.id===VANGUARD_TASK&&<label className={styles.targetSetting}>목표 <input type="number" min={1} max={99} inputMode="numeric" aria-label="뱅가드 목표 횟수" value={t.target||DEFAULT_VANGUARD_TARGET} onChange={e=>update(d=>({...d,tasks:d.tasks.map(v=>v.id===t.id?{...v,target:Math.max(1,Math.min(99,Number(e.target.value)||1))}:v)}))}/></label>}
         <button onClick={()=>{if(window.confirm(t.name+' 숙제를 삭제할까요?'))update(d=>({...d,tasks:d.tasks.filter(v=>v.id!==t.id)}))}}>삭제</button></div>)}</div>
     </section>}
     <section className={styles.summary}>
@@ -195,13 +208,7 @@ export default function ChoreTracker(){
             <th className={styles.taskName}>{t.name}</th>
             {isSharedSoul(t)
               ? orderedCharacters.map((c,index)=>soulCell(t,c,index))
-              : t.id===VANGUARD_TASK
-                ? orderedCharacters.map(c=><td key={c.id}>
-                    <select className={styles.countSelect} aria-label={c.name+' 뱅가드 남은 횟수'} value={Math.min(99,vanguardCount(c.id))} onChange={e=>setVanguardCount(c.id,Number(e.target.value))}>
-                      {Array.from({length:Math.max(vanguardTarget,Math.min(99,vanguardCount(c.id)))+1},(_,n)=><option key={n} value={n}>{n}</option>)}
-                    </select>
-                  </td>)
-                : orderedCharacters.map(c=><td key={c.id}>
+              : orderedCharacters.map(c=><td key={c.id}>
                   <label className={styles.checkWrap}><input type="checkbox" aria-label={c.name+' '+t.name}
                     checked={checked(t.id,c.id)} onChange={()=>toggle(t.id,c.id)}/><span aria-hidden="true">✓</span></label>
                 </td>)}
